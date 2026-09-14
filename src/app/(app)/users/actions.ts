@@ -275,7 +275,13 @@ export async function saveUser(
       ? requestedSchoolId || null
       : current.profile.school_id;
 
-  const { error: profileError } = await supabase
+  // Baris profil user baru dibuat via service role dan masih ber-school_id NULL,
+  // sehingga belum terlihat oleh policy SELECT admin user. Untuk perintah UPDATE,
+  // PostgreSQL meng-AND-kan policy SELECT, jadi memakai client RLS (supabase) di
+  // sini akan mencocokkan 0 baris tanpa error. Penugasan sekolah harus lewat
+  // service role (admin). targetSchoolId utk non-super di-hardcode dari
+  // current.profile.school_id, bukan dari input form, jadi aman.
+  const { data: profileRows, error: profileError } = await admin
     .from("profiles")
     .update({
       school_id: targetSchoolId,
@@ -284,12 +290,19 @@ export async function saveUser(
       jabatan: parsed.data.jabatan || null,
       is_active: isActive,
     })
-    .eq("id", newUserId);
+    .eq("id", newUserId)
+    .select("id");
 
-  if (profileError) {
+  // .select() membuat kegagalan "0 baris terubah" jadi terlihat. Kalau profil
+  // tidak tergenerate, bersihkan akun auth yang baru dibuat agar tidak
+  // meninggalkan akun "yatim" (school_id NULL, tanpa role).
+  if (profileError || !profileRows?.length) {
     await admin.auth.admin.deleteUser(newUserId);
     return {
-      error: serverError(profileError, "Gagal menyimpan profil user."),
+      error: serverError(
+        profileError ?? new Error("Profil user baru tidak ditemukan setelah dibuat."),
+        "Gagal menyimpan profil user."
+      ),
     };
   }
 
