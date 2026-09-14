@@ -31,7 +31,7 @@ const HIGHLIGHTS = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; loggedOut?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return <SetupNotice />;
@@ -39,6 +39,7 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : "/dashboard";
+  const notice = params.loggedOut ? "Anda telah keluar." : undefined;
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
@@ -91,7 +92,7 @@ export default async function LoginPage({
             </p>
           </CardHeader>
           <CardContent>
-            <LoginForm next={next} />
+            <LoginForm next={next} notice={notice} />
           </CardContent>
         </Card>
       </div>

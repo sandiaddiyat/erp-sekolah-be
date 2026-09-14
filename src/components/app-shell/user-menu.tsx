@@ -1,11 +1,13 @@
 "use client";
 
+import { useTransition } from "react";
 import { LogOutIcon, ShieldCheckIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -31,6 +33,14 @@ export function UserMenu({
   roles: string[];
   isSuperAdmin: boolean;
 }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleSignOut = () => {
+    startTransition(async () => {
+      await signOut();
+    });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -44,14 +54,16 @@ export function UserMenu({
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="space-y-1">
-          <p className="truncate text-sm font-medium text-foreground">{name}</p>
-          {email ? (
-            <p className="truncate text-xs font-normal text-muted-foreground">
-              {email}
-            </p>
-          ) : null}
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="space-y-1">
+            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+            {email ? (
+              <p className="truncate text-xs font-normal text-muted-foreground">
+                {email}
+              </p>
+            ) : null}
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
 
         {isSuperAdmin || roles.length > 0 ? (
           <>
@@ -73,15 +85,14 @@ export function UserMenu({
         ) : null}
 
         <DropdownMenuSeparator />
-        <form action={signOut}>
-          <DropdownMenuItem
-            variant="destructive"
-            render={<button type="submit" className="w-full" />}
-          >
-            <LogOutIcon />
-            Keluar
-          </DropdownMenuItem>
-        </form>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={handleSignOut}
+          disabled={isPending}
+        >
+          <LogOutIcon />
+          {isPending ? "Keluar..." : "Keluar"}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

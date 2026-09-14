@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, type LoginState } from "./actions";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, notice }: { next: string; notice?: string }) {
   const [state, formAction, isPending] = useActionState<LoginState, FormData>(
     signIn,
     undefined
@@ -21,6 +21,15 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="next" value={next} />
+
+      {notice ? (
+        <div
+          role="status"
+          className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-500"
+        >
+          {notice}
+        </div>
+      ) : null}
 
       {state?.error ? (
         <div
