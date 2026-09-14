@@ -7,7 +7,11 @@ import { isSupabaseConfigured } from "@/lib/env";
 export async function signOut() {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("[sign-out]", error);
+    }
   }
-  redirect("/login");
+  redirect("/login?loggedOut=1");
 }
