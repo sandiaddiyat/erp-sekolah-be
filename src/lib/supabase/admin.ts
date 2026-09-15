@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 import { requireEnv } from "@/lib/env";
 
 /**
@@ -10,7 +11,7 @@ import { requireEnv } from "@/lib/env";
 export function createAdminClient() {
   const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-  return createClient(
+  return createClient<Database>(
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
     serviceRoleKey,
     {

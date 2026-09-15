@@ -77,3 +77,7 @@ export type CurrentUser = {
   permissions: string[];
   isSuperAdmin: boolean;
 };
+
+/** Hasil kembalian standar untuk semua Server Action (form submission). */
+export type FormState = { error?: string; success?: string } | undefined;
+
