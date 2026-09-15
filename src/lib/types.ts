@@ -81,3 +81,127 @@ export type CurrentUser = {
 /** Hasil kembalian standar untuk semua Server Action (form submission). */
 export type FormState = { error?: string; success?: string } | undefined;
 
+// =============================================================================
+// Master data (Issue #13)
+// =============================================================================
+
+export type WilayahLevel = "provinsi" | "kabupaten" | "kecamatan" | "kelurahan";
+
+export type Wilayah = {
+  id: string;
+  kode_wilayah: string;
+  nama_wilayah: string;
+  level: WilayahLevel;
+  parent_id: string | null;
+};
+
+export type Agama = { id: string; nama_agama: string };
+export type Bank = { id: string; nama_bank: string; kode_bank: string | null };
+
+export type JenisDokumen = {
+  id: string;
+  nama_dokumen: string;
+  wajib_unggah: boolean;
+};
+
+export type JenjangPendidikan = { id: string; nama_jenjang: string };
+
+export type StatusKepegawaian = {
+  id: string;
+  school_id: string;
+  nama_status: string;
+};
+
+export type JabatanKategori = "struktural" | "fungsional";
+
+export type Jabatan = {
+  id: string;
+  school_id: string;
+  nama_jabatan: string;
+  kategori: JabatanKategori;
+};
+
+export type Golongan = {
+  id: string;
+  school_id: string;
+  kode_golongan: string;
+  keterangan: string | null;
+};
+
+export type UnitKerja = {
+  id: string;
+  school_id: string;
+  nama_unit: string;
+  parent_unit_id: string | null;
+};
+
+export type Mapel = {
+  id: string;
+  school_id: string;
+  nama_mapel: string;
+  kode_mapel: string;
+};
+
+export type Jurusan = {
+  id: string;
+  school_id: string | null;
+  nama_jurusan: string;
+};
+
+export type JenisSertifikasi = {
+  id: string;
+  school_id: string;
+  nama_sertifikasi: string;
+};
+
+export type JenisCutiIzin = {
+  id: string;
+  school_id: string;
+  nama_jenis: string;
+  kuota_hari: number | null;
+};
+
+export type TahunAjaranSemester = "ganjil" | "genap";
+
+export type TahunAjaran = {
+  id: string;
+  school_id: string;
+  nama_tahun_ajaran: string;
+  semester: TahunAjaranSemester;
+  tanggal_mulai: string | null;
+  tanggal_selesai: string | null;
+  status_aktif: boolean;
+};
+
+// =============================================================================
+// Pegawai (Issue #13)
+// =============================================================================
+
+export type Pegawai = {
+  id: string;
+  school_id: string;
+  user_id: string | null;
+  nip: string | null;
+  niy: string | null;
+  nuptk: string | null;
+  full_name: string;
+  jenis_kelamin: "L" | "P" | null;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
+  agama_id: string | null;
+  status_kepegawaian_id: string | null;
+  jabatan_id: string | null;
+  golongan_id: string | null;
+  unit_kerja_id: string | null;
+  pendidikan_terakhir_id: string | null;
+  jurusan_id: string | null;
+  jenis_sertifikasi_id: string | null;
+  tahun_masuk: string | null;
+  alamat: string | null;
+  phone: string | null;
+  email: string | null;
+  bank_id: string | null;
+  no_rekening: string | null;
+  is_active: boolean;
+};
+

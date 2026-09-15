@@ -19,6 +19,14 @@ export const PERMISSIONS = {
   schoolsView: "schools.view",
   schoolsUpdate: "schools.update",
 
+  masterView: "master.view",
+  masterManage: "master.manage",
+
+  pegawaiView: "pegawai.view",
+  pegawaiCreate: "pegawai.create",
+  pegawaiUpdate: "pegawai.update",
+  pegawaiDelete: "pegawai.delete",
+
   studentsView: "students.view",
   studentsCreate: "students.create",
   studentsUpdate: "students.update",
@@ -60,6 +68,8 @@ export const MODULE_LABELS: Record<string, string> = {
   users: "Manajemen User",
   roles: "Manajemen Role",
   schools: "Profil Sekolah",
+  master: "Master Data",
+  pegawai: "Data Pegawai",
   students: "Data Siswa",
   teachers: "Data Guru",
   classes: "Kelas & Rombel",
@@ -75,6 +85,8 @@ export const MODULE_ORDER: string[] = [
   "users",
   "roles",
   "schools",
+  "pegawai",
+  "master",
   "students",
   "teachers",
   "classes",

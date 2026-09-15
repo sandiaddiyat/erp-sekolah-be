@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  DatabaseIcon,
+  IdCardIcon,
   LayoutDashboardIcon,
   MenuIcon,
   SchoolIcon,
@@ -22,6 +24,8 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   users: UsersIcon,
   shield: ShieldCheckIcon,
   school: SchoolIcon,
+  pegawai: IdCardIcon,
+  master: DatabaseIcon,
 };
 
 type SidebarNavProps = {
