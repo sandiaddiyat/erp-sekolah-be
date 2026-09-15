@@ -284,6 +284,333 @@ export interface Database {
           },
         ];
       };
+      wilayah: {
+        Row: {
+          id: string;
+          kode_wilayah: string;
+          nama_wilayah: string;
+          level: string;
+          parent_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          kode_wilayah: string;
+          nama_wilayah: string;
+          level: string;
+          parent_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          kode_wilayah?: string;
+          nama_wilayah?: string;
+          level?: string;
+          parent_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      agama: {
+        Row: { id: string; nama_agama: string; created_at: string };
+        Insert: { id?: string; nama_agama: string; created_at?: string };
+        Update: { id?: string; nama_agama?: string; created_at?: string };
+        Relationships: [];
+      };
+      bank: {
+        Row: { id: string; nama_bank: string; kode_bank: string | null; created_at: string };
+        Insert: { id?: string; nama_bank: string; kode_bank?: string | null; created_at?: string };
+        Update: { id?: string; nama_bank?: string; kode_bank?: string | null; created_at?: string };
+        Relationships: [];
+      };
+      jenis_dokumen: {
+        Row: { id: string; nama_dokumen: string; wajib_unggah: boolean; created_at: string };
+        Insert: { id?: string; nama_dokumen: string; wajib_unggah?: boolean; created_at?: string };
+        Update: { id?: string; nama_dokumen?: string; wajib_unggah?: boolean; created_at?: string };
+        Relationships: [];
+      };
+      jenjang_pendidikan: {
+        Row: { id: string; nama_jenjang: string; created_at: string };
+        Insert: { id?: string; nama_jenjang: string; created_at?: string };
+        Update: { id?: string; nama_jenjang?: string; created_at?: string };
+        Relationships: [];
+      };
+      status_kepegawaian: {
+        Row: { id: string; school_id: string; nama_status: string; created_at: string };
+        Insert: { id?: string; school_id: string; nama_status: string; created_at?: string };
+        Update: { id?: string; school_id?: string; nama_status?: string; created_at?: string };
+        Relationships: [];
+      };
+      jabatan: {
+        Row: {
+          id: string;
+          school_id: string;
+          nama_jabatan: string;
+          kategori: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          nama_jabatan: string;
+          kategori?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          nama_jabatan?: string;
+          kategori?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      golongan: {
+        Row: {
+          id: string;
+          school_id: string;
+          kode_golongan: string;
+          keterangan: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          kode_golongan: string;
+          keterangan?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          kode_golongan?: string;
+          keterangan?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      unit_kerja: {
+        Row: {
+          id: string;
+          school_id: string;
+          nama_unit: string;
+          parent_unit_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          nama_unit: string;
+          parent_unit_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          nama_unit?: string;
+          parent_unit_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      mapel: {
+        Row: {
+          id: string;
+          school_id: string;
+          nama_mapel: string;
+          kode_mapel: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          nama_mapel: string;
+          kode_mapel: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          nama_mapel?: string;
+          kode_mapel?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      jurusan: {
+        Row: {
+          id: string;
+          school_id: string | null;
+          nama_jurusan: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id?: string | null;
+          nama_jurusan: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string | null;
+          nama_jurusan?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      jenis_sertifikasi: {
+        Row: { id: string; school_id: string; nama_sertifikasi: string; created_at: string };
+        Insert: { id?: string; school_id: string; nama_sertifikasi: string; created_at?: string };
+        Update: { id?: string; school_id?: string; nama_sertifikasi?: string; created_at?: string };
+        Relationships: [];
+      };
+      jenis_cuti_izin: {
+        Row: {
+          id: string;
+          school_id: string;
+          nama_jenis: string;
+          kuota_hari: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          nama_jenis: string;
+          kuota_hari?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          nama_jenis?: string;
+          kuota_hari?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      tahun_ajaran: {
+        Row: {
+          id: string;
+          school_id: string;
+          nama_tahun_ajaran: string;
+          semester: string;
+          tanggal_mulai: string | null;
+          tanggal_selesai: string | null;
+          status_aktif: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          nama_tahun_ajaran: string;
+          semester: string;
+          tanggal_mulai?: string | null;
+          tanggal_selesai?: string | null;
+          status_aktif?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          nama_tahun_ajaran?: string;
+          semester?: string;
+          tanggal_mulai?: string | null;
+          tanggal_selesai?: string | null;
+          status_aktif?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      pegawai: {
+        Row: {
+          id: string;
+          school_id: string;
+          user_id: string | null;
+          nip: string | null;
+          niy: string | null;
+          nuptk: string | null;
+          full_name: string;
+          jenis_kelamin: string | null;
+          tempat_lahir: string | null;
+          tanggal_lahir: string | null;
+          agama_id: string | null;
+          status_kepegawaian_id: string | null;
+          jabatan_id: string | null;
+          golongan_id: string | null;
+          unit_kerja_id: string | null;
+          pendidikan_terakhir_id: string | null;
+          jurusan_id: string | null;
+          jenis_sertifikasi_id: string | null;
+          tahun_masuk: string | null;
+          alamat: string | null;
+          phone: string | null;
+          email: string | null;
+          bank_id: string | null;
+          no_rekening: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          user_id?: string | null;
+          nip?: string | null;
+          niy?: string | null;
+          nuptk?: string | null;
+          full_name: string;
+          jenis_kelamin?: string | null;
+          tempat_lahir?: string | null;
+          tanggal_lahir?: string | null;
+          agama_id?: string | null;
+          status_kepegawaian_id?: string | null;
+          jabatan_id?: string | null;
+          golongan_id?: string | null;
+          unit_kerja_id?: string | null;
+          pendidikan_terakhir_id?: string | null;
+          jurusan_id?: string | null;
+          jenis_sertifikasi_id?: string | null;
+          tahun_masuk?: string | null;
+          alamat?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          bank_id?: string | null;
+          no_rekening?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          user_id?: string | null;
+          nip?: string | null;
+          niy?: string | null;
+          nuptk?: string | null;
+          full_name?: string;
+          jenis_kelamin?: string | null;
+          tempat_lahir?: string | null;
+          tanggal_lahir?: string | null;
+          agama_id?: string | null;
+          status_kepegawaian_id?: string | null;
+          jabatan_id?: string | null;
+          golongan_id?: string | null;
+          unit_kerja_id?: string | null;
+          pendidikan_terakhir_id?: string | null;
+          jurusan_id?: string | null;
+          jenis_sertifikasi_id?: string | null;
+          tahun_masuk?: string | null;
+          alamat?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          bank_id?: string | null;
+          no_rekening?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

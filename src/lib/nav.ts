@@ -1,6 +1,12 @@
 import { PERMISSIONS } from "@/lib/rbac";
 
-export type NavIcon = "dashboard" | "users" | "shield" | "school";
+export type NavIcon =
+  | "dashboard"
+  | "users"
+  | "shield"
+  | "school"
+  | "pegawai"
+  | "master";
 
 export type NavItem = {
   title: string;
@@ -23,6 +29,18 @@ export const MAIN_NAV: NavItem[] = [
     href: "/sekolah",
     icon: "school",
     superAdminOnly: true,
+  },
+  {
+    title: "Data Pegawai",
+    href: "/pegawai",
+    icon: "pegawai",
+    permission: PERMISSIONS.pegawaiView,
+  },
+  {
+    title: "Master Data",
+    href: "/master",
+    icon: "master",
+    permission: PERMISSIONS.masterView,
   },
   {
     title: "User",
