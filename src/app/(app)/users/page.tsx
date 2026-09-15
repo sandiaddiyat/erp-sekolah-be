@@ -35,7 +35,7 @@ export default async function UsersPage() {
     return <DataError message="Gagal memuat data user." />;
   }
 
-  const rows = (usersResult.data ?? []) as unknown as ProfileRow[];
+  const rows = (usersResult.data ?? []) as ProfileRow[];
 
   const users: UserWithRoles[] = rows.map(({ user_roles, ...profile }) => ({
     ...profile,

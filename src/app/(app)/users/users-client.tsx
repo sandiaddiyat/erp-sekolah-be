@@ -1,32 +1,8 @@
 "use client";
 
-import {
-  useActionState,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  MoreHorizontalIcon,
-  PencilIcon,
-  PowerIcon,
-  SearchIcon,
-  Trash2Icon,
-  UserPlusIcon,
-} from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { SearchIcon, UserPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,37 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { Role, UserWithRoles } from "@/lib/types";
-import { deleteUser, saveUser, setUserActive, type FormState } from "./actions";
+import { deleteUser, setUserActive } from "./actions";
+import { UserDeleteDialog } from "./_components/user-delete-dialog";
+import { UserFormDialog } from "./_components/user-form-dialog";
+import { UsersTable } from "./_components/users-table";
 
 type RoleOption = Pick<Role, "id" | "name" | "slug" | "school_id">;
-
 type SchoolOption = { id: string; name: string };
 
 type Permissions = {
@@ -74,18 +27,6 @@ type Permissions = {
   delete: boolean;
   assignRole: boolean;
 };
-
-const dateFormatter = new Intl.DateTimeFormat("id-ID", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatDate(value: string | null): string {
-  if (!value) return "Belum pernah";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return dateFormatter.format(date);
-}
 
 export function UsersClient({
   users,
@@ -222,123 +163,17 @@ export function UsersClient({
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  {isSuperAdmin ? (
-                    <TableHead className="hidden lg:table-cell">
-                      Sekolah
-                    </TableHead>
-                  ) : null}
-                  <TableHead>Role</TableHead>
-                  <TableHead className="hidden md:table-cell">Status</TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    Terakhir Login
-                  </TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="space-y-0.5">
-                        <p className="font-medium">
-                          {user.full_name || "(tanpa nama)"}
-                          {user.id === currentUserId ? (
-                            <span className="ml-1.5 text-xs text-muted-foreground">
-                              (Anda)
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {user.email}
-                        </p>
-                        {user.jabatan ? (
-                          <p className="text-xs text-muted-foreground">
-                            {user.jabatan}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    {isSuperAdmin ? (
-                      <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                        {user.school_id
-                          ? (schoolNames.get(user.school_id) ?? "—")
-                          : "Platform"}
-                      </TableCell>
-                    ) : null}
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">
-                            Belum ada role
-                          </span>
-                        ) : (
-                          user.roles.map((role) => (
-                            <Badge key={role.id} variant="secondary">
-                              {role.name}
-                            </Badge>
-                          ))
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Badge
-                        variant={user.is_active ? "default" : "outline"}
-                        className="gap-1"
-                      >
-                        {user.is_active ? "Aktif" : "Nonaktif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                      {formatDate(user.last_login_at)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" size="icon-sm" disabled={isPending} />
-                          }
-                        >
-                          <MoreHorizontalIcon />
-                          <span className="sr-only">Aksi</span>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {permissions.update ? (
-                            <DropdownMenuItem onClick={() => openEdit(user)}>
-                              <PencilIcon />
-                              Ubah
-                            </DropdownMenuItem>
-                          ) : null}
-                          {permissions.update && user.id !== currentUserId ? (
-                            <DropdownMenuItem
-                              onClick={() => handleToggleActive(user)}
-                            >
-                              <PowerIcon />
-                              {user.is_active ? "Nonaktifkan" : "Aktifkan"}
-                            </DropdownMenuItem>
-                          ) : null}
-                          {permissions.delete && user.id !== currentUserId ? (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => setDeleting(user)}
-                              >
-                                <Trash2Icon />
-                                Hapus
-                              </DropdownMenuItem>
-                            </>
-                          ) : null}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <UsersTable
+              users={filtered}
+              schoolNames={schoolNames}
+              isSuperAdmin={isSuperAdmin}
+              currentUserId={currentUserId}
+              permissions={permissions}
+              isPending={isPending}
+              onEdit={openEdit}
+              onToggleActive={handleToggleActive}
+              onDelete={setDeleting}
+            />
           )}
         </CardContent>
       </Card>
@@ -355,242 +190,13 @@ export function UsersClient({
         permissions={permissions}
       />
 
-      <AlertDialog
+      <UserDeleteDialog
+        user={deleting}
         open={Boolean(deleting)}
         onOpenChange={(open) => !open && setDeleting(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus user ini?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Akun <span className="font-medium">{deleting?.full_name}</span>{" "}
-              akan dihapus permanen beserta seluruh aksesnya. Tindakan ini tidak
-              bisa dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isPending}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={handleDelete}
+        isPending={isPending}
+      />
     </div>
-  );
-}
-
-function UserFormDialog({
-  open,
-  onOpenChange,
-  user,
-  roles,
-  schools,
-  isSuperAdmin,
-  currentSchoolId,
-  permissions,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: UserWithRoles | null;
-  roles: RoleOption[];
-  schools: SchoolOption[];
-  isSuperAdmin: boolean;
-  currentSchoolId: string | null;
-  permissions: Permissions;
-}) {
-  const isEdit = Boolean(user);
-  const [selectedSchool, setSelectedSchool] = useState(
-    user?.school_id ?? currentSchoolId ?? ""
-  );
-  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
-    saveUser,
-    undefined
-  );
-
-  // Role hanya berlaku di dalam satu sekolah, jadi daftarnya ikut sekolah
-  // yang dipilih. Role tanpa sekolah (global) selalu ditampilkan.
-  const availableRoles = roles.filter(
-    (role) => role.school_id === null || role.school_id === selectedSchool
-  );
-
-  useEffect(() => {
-    if (state?.success) {
-      toast.success(state.success);
-      onOpenChange(false);
-    } else if (state?.error) {
-      toast.error(state.error);
-    }
-  }, [state, onOpenChange]);
-
-  const selectedRoleIds = new Set(user?.roles.map((role) => role.id) ?? []);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <form action={formAction} className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>{isEdit ? "Ubah User" : "Tambah User"}</DialogTitle>
-            <DialogDescription>
-              {isEdit
-                ? "Perbarui data user, status, dan role-nya."
-                : "Buat akun baru. User langsung bisa login dengan password ini."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {user ? <input type="hidden" name="id" value={user.id} /> : null}
-          {isSuperAdmin ? (
-            <input type="hidden" name="school_included" value="true" />
-          ) : null}
-          {permissions.assignRole ? (
-            <input type="hidden" name="roles_included" value="true" />
-          ) : null}
-
-          <div className="space-y-2">
-            <Label htmlFor="full_name">Nama Lengkap</Label>
-            <Input
-              id="full_name"
-              name="full_name"
-              defaultValue={user?.full_name ?? ""}
-              placeholder="Contoh: Siti Aminah"
-              required
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                defaultValue={user?.email ?? ""}
-                placeholder="nama@sekolah.sch.id"
-                disabled={isEdit}
-                required={!isEdit}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="jabatan">Jabatan</Label>
-              <Input
-                id="jabatan"
-                name="jabatan"
-                defaultValue={user?.jabatan ?? ""}
-                placeholder="Contoh: Staf TU"
-              />
-            </div>
-          </div>
-
-          {isSuperAdmin ? (
-            <div className="space-y-2">
-              <Label htmlFor="school_id">Sekolah</Label>
-              <select
-                id="school_id"
-                name="school_id"
-                value={selectedSchool}
-                onChange={(event) => setSelectedSchool(event.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              >
-                <option value="">Tanpa sekolah (platform)</option>
-                {schools.map((school) => (
-                  <option key={school.id} value={school.id}>
-                    {school.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Daftar role di bawah mengikuti sekolah yang dipilih.
-              </p>
-            </div>
-          ) : null}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="phone">No. HP</Label>
-              <Input
-                id="phone"
-                name="phone"
-                defaultValue={user?.phone ?? ""}
-                placeholder="08xxxxxxxxxx"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                {isEdit ? "Password Baru (opsional)" : "Password"}
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder={isEdit ? "Biarkan kosong bila tidak diubah" : "Minimal 6 karakter"}
-                required={!isEdit}
-              />
-            </div>
-          </div>
-
-          {permissions.assignRole ? (
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <div className="space-y-2 rounded-lg border border-border p-3">
-                {availableRoles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Belum ada role untuk sekolah ini. Buat role dulu di menu
-                    Role &amp; Hak Akses.
-                  </p>
-                ) : (
-                  availableRoles.map((role) => (
-                    <label
-                      key={role.id}
-                      className="flex cursor-pointer items-start gap-2.5"
-                    >
-                      <Checkbox
-                        name="role_ids"
-                        value={role.id}
-                        defaultChecked={selectedRoleIds.has(role.id)}
-                        className="mt-0.5"
-                      />
-                      <span className="text-sm">{role.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex items-center gap-2.5">
-            <Checkbox
-              id="is_active"
-              name="is_active"
-              value="true"
-              defaultChecked={user ? user.is_active : true}
-            />
-            <Label htmlFor="is_active" className="cursor-pointer">
-              Akun aktif (bisa login)
-            </Label>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting
-                ? "Menyimpan..."
-                : isEdit
-                  ? "Simpan Perubahan"
-                  : "Buat User"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { NavIcon, NavItem, PlannedModule } from "@/lib/nav";
 
 const ICONS: Record<NavIcon, LucideIcon> = {
