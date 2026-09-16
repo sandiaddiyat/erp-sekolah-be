@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   DatabaseIcon,
+  GraduationCapIcon,
   IdCardIcon,
   LayoutDashboardIcon,
   MenuIcon,
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import type { NavIcon, NavItem, PlannedModule } from "@/lib/nav";
+import { NAV_GROUPS, type NavIcon, type NavItem, type PlannedModule } from "@/lib/nav";
 
 const ICONS: Record<NavIcon, LucideIcon> = {
   dashboard: LayoutDashboardIcon,
@@ -25,6 +26,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   shield: ShieldCheckIcon,
   school: SchoolIcon,
   pegawai: IdCardIcon,
+  siswa: GraduationCapIcon,
   master: DatabaseIcon,
 };
 
@@ -53,27 +55,40 @@ function NavLinks({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="space-y-1 px-2">
-      {items.map((item) => {
-        const Icon = ICONS[item.icon];
-        const isActive =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
-
+    <nav>
+      {NAV_GROUPS.map((group) => {
+        const groupItems = items.filter((item) => item.group === group.key);
+        if (groupItems.length === 0) return null;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
-              isActive
-                ? "bg-primary/10 font-medium text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            <span className="truncate">{item.title}</span>
-          </Link>
+          <div key={group.key}>
+            <p className="px-2.5 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {group.label}
+            </p>
+            <div className="space-y-1">
+              {groupItems.map((item) => {
+                const Icon = ICONS[item.icon];
+                const isActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                      isActive
+                        ? "bg-primary/10 font-medium text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span className="truncate">{item.title}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         );
       })}
     </nav>

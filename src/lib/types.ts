@@ -200,8 +200,33 @@ export type Pegawai = {
   alamat: string | null;
   phone: string | null;
   email: string | null;
-  bank_id: string | null;
-  no_rekening: string | null;
-  is_active: boolean;
+   bank_id: string | null;
+   no_rekening: string | null;
+   is_active: boolean;
+};
+
+// =============================================================================
+// Siswa (Issue #15)
+// =============================================================================
+
+export type SiswaStatus = "aktif" | "lulus" | "pindah" | "keluar";
+
+export type Siswa = {
+  id: string;
+  school_id: string;
+  user_id: string | null;
+  nis: string | null;
+  nisn: string | null;
+  nama_lengkap: string;
+  jenis_kelamin: "L" | "P" | null;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
+  agama_id: string | null;
+  alamat: string | null;
+  nama_ayah: string | null;
+  nama_ibu: string | null;
+  nama_wali: string | null;
+  telepon_wali: string | null;
+  status: SiswaStatus;
 };
 
