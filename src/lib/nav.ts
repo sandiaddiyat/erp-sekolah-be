@@ -7,7 +7,8 @@ export type NavIcon =
   | "school"
   | "pegawai"
   | "siswa"
-  | "master";
+  | "master"
+  | "keuangan";
 
 export type NavItem = {
   title: string;
@@ -27,6 +28,7 @@ export type NavGroupKey =
   | "profil"
   | "orang"
   | "referensi"
+  | "keuangan"
   | "akses";
 
 /** Urutan & label tampilan tiap grup menu. */
@@ -35,6 +37,7 @@ export const NAV_GROUPS: { key: NavGroupKey; label: string }[] = [
   { key: "profil", label: "Profil Sekolah" },
   { key: "orang", label: "Manajemen Orang" },
   { key: "referensi", label: "Referensi" },
+  { key: "keuangan", label: "Keuangan" },
   { key: "akses", label: "Penggunaan & Akses" },
 ];
 
@@ -74,6 +77,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "referensi",
   },
   {
+    title: "SPP & Keuangan",
+    href: "/keuangan",
+    icon: "keuangan",
+    permission: PERMISSIONS.financeView,
+    group: "keuangan",
+  },
+  {
     title: "User",
     href: "/users",
     icon: "users",
@@ -96,11 +106,6 @@ export type PlannedModule = {
 };
 
 export const PLANNED_MODULES: PlannedModule[] = [
-  {
-    title: "SPP & Keuangan",
-    description: "Tagihan bulanan, pembayaran, dan tunggakan",
-    permission: PERMISSIONS.financeView,
-  },
   {
     title: "Absensi & Nilai",
     description: "Kehadiran harian dan rapor siswa",

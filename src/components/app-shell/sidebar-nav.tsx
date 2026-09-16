@@ -11,6 +11,7 @@ import {
   SchoolIcon,
   ShieldCheckIcon,
   UsersIcon,
+  WalletIcon,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   pegawai: IdCardIcon,
   siswa: GraduationCapIcon,
   master: DatabaseIcon,
+  keuangan: WalletIcon,
 };
 
 type SidebarNavProps = {
