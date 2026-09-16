@@ -523,6 +523,9 @@ function BillFormDialog({
     undefined
   );
 
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const [nominal, setNominal] = useState("");
+
   useEffect(() => {
     if (state?.success) {
       toast.success(state.success);
@@ -560,7 +563,19 @@ function BillFormDialog({
 
           <div className="space-y-2">
             <Label htmlFor="bill_item_id">Jenis Tagihan (opsional)</Label>
-            <select id="bill_item_id" name="bill_item_id" className={selectClass}>
+            <select
+              id="bill_item_id"
+              name="bill_item_id"
+              className={selectClass}
+              value={selectedItemId}
+              onChange={(event) => {
+                const item = billItems.find((b) => b.id === event.target.value);
+                setSelectedItemId(event.target.value);
+                if (item) {
+                  setNominal(String(Number(item.nominal)));
+                }
+              }}
+            >
               <option value="">- tidak ada -</option>
               {billItems.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -583,7 +598,14 @@ function BillFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="nominal">Nominal (Rp)</Label>
-              <Input id="nominal" name="nominal" placeholder="150000" required />
+              <Input
+                id="nominal"
+                name="nominal"
+                placeholder="150000"
+                value={nominal}
+                onChange={(event) => setNominal(event.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="jatuh_tempo">Jatuh Tempo</Label>
