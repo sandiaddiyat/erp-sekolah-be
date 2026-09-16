@@ -28,7 +28,8 @@ function buildPayload(command: SavePegawaiInput, schoolId: string): PegawaiPaylo
     tanggal_lahir: command.tanggal_lahir || null,
     agama_id: command.agama_id || null,
     status_kepegawaian_id: command.status_kepegawaian_id || null,
-    jabatan_id: command.jabatan_id || null,
+    // Kolom lama tetap diisi dari jabatan utama (keputusan desain #19 no.1).
+    jabatan_id: command.jabatan_utama_id || null,
     golongan_id: command.golongan_id || null,
     unit_kerja_id: command.unit_kerja_id || null,
     pendidikan_terakhir_id: command.pendidikan_terakhir_id || null,
@@ -54,9 +55,92 @@ function duplicateMessage(error: unknown): string | null {
   return null;
 }
 
+type PegawaiJabatanRow = {
+  id: string;
+  jabatan_id: string;
+};
+
+/**
+ * Sinkronisasi penuh baris pegawai_jabatan dengan daftar jabatan final.
+ * Setiap query pivot menyertakan filter school_id (multi-tenant).
+ * Gagal sinkron TIDAK menggagalkan penyimpanan pegawai — caller tetap
+ * melaporkan sukses dengan pesan peringatan.
+ */
+async function syncPegawaiJabatan(
+  supabase: SupabaseClient<Database>,
+  schoolId: string,
+  pegawaiId: string,
+  jabatanIds: string[],
+  jabatanUtamaId: string | null
+): Promise<boolean> {
+  const existing = await supabase
+    .from("pegawai_jabatan")
+    .select("id, jabatan_id")
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId);
+
+  if (existing.error) {
+    return false;
+  }
+
+  const rows = (existing.data ?? []) as PegawaiJabatanRow[];
+  const wanted = new Set(jabatanIds);
+  const current = new Set(rows.map((row) => row.jabatan_id));
+
+  // a. Hapus baris yang jabatannya tidak lagi dipilih.
+  const staleIds = rows
+    .filter((row) => !wanted.has(row.jabatan_id))
+    .map((row) => row.id);
+  if (staleIds.length > 0) {
+    const { error } = await supabase
+      .from("pegawai_jabatan")
+      .delete()
+      .in("id", staleIds)
+      .eq("school_id", schoolId);
+    if (error) return false;
+  }
+
+  // b. Insert jabatan baru yang belum ada.
+  const newIds = jabatanIds.filter((id) => !current.has(id));
+  if (newIds.length > 0) {
+    const { error } = await supabase.from("pegawai_jabatan").insert(
+      newIds.map((jabatanId) => ({
+        school_id: schoolId,
+        pegawai_id: pegawaiId,
+        jabatan_id: jabatanId,
+        is_utama: jabatanUtamaId === jabatanId,
+      }))
+    );
+    if (error) return false;
+  }
+
+  // c. Atur ulang penanda is_utama (sinkron penuh, sederhana & pasti benar).
+  const { error: resetError } = await supabase
+    .from("pegawai_jabatan")
+    .update({ is_utama: false })
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId)
+    .eq("is_utama", true);
+  if (resetError) return false;
+
+  if (jabatanUtamaId) {
+    const { error } = await supabase
+      .from("pegawai_jabatan")
+      .update({ is_utama: true })
+      .eq("pegawai_id", pegawaiId)
+      .eq("school_id", schoolId)
+      .eq("jabatan_id", jabatanUtamaId);
+    if (error) return false;
+  }
+
+  return true;
+}
+
 /**
  * Simpan pegawai (buat bila command tanpa `id`, ubah bila ada).
  * `school_id` SELALU dari user yang login — bukan dari input form.
+ * Setelah pegawai tersimpan, daftar jabatan disinkronkan penuh ke
+ * pegawai_jabatan (hapus/insert/update is_utama).
  */
 export async function savePegawaiRecord(
   deps: PegawaiMutationsDeps,
@@ -73,6 +157,7 @@ export async function savePegawaiRecord(
 
   const { supabase } = deps;
   const payload = buildPayload(command, schoolId);
+  const jabatanUtamaId = command.jabatan_utama_id || null;
 
   if (command.id) {
     const { error } = await supabase
@@ -86,21 +171,57 @@ export async function savePegawaiRecord(
         serverError(error, duplicateMessage(error) ?? "Gagal memperbarui pegawai.")
       );
     }
+
+    const synced = await syncPegawaiJabatan(
+      supabase,
+      schoolId,
+      command.id,
+      command.jabatan_ids,
+      jabatanUtamaId
+    );
+    if (!synced) {
+      return okResult(
+        "Pegawai tersimpan, namun gagal menyinkronkan jabatan."
+      );
+    }
     return okResult(`Data ${command.full_name} berhasil diperbarui.`);
   }
 
-  const { error } = await supabase.from("pegawai").insert(payload);
+  const insertResult = await supabase
+    .from("pegawai")
+    .insert(payload)
+    .select("id")
+    .single();
 
-  if (error) {
+  if (insertResult.error) {
     return errResult(
-      serverError(error, duplicateMessage(error) ?? "Gagal menambahkan pegawai.")
+      serverError(
+        insertResult.error,
+        duplicateMessage(insertResult.error) ?? "Gagal menambahkan pegawai."
+      )
     );
+  }
+
+  const pegawaiId = (insertResult.data as { id: string } | null)?.id;
+  if (pegawaiId) {
+    const synced = await syncPegawaiJabatan(
+      supabase,
+      schoolId,
+      pegawaiId,
+      command.jabatan_ids,
+      jabatanUtamaId
+    );
+    if (!synced) {
+      return okResult(
+        "Pegawai tersimpan, namun gagal menyinkronkan jabatan."
+      );
+    }
   }
 
   return okResult(`Pegawai ${command.full_name} berhasil ditambahkan.`);
 }
 
-/** Hapus pegawai milik sekolah yang sedang login. */
+/** Hapus pegawai milik sekolah yang sedang login (beserta baris pivotnya). */
 export async function deletePegawaiRecord(
   deps: PegawaiMutationsDeps,
   current: CurrentUser,
@@ -110,6 +231,17 @@ export async function deletePegawaiRecord(
 
   if (!schoolId) {
     return errResult("Hanya admin sekolah yang boleh mengelola data pegawai.");
+  }
+
+  // Hapus pivot dulu (eksplisit; FK cascade hanya lapis cadangan).
+  const { error: pivotError } = await deps.supabase
+    .from("pegawai_jabatan")
+    .delete()
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId);
+
+  if (pivotError) {
+    return errResult(serverError(pivotError, "Gagal menghapus pegawai."));
   }
 
   const { error } = await deps.supabase

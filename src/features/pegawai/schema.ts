@@ -42,7 +42,11 @@ export const savePegawaiSchema = z
     tanggal_lahir: optionalDate,
     agama_id: optionalUuid,
     status_kepegawaian_id: optionalUuid,
-    jabatan_id: optionalUuid,
+    jabatan_ids: z
+      .array(z.string().uuid("ID referensi tidak valid."))
+      .max(10, "Maksimal 10 jabatan")
+      .default([]),
+    jabatan_utama_id: optionalUuid,
     golongan_id: optionalUuid,
     unit_kerja_id: optionalUuid,
     pendidikan_terakhir_id: optionalUuid,
@@ -73,6 +77,22 @@ export const savePegawaiSchema = z
         message: "Isi minimal salah satu: NIP, NIY, atau NUPTK.",
       });
     }
+    // Bila ada jabatan dipilih, jabatan utama wajib dan harus anggota daftar.
+    if (data.jabatan_ids.length > 0) {
+      if (!data.jabatan_utama_id) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["jabatan_utama_id"],
+          message: "Pilih jabatan utama dari daftar jabatan yang dipilih.",
+        });
+      } else if (!data.jabatan_ids.includes(data.jabatan_utama_id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["jabatan_utama_id"],
+          message: "Pilih jabatan utama dari daftar jabatan yang dipilih.",
+        });
+      }
+    }
   });
 
 export type SavePegawaiInput = z.infer<typeof savePegawaiSchema>;
@@ -96,7 +116,8 @@ export function readSavePegawaiInput(formData: FormData): SavePegawaiParseResult
     tanggal_lahir: formData.get("tanggal_lahir") ?? "",
     agama_id: formData.get("agama_id") ?? "",
     status_kepegawaian_id: formData.get("status_kepegawaian_id") ?? "",
-    jabatan_id: formData.get("jabatan_id") ?? "",
+    jabatan_ids: formData.getAll("jabatan_ids").map(String).filter(Boolean),
+    jabatan_utama_id: formData.get("jabatan_utama_id") ?? "",
     golongan_id: formData.get("golongan_id") ?? "",
     unit_kerja_id: formData.get("unit_kerja_id") ?? "",
     pendidikan_terakhir_id: formData.get("pendidikan_terakhir_id") ?? "",

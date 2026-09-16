@@ -200,9 +200,21 @@ export type Pegawai = {
   alamat: string | null;
   phone: string | null;
   email: string | null;
-   bank_id: string | null;
-   no_rekening: string | null;
-   is_active: boolean;
+  bank_id: string | null;
+  no_rekening: string | null;
+  is_active: boolean;
+};
+
+// =============================================================================
+// Multi-jabatan pegawai (Issue #19)
+// =============================================================================
+
+export type PegawaiJabatan = {
+  id: string;
+  school_id: string;
+  pegawai_id: string;
+  jabatan_id: string;
+  is_utama: boolean;
 };
 
 // =============================================================================

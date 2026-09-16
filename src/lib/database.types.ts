@@ -611,6 +611,55 @@ export interface Database {
         };
         Relationships: [];
       };
+      pegawai_jabatan: {
+        Row: {
+          id: string;
+          school_id: string;
+          pegawai_id: string;
+          jabatan_id: string;
+          is_utama: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          pegawai_id: string;
+          jabatan_id: string;
+          is_utama?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          pegawai_id?: string;
+          jabatan_id?: string;
+          is_utama?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pegawai_jabatan_school_id_fkey";
+            columns: ["school_id"];
+            isOneToOne: false;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pegawai_jabatan_pegawai_id_fkey";
+            columns: ["pegawai_id"];
+            isOneToOne: false;
+            referencedRelation: "pegawai";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pegawai_jabatan_jabatan_id_fkey";
+            columns: ["jabatan_id"];
+            isOneToOne: false;
+            referencedRelation: "jabatan";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       students: {
         Row: {
           id: string;
