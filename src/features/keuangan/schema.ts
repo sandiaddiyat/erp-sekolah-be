@@ -152,3 +152,36 @@ export function readVerifyPaymentInput(
 
   return { ok: true, command: parsed.data };
 }
+
+export const saveBillItemSchema = z.object({
+  id: optionalUuid,
+  nama_item: z.string().trim().min(3, "Nama jenis tagihan minimal 3 karakter"),
+  nominal: nominal("Nominal"),
+  frekuensi: z.enum(["sekali", "bulanan", "tahunan"], "Pilih frekuensi."),
+});
+
+export type SaveBillItemInput = z.infer<typeof saveBillItemSchema>;
+
+export type SaveBillItemParseResult =
+  | { ok: true; command: SaveBillItemInput }
+  | { ok: false; error: string };
+
+export function readSaveBillItemInput(
+  formData: FormData
+): SaveBillItemParseResult {
+  const parsed = saveBillItemSchema.safeParse({
+    id: formData.get("id") ?? "",
+    nama_item: formData.get("nama_item") ?? "",
+    nominal: formData.get("nominal") ?? "",
+    frekuensi: formData.get("frekuensi") ?? "",
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
+    };
+  }
+
+  return { ok: true, command: parsed.data };
+}

@@ -36,7 +36,7 @@ import type { BillItem, Payment } from "@/lib/types";
 import type { BillWithStudent } from "@/lib/types";
 import type { FormState } from "@/lib/types";
 import { formatRupiah } from "@/lib/utils";
-import { createBill, deleteBill, recordPayment, verifyPayment } from "./actions";
+import { createBill, deleteBill, deleteBillItem, recordPayment, saveBillItem, verifyPayment } from "./actions";
 import type { StudentOption } from "./page";
 
 type Permissions = {
@@ -77,6 +77,8 @@ export function KeuanganClient({
   const [payTarget, setPayTarget] = useState<BillWithStudent | null>(null);
   const [verifying, setVerifying] = useState<Payment | null>(null);
   const [deleting, setDeleting] = useState<BillWithStudent | null>(null);
+  const [itemOpen, setItemOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<BillItem | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const paymentByBill = useMemo(() => {
@@ -119,6 +121,17 @@ export function KeuanganClient({
       if (result?.error) toast.error(result.error);
       else if (result?.success) toast.success(result.success);
       setDeleting(null);
+    });
+  };
+
+  const handleDeleteItem = () => {
+    if (!deletingItem) return;
+    const target = deletingItem;
+    startTransition(async () => {
+      const result = await deleteBillItem(target.id);
+      if (result?.error) toast.error(result.error);
+      else if (result?.success) toast.success(result.success);
+      setDeletingItem(null);
     });
   };
 
@@ -169,6 +182,50 @@ export function KeuanganClient({
           </CardHeader>
         </Card>
       </div>
+
+      {permissions.billCreate ? (
+        <Card>
+          <CardHeader className="gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <CardTitle>Jenis Tagihan</CardTitle>
+              <CardDescription>
+                Katalog tagihan: {billItems.length} jenis
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setItemOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Tambah Jenis
+            </Button>
+          </CardHeader>
+          {billItems.length > 0 ? (
+            <CardContent className="px-0">
+              <div className="divide-y">
+                {billItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 px-6 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.nama_item}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {formatRupiah(Number(item.nominal))} • {item.frekuensi}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeletingItem(item)}
+                    >
+                      Hapus
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader className="gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -264,6 +321,37 @@ export function KeuanganClient({
         </CardContent>
       </Card>
 
+      <AlertDialog
+        open={Boolean(deletingItem)}
+        onOpenChange={(open) => !open && setDeletingItem(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus jenis tagihan ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingItem?.nama_item} akan dihapus dari katalog. Tagihan yang
+              sudah dibuat tidak ikut terhapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteItem}
+              disabled={isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BillItemFormDialog
+        key="new-bill-item"
+        open={itemOpen}
+        onOpenChange={setItemOpen}
+      />
+
       <BillFormDialog
         key="new-bill"
         open={billOpen}
@@ -336,6 +424,86 @@ export function KeuanganClient({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function BillItemFormDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
+    saveBillItem,
+    undefined
+  );
+
+  useEffect(() => {
+    if (state?.success) {
+      toast.success(state.success);
+      onOpenChange(false);
+    } else if (state?.error) {
+      toast.error(state.error);
+    }
+  }, [state, onOpenChange]);
+
+  const selectClass =
+    "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form action={formAction} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Tambah Jenis Tagihan</DialogTitle>
+            <DialogDescription>
+              Katalog jenis tagihan yang bisa dipilih saat membuat tagihan.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="nama_item">Nama Jenis</Label>
+            <Input
+              id="nama_item"
+              name="nama_item"
+              placeholder="Contoh: SPP Bulanan"
+              required
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="item_nominal">Nominal (Rp)</Label>
+              <Input id="item_nominal" name="nominal" placeholder="150000" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="frekuensi">Frekuensi</Label>
+              <select
+                id="frekuensi"
+                name="frekuensi"
+                required
+                defaultValue="bulanan"
+                className={selectClass}
+              >
+                <option value="sekali">Sekali</option>
+                <option value="bulanan">Bulanan</option>
+                <option value="tahunan">Tahunan</option>
+              </select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Batal
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Menyimpan..." : "Tambah Jenis"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

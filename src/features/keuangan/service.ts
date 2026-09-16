@@ -5,6 +5,7 @@ import { errResult, okResult, type MutationResult } from "@/lib/result";
 import type { CurrentUser } from "@/lib/types";
 import type {
   SaveBillInput,
+  SaveBillItemInput,
   SavePaymentInput,
   VerifyPaymentInput,
 } from "./schema";
@@ -266,4 +267,83 @@ export async function deleteBillRecord(
   }
 
   return okResult("Tagihan berhasil dihapus.");
+}
+
+/**
+ * Simpan jenis tagihan (katalog): buat bila tanpa `id`, ubah bila ada.
+ * Dipakai petugas ber-izin finance.bill_create; RLS menegakkan ulang.
+ */
+export async function saveBillItemRecord(
+  deps: KeuanganMutationsDeps,
+  current: CurrentUser,
+  command: SaveBillItemInput
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang boleh mengelola jenis tagihan.");
+  }
+
+  const payload = {
+    school_id: schoolId,
+    nama_item: command.nama_item,
+    nominal: command.nominal,
+    frekuensi: command.frekuensi,
+  };
+
+  if (command.id) {
+    const { error } = await deps.supabase
+      .from("bill_items")
+      .update(payload)
+      .eq("id", command.id)
+      .eq("school_id", schoolId);
+
+    if (error) {
+      return errResult(
+        serverError(
+          error,
+          duplicateMessage(error) ?? "Gagal memperbarui jenis tagihan."
+        )
+      );
+    }
+    return okResult(`Jenis tagihan ${command.nama_item} berhasil diperbarui.`);
+  }
+
+  const { error } = await deps.supabase.from("bill_items").insert(payload);
+
+  if (error) {
+    return errResult(
+      serverError(
+        error,
+        duplicateMessage(error) ?? "Gagal menambahkan jenis tagihan."
+      )
+    );
+  }
+
+  return okResult(`Jenis tagihan ${command.nama_item} berhasil ditambahkan.`);
+}
+
+/** Hapus jenis tagihan dari katalog sekolah yang sedang login. */
+export async function deleteBillItemRecord(
+  deps: KeuanganMutationsDeps,
+  current: CurrentUser,
+  billItemId: string
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang boleh mengelola jenis tagihan.");
+  }
+
+  const { error } = await deps.supabase
+    .from("bill_items")
+    .delete()
+    .eq("id", billItemId)
+    .eq("school_id", schoolId);
+
+  if (error) {
+    return errResult(serverError(error, "Gagal menghapus jenis tagihan."));
+  }
+
+  return okResult("Jenis tagihan berhasil dihapus.");
 }
