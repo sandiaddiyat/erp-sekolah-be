@@ -48,12 +48,14 @@ type Permissions = {
 const STATUS_LABEL: Record<string, string> = {
   belum_bayar: "Belum Bayar",
   menunggu_verifikasi: "Menunggu Verifikasi",
+  cicilan: "Cicilan",
   lunas: "Lunas",
   batal: "Batal",
 };
 
 function statusBadgeClass(status: string): string {
   if (status === "lunas") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  if (status === "cicilan") return "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300";
   if (status === "menunggu_verifikasi") return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
   if (status === "batal") return "bg-muted text-muted-foreground";
   return "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300";
@@ -135,12 +137,24 @@ export function KeuanganClient({
     });
   };
 
+  const totalTagihanSetelahDiskon = (b: BillWithStudent) =>
+    Number(b.nominal) - Number(b.diskon ?? 0);
+
+  /** Sisa tagihan = total setelah diskon - pembayaran terverifikasi. */
+  const sisaTagihan = (b: BillWithStudent) => {
+    const terbayar = (paymentByBill.get(b.id) ?? [])
+      .filter((p) => p.status === "terverifikasi")
+      .reduce((sum, p) => sum + Number(p.nominal), 0);
+    return totalTagihanSetelahDiskon(b) - terbayar;
+  };
+
   const totalTunggakan = useMemo(
     () =>
       bills
-        .filter((b) => b.status === "belum_bayar" || b.status === "menunggu_verifikasi")
-        .reduce((sum, b) => sum + Number(b.nominal), 0),
-    [bills]
+        .filter((b) => b.status !== "lunas" && b.status !== "batal")
+        .reduce((sum, b) => sum + sisaTagihan(b), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bills, paymentByBill]
   );
 
   return (
@@ -274,7 +288,15 @@ export function KeuanganClient({
                         </span>
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {formatRupiah(Number(item.nominal))}
+                        {formatRupiah(totalTagihanSetelahDiskon(item))}
+                        {Number(item.diskon ?? 0) > 0
+                          ? ` • diskon ${formatRupiah(Number(item.diskon))}${
+                              item.diskon_keterangan ? ` (${item.diskon_keterangan})` : ""
+                            }`
+                          : ""}
+                        {item.status !== "lunas" && item.status !== "batal"
+                          ? ` • sisa ${formatRupiah(sisaTagihan(item))}`
+                          : ""}
                         {item.jatuh_tempo ? ` • jatuh tempo ${item.jatuh_tempo}` : ""}
                         {lunas
                           ? ` • dibayar via ${lunas.metode}`
@@ -291,7 +313,8 @@ export function KeuanganClient({
                       </span>
                       {permissions.paymentCreate &&
                       (item.status === "belum_bayar" ||
-                        item.status === "menunggu_verifikasi") ? (
+                        item.status === "menunggu_verifikasi" ||
+                        item.status === "cicilan") ? (
                         <Button variant="outline" size="sm" onClick={() => setPayTarget(item)}>
                           <WalletIcon data-icon="inline-start" />
                           Bayar
@@ -365,6 +388,7 @@ export function KeuanganClient({
         open={Boolean(payTarget)}
         onOpenChange={(open) => !open && setPayTarget(null)}
         bill={payTarget}
+        billPayments={payTarget ? paymentByBill.get(payTarget.id) ?? [] : []}
       />
 
       <AlertDialog
@@ -608,9 +632,25 @@ function BillFormDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="jatuh_tempo">Jatuh Tempo</Label>
-              <Input id="jatuh_tempo" name="jatuh_tempo" type="date" />
+              <Label htmlFor="diskon">Diskon (Rp, opsional)</Label>
+              <Input id="diskon" name="diskon" placeholder="0" inputMode="numeric" />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="diskon_keterangan">
+              Keterangan Diskon / Beasiswa (opsional)
+            </Label>
+            <Input
+              id="diskon_keterangan"
+              name="diskon_keterangan"
+              placeholder="Contoh: Beasiswa Yayasan 50%"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="jatuh_tempo">Jatuh Tempo</Label>
+            <Input id="jatuh_tempo" name="jatuh_tempo" type="date" />
           </div>
 
           <DialogFooter>
@@ -631,10 +671,12 @@ function PaymentFormDialog({
   open,
   onOpenChange,
   bill,
+  billPayments,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bill: BillWithStudent | null;
+  billPayments: Payment[];
 }) {
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
     recordPayment,
@@ -653,6 +695,16 @@ function PaymentFormDialog({
   const selectClass =
     "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
+  const totalSetelahDiskon = bill
+    ? Number(bill.nominal) - Number(bill.diskon ?? 0)
+    : 0;
+  const terbayar = bill
+    ? (billPayments
+        .filter((p) => p.status === "terverifikasi")
+        .reduce((sum, p) => sum + Number(p.nominal), 0))
+    : 0;
+  const sisa = totalSetelahDiskon - terbayar;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -661,19 +713,31 @@ function PaymentFormDialog({
             <DialogTitle>Catat Pembayaran</DialogTitle>
             <DialogDescription>
               {bill?.student_nama ?? "-"} • {bill?.deskripsi ?? "-"} •{" "}
-              {bill ? formatRupiah(Number(bill.nominal)) : "-"}
+              {bill ? formatRupiah(totalSetelahDiskon) : "-"}
+              {bill && Number(bill.diskon ?? 0) > 0
+                ? ` (diskon ${formatRupiah(Number(bill.diskon))})`
+                : ""}
             </DialogDescription>
           </DialogHeader>
 
           {bill ? <input type="hidden" name="bill_id" value={bill.id} /> : null}
 
+          {bill ? (
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Total setelah diskon: {formatRupiah(totalSetelahDiskon)} • Terbayar:{" "}
+              {formatRupiah(terbayar)} • Sisa: {formatRupiah(sisa)}. Bisa dibayar
+              sekaligus maupun dicicil — sisa akan terus berkurang setiap cicilan
+              diverifikasi.
+            </p>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="pay_nominal">Nominal (Rp)</Label>
+              <Label htmlFor="pay_nominal">Nominal Bayar (Rp)</Label>
               <Input
                 id="pay_nominal"
                 name="nominal"
-                defaultValue={bill ? String(Number(bill.nominal)) : ""}
+                defaultValue={bill ? String(Math.max(sisa, 0)) : ""}
                 required
               />
             </div>

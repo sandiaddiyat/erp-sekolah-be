@@ -234,13 +234,14 @@ export type Siswa = {
 // Keuangan (Issue #17)
 // =============================================================================
 
-export type BillFrekuensi = "sekali" | "bulanan" | "tahunan";
-
 export type BillStatus =
   | "belum_bayar"
   | "menunggu_verifikasi"
+  | "cicilan"
   | "lunas"
   | "batal";
+
+export type BillFrekuensi = "sekali" | "bulanan" | "tahunan";
 
 export type PaymentMetode = "transfer" | "tunai" | "qris";
 
@@ -261,6 +262,8 @@ export type Bill = {
   bill_item_id: string | null;
   deskripsi: string;
   nominal: number;
+  diskon: number;
+  diskon_keterangan: string | null;
   jatuh_tempo: string | null;
   status: BillStatus;
 };

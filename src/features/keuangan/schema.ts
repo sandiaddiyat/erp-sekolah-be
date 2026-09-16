@@ -38,6 +38,16 @@ const nominal = (label: string) =>
     .transform((v) => Number(v))
     .refine((v) => Number.isFinite(v) && v > 0, `${label} harus lebih dari 0`);
 
+/** Nominal dari FormData (string) menjadi angka >= 0. */
+const nominalNonNegatif = (label: string) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ?? "").replace(/[^\d]/g, ""))
+    .transform((v) => (v.length > 0 ? Number(v) : 0))
+    .refine((v) => Number.isFinite(v) && v >= 0, `${label} tidak valid`);
+
 export const saveBillSchema = z.object({
   student_id: z
     .string()
@@ -47,6 +57,8 @@ export const saveBillSchema = z.object({
   bill_item_id: optionalUuid,
   deskripsi: z.string().trim().min(3, "Deskripsi minimal 3 karakter"),
   nominal: nominal("Nominal"),
+  diskon: nominalNonNegatif("Diskon"),
+  diskon_keterangan: optionalText(200, "Keterangan diskon"),
   jatuh_tempo: optionalDate,
 });
 
@@ -62,6 +74,8 @@ export function readSaveBillInput(formData: FormData): SaveBillParseResult {
     bill_item_id: formData.get("bill_item_id") ?? "",
     deskripsi: formData.get("deskripsi") ?? "",
     nominal: formData.get("nominal") ?? "",
+    diskon: formData.get("diskon") ?? "",
+    diskon_keterangan: formData.get("diskon_keterangan") ?? "",
     jatuh_tempo: formData.get("jatuh_tempo") ?? "",
   });
 

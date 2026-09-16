@@ -53,6 +53,8 @@ export async function createBillRecord(
     bill_item_id: command.bill_item_id || null,
     deskripsi: command.deskripsi,
     nominal: command.nominal,
+    diskon: command.diskon ?? 0,
+    diskon_keterangan: command.diskon_keterangan || null,
     jatuh_tempo: command.jatuh_tempo || null,
   };
 
@@ -82,15 +84,20 @@ export async function recordPaymentRecord(
     return errResult("Hanya admin sekolah yang boleh mencatat pembayaran.");
   }
 
-  // Pastikan tagihan milik sekolah yang sama dan belum lunas/batal.
+  // Pastikan tagihan milik sekolah yang sama dan masih bisa dibayar.
   const billResult = await deps.supabase
     .from("bills")
-    .select("id, status")
+    .select("id, status, nominal, diskon")
     .eq("id", command.bill_id)
     .eq("school_id", schoolId)
     .single();
 
-  const bill = billResult.data as { id: string; status: string } | null;
+  const bill = billResult.data as {
+    id: string;
+    status: string;
+    nominal: number;
+    diskon: number;
+  } | null;
   if (billResult.error || !bill) {
     return errResult("Tagihan tidak ditemukan.");
   }
@@ -99,6 +106,25 @@ export async function recordPaymentRecord(
   }
   if (bill.status === "batal") {
     return errResult("Tagihan ini sudah dibatalkan.");
+  }
+
+  // Pembayaran tidak boleh melebihi sisa tagihan (total setelah diskon
+  // dikurangi pembayaran terverifikasi yang sudah ada).
+  const terverifikasi = await deps.supabase
+    .from("payments")
+    .select("nominal")
+    .eq("bill_id", command.bill_id)
+    .eq("school_id", schoolId)
+    .eq("status", "terverifikasi");
+
+  const totalTerverifikasi = ((terverifikasi.data as { nominal: number }[] | null) ?? [])
+    .reduce((sum, p) => sum + Number(p.nominal), 0);
+  const totalTagihan = Number(bill.nominal) - Number(bill.diskon ?? 0);
+  const sisa = totalTagihan - totalTerverifikasi;
+  if (command.nominal > sisa) {
+    return errResult(
+      `Nominal melebihi sisa tagihan. Sisa: ${sisa.toLocaleString("id-ID")}.`
+    );
   }
 
   const payload: PaymentPayload = {
@@ -187,10 +213,39 @@ export async function verifyPaymentRecord(
   }
 
   // Sinkronkan status tagihan sesuai keputusan.
+  // Total yang harus dibayar = nominal - diskon. Lunas hanya bila total
+  // pembayaran terverifikasi mencapai total tersebut; jika belum, berstatus
+  // `cicilan` (masih ada sisa).
+  const terverifikasi = await deps.supabase
+    .from("payments")
+    .select("nominal, status")
+    .eq("bill_id", payment.bill_id)
+    .eq("school_id", schoolId);
+
+  const daftar = (terverifikasi.data as { nominal: number; status: string }[] | null) ?? [];
+  const totalTerverifikasi = daftar
+    .filter((p) => p.status === "terverifikasi")
+    .reduce((sum, p) => sum + Number(p.nominal), 0);
+
+  const billResult = await deps.supabase
+    .from("bills")
+    .select("nominal, diskon")
+    .eq("id", payment.bill_id)
+    .eq("school_id", schoolId)
+    .single();
+
+  const bill = billResult.data as { nominal: number; diskon: number } | null;
+  if (!bill) {
+    return errResult("Tagihan tidak ditemukan.");
+  }
+  const totalTagihan = Number(bill.nominal) - Number(bill.diskon ?? 0);
+  const sudahLunas = totalTerverifikasi >= totalTagihan;
+
   if (command.keputusan === "terverifikasi") {
+    const statusBaru = sudahLunas ? "lunas" : "cicilan";
     const { error: billError } = await deps.supabase
       .from("bills")
-      .update({ status: "lunas" })
+      .update({ status: statusBaru })
       .eq("id", payment.bill_id)
       .eq("school_id", schoolId);
 
@@ -199,20 +254,16 @@ export async function verifyPaymentRecord(
         serverError(billError, "Verifikasi tersimpan namun gagal memperbarui tagihan.")
       );
     }
-    return okResult("Pembayaran disetujui. Tagihan telah lunas.");
+    return okResult(
+      sudahLunas
+        ? "Pembayaran disetujui. Tagihan telah lunas."
+        : "Pembayaran cicilan disetujui. Masih ada sisa tagihan."
+    );
   }
 
-  // Ditolak: tagihan kembali belum_bayar kecuali ada payment lain terverifikasi.
-  const lainnya = await deps.supabase
-    .from("payments")
-    .select("id")
-    .eq("bill_id", payment.bill_id)
-    .eq("school_id", schoolId)
-    .eq("status", "terverifikasi")
-    .limit(1);
-
-  const adaTerverifikasi = (lainnya.data as { id: string }[] | null)?.length ?? 0;
-  const statusBaru = adaTerverifikasi > 0 ? "lunas" : "belum_bayar";
+  // Ditolak: tagihan kembali sesuai pembayaran terverifikasi lainnya —
+  // `cicilan` bila ada, `belum_bayar` bila tidak ada.
+  const statusBaru = totalTerverifikasi > 0 ? "cicilan" : "belum_bayar";
 
   const { error: billError } = await deps.supabase
     .from("bills")

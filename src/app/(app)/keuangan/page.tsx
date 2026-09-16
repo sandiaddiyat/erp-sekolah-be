@@ -54,6 +54,8 @@ export default async function KeuanganPage() {
     bill_item_id: bill.bill_item_id,
     deskripsi: bill.deskripsi,
     nominal: bill.nominal,
+    diskon: bill.diskon,
+    diskon_keterangan: bill.diskon_keterangan,
     jatuh_tempo: bill.jatuh_tempo,
     status: bill.status as Bill["status"],
     student_nama: bill.students?.[0]?.nama_lengkap ?? null,

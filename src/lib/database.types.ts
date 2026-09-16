@@ -709,6 +709,8 @@ export interface Database {
           bill_item_id: string | null;
           deskripsi: string;
           nominal: number;
+          diskon: number;
+          diskon_keterangan: string | null;
           jatuh_tempo: string | null;
           status: string;
           created_at: string;
@@ -721,6 +723,8 @@ export interface Database {
           bill_item_id?: string | null;
           deskripsi: string;
           nominal: number;
+          diskon?: number;
+          diskon_keterangan?: string | null;
           jatuh_tempo?: string | null;
           status?: string;
           created_at?: string;
@@ -733,6 +737,8 @@ export interface Database {
           bill_item_id?: string | null;
           deskripsi?: string;
           nominal?: number;
+          diskon?: number;
+          diskon_keterangan?: string | null;
           jatuh_tempo?: string | null;
           status?: string;
           created_at?: string;

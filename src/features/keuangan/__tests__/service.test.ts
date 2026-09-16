@@ -169,6 +169,25 @@ describe("readSaveBillInput (schema)", () => {
     );
     expect(result.ok).toBe(false);
   });
+
+  it("menerima diskon dan keterangan beasiswa", () => {
+    const result = readSaveBillInput(
+      formData({ ...VALID_BILL, diskon: "50000", diskon_keterangan: "Beasiswa Yayasan" })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.diskon).toBe(50000);
+      expect(result.command.diskon_keterangan).toBe("Beasiswa Yayasan");
+    }
+  });
+
+  it("diskon kosong menjadi 0", () => {
+    const result = readSaveBillInput(formData(VALID_BILL));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.diskon ?? 0).toBe(0);
+    }
+  });
 });
 
 describe("readSavePaymentInput (schema)", () => {
@@ -262,13 +281,18 @@ describe("recordPaymentRecord (service)", () => {
         // Panggilan pertama: select single status bill; kedua: update status.
         return callCount === 1
           ? new QueryMock(
-              { id: VALID_PAYMENT.bill_id, status: "belum_bayar" },
+              { id: VALID_PAYMENT.bill_id, status: "belum_bayar", nominal: 150000, diskon: 0 },
               null
             )
           : bills;
       },
-      payments: () => payments,
+      payments: () => {
+        // Panggilan pertama: cek total terverifikasi; kedua: insert payment.
+        return payments;
+      },
     });
+    // Tidak ada pembayaran terverifikasi sebelumnya.
+    payments.data = [];
 
     const parsed = readSavePaymentInput(formData(VALID_PAYMENT));
     expect(parsed.ok).toBe(true);
@@ -290,7 +314,7 @@ describe("recordPaymentRecord (service)", () => {
   it("menolak pembayaran untuk tagihan lunas", async () => {
     const supabase = makeSupabase({
       bills: () =>
-        new QueryMock({ id: VALID_PAYMENT.bill_id, status: "lunas" }, null),
+        new QueryMock({ id: VALID_PAYMENT.bill_id, status: "lunas", nominal: 150000, diskon: 0 }, null),
       payments: () => new QueryMock(),
     });
 
@@ -304,20 +328,122 @@ describe("recordPaymentRecord (service)", () => {
       expect(result.error).toContain("sudah lunas");
     }
   });
+
+  it("menolak pembayaran melebihi sisa tagihan", async () => {
+    let billCall = 0;
+    const supabase = makeSupabase({
+      bills: () => {
+        billCall += 1;
+        return new QueryMock(
+          { id: VALID_PAYMENT.bill_id, status: "cicilan", nominal: 150000, diskon: 0 },
+          null
+        );
+      },
+      payments: () => {
+        // Cek pembayaran terverifikasi: sudah terbayar 100000.
+        return new QueryMock([{ nominal: 100000 }], null);
+      },
+    });
+
+    const parsed = readSavePaymentInput(
+      formData({ ...VALID_PAYMENT, nominal: "100000" })
+    );
+    if (!parsed.ok) throw new Error("parse gagal");
+
+    const result = await recordPaymentRecord({ supabase }, makeUser(), parsed.command);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("melebihi sisa");
+    }
+  });
+
+  it("menerima cicilan yang tidak melebihi sisa", async () => {
+    const payments = new QueryMock();
+    const supabase = makeSupabase({
+      bills: () =>
+        new QueryMock(
+          { id: VALID_PAYMENT.bill_id, status: "cicilan", nominal: 150000, diskon: 0 },
+          null
+        ),
+      payments: () => {
+        // Cek terverifikasi -> 100000, lalu insert.
+        return payments;
+      },
+    });
+    // Pertama select sisa -> [100000], kemudian insert pakai instance sama.
+    let call = 0;
+    const factory = makeSupabase({
+      payments: () => {
+        call += 1;
+        return call === 1
+          ? new QueryMock([{ nominal: 100000 }], null)
+          : payments;
+      },
+      bills: () =>
+        new QueryMock(
+          { id: VALID_PAYMENT.bill_id, status: "cicilan", nominal: 150000, diskon: 0 },
+          null
+        ),
+    });
+
+    const parsed = readSavePaymentInput(
+      formData({ ...VALID_PAYMENT, nominal: "50000" })
+    );
+    if (!parsed.ok) throw new Error("parse gagal");
+
+    const result = await recordPaymentRecord({ supabase: factory }, makeUser(), parsed.command);
+
+    expect(result.ok).toBe(true);
+    const insertCall = payments.calls.find((c) => c.startsWith("insert:"));
+    expect(insertCall).toBeDefined();
+    const payload = JSON.parse(insertCall!.slice("insert:".length));
+    expect(payload.nominal).toBe(50000);
+  });
 });
 
 describe("verifyPaymentRecord (service)", () => {
-  it("verifikasi disetujui: payment terverifikasi dan bill lunas", async () => {
-    const billId = VALID_PAYMENT.bill_id;
+  /** Skema mock: select payment -> update payment -> select semua payments -> select bill. */
+  function verifyMock(opts: {
+    payment: unknown;
+    semuaPayments: unknown;
+    bill: unknown;
+  }) {
     const payments = new QueryMock();
-    const bills = new QueryMock();
-    const supabase = makeSupabase({
-      payments: () => payments,
-      bills: () => bills,
-    });
+    const billInstances: QueryMock[] = [];
+    let paymentsCall = 0;
+    return {
+      payments,
+      get bills(): QueryMock {
+        return {
+          get calls(): string[] {
+            return billInstances.flatMap((b) => b.calls);
+          },
+        } as QueryMock;
+      },
+      supabase: makeSupabase({
+        payments: () => {
+          paymentsCall += 1;
+          if (paymentsCall === 1) return new QueryMock(opts.payment, null);
+          if (paymentsCall === 3) return new QueryMock(opts.semuaPayments, null);
+          return payments; // update payment
+        },
+        bills: () => {
+          const instance = new QueryMock(opts.bill, null);
+          billInstances.push(instance);
+          return instance;
+        },
+      }),
+    };
+  }
 
-    // Perlu data payment saat select single.
-    payments.data = { id: "p-1", bill_id: billId, status: "menunggu" };
+  it("verifikasi disetujui: payment terverifikasi dan bill lunas", async () => {
+    const { supabase, payments, bills } = verifyMock({
+      payment: { id: "p-1", bill_id: "b-1", status: "menunggu", nominal: 150000 },
+      // Setelah update: total terverifikasi 150000 = total tagihan -> lunas.
+      semuaPayments: [{ nominal: 150000, status: "terverifikasi" }],
+      bill: { nominal: 150000, diskon: 0 },
+    });
 
     const result = await verifyPaymentRecord(
       { supabase },
@@ -338,27 +464,11 @@ describe("verifyPaymentRecord (service)", () => {
   });
 
   it("verifikasi ditolak: bill kembali belum_bayar", async () => {
-    const billId = VALID_PAYMENT.bill_id;
-    const payments = new QueryMock();
-    const bills = new QueryMock();
-    // Select payment (single) -> update payment -> select cek payment lain -> update bill
-    let paymentsCall = 0;
-    const supabase = makeSupabase({
-      payments: () => {
-        paymentsCall += 1;
-        if (paymentsCall === 1) {
-          return new QueryMock(
-            { id: "p-1", bill_id: billId, status: "menunggu" },
-            null
-          );
-        }
-        if (paymentsCall === 3) {
-          // cek payment lain terverifikasi -> tidak ada
-          return new QueryMock([], null);
-        }
-        return payments; // update payment
-      },
-      bills: () => bills,
+    const { supabase, bills } = verifyMock({
+      payment: { id: "p-1", bill_id: "b-1", status: "menunggu", nominal: 150000 },
+      // Tidak ada pembayaran terverifikasi lain.
+      semuaPayments: [],
+      bill: { nominal: 150000, diskon: 0 },
     });
 
     const result = await verifyPaymentRecord(
@@ -373,6 +483,74 @@ describe("verifyPaymentRecord (service)", () => {
     expect(JSON.parse(billUpdate!.slice("update:".length)).status).toBe(
       "belum_bayar"
     );
+  });
+
+  it("cicilan parsial: bill jadi cicilan, belum lunas", async () => {
+    const { supabase, bills } = verifyMock({
+      payment: { id: "p-1", bill_id: "b-1", status: "menunggu", nominal: 50000 },
+      // Setelah update ini: p-1 jadi terverifikasi 50000 dari total 150000.
+      semuaPayments: [{ nominal: 50000, status: "terverifikasi" }],
+      bill: { nominal: 150000, diskon: 0 },
+    });
+
+    const result = await verifyPaymentRecord(
+      { supabase },
+      makeUser(),
+      { payment_id: "p-1", keputusan: "terverifikasi" }
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toContain("cicilan");
+    }
+    const billUpdate = bills.calls.find((c) => c.startsWith("update:"));
+    expect(billUpdate).toBeDefined();
+    expect(JSON.parse(billUpdate!.slice("update:".length)).status).toBe("cicilan");
+  });
+
+  it("cicilan terakhir: total terverifikasi >= total setelah diskon -> lunas", async () => {
+    const { supabase, bills } = verifyMock({
+      payment: { id: "p-2", bill_id: "b-1", status: "menunggu", nominal: 50000 },
+      // p-1 (100000) + p-2 (50000) = 150000 = total tagihan.
+      semuaPayments: [
+        { nominal: 100000, status: "terverifikasi" },
+        { nominal: 50000, status: "terverifikasi" },
+      ],
+      bill: { nominal: 150000, diskon: 0 },
+    });
+
+    const result = await verifyPaymentRecord(
+      { supabase },
+      makeUser(),
+      { payment_id: "p-2", keputusan: "terverifikasi" }
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toContain("lunas");
+    }
+    const billUpdate = bills.calls.find((c) => c.startsWith("update:"));
+    expect(billUpdate).toBeDefined();
+    expect(JSON.parse(billUpdate!.slice("update:".length)).status).toBe("lunas");
+  });
+
+  it("diskon diperhitungkan: 100000 tagihan dengan diskon 50000 lunas setelah bayar 50000", async () => {
+    const { supabase, bills } = verifyMock({
+      payment: { id: "p-1", bill_id: "b-1", status: "menunggu", nominal: 50000 },
+      semuaPayments: [{ nominal: 50000, status: "terverifikasi" }],
+      bill: { nominal: 100000, diskon: 50000 },
+    });
+
+    const result = await verifyPaymentRecord(
+      { supabase },
+      makeUser(),
+      { payment_id: "p-1", keputusan: "terverifikasi" }
+    );
+
+    expect(result.ok).toBe(true);
+    const billUpdate = bills.calls.find((c) => c.startsWith("update:"));
+    expect(billUpdate).toBeDefined();
+    expect(JSON.parse(billUpdate!.slice("update:".length)).status).toBe("lunas");
   });
 
   it("menolak payment yang sudah diproses", async () => {
