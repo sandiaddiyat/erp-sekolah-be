@@ -35,17 +35,19 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import type { FormState, Pegawai } from "@/lib/types";
 import { deletePegawai, savePegawai } from "./actions";
-import type { PegawaiOptionLists } from "./page";
+import type { PegawaiJabatanInfo, PegawaiOptionLists } from "./page";
 
 type Permissions = { create: boolean; update: boolean; delete: boolean };
 
 export function PegawaiClient({
   pegawai,
   options,
+  pegawaiJabatan,
   permissions,
 }: {
   pegawai: Pegawai[];
   options: PegawaiOptionLists;
+  pegawaiJabatan: Record<string, PegawaiJabatanInfo[]>;
   permissions: Permissions;
 }) {
   const [query, setQuery] = useState("");
@@ -54,10 +56,6 @@ export function PegawaiClient({
   const [deleting, setDeleting] = useState<Pegawai | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const jabatanName = useMemo(
-    () => new Map(options.jabatan.map((item) => [item.id, item.nama_jabatan])),
-    [options.jabatan]
-  );
   const statusName = useMemo(
     () => new Map(options.status_kepegawaian.map((item) => [item.id, item.nama_status])),
     [options.status_kepegawaian]
@@ -66,19 +64,22 @@ export function PegawaiClient({
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return pegawai;
-    return pegawai.filter((item) =>
-      [
+    return pegawai.filter((item) => {
+      const jabatanGabungan = (pegawaiJabatan[item.id] ?? [])
+        .map((info) => info.nama)
+        .join(" ");
+      return [
         item.full_name,
         item.nip ?? "",
         item.niy ?? "",
         item.nuptk ?? "",
-        jabatanName.get(item.jabatan_id ?? "") ?? "",
+        jabatanGabungan,
       ]
         .join(" ")
         .toLowerCase()
-        .includes(needle)
-    );
-  }, [query, pegawai, jabatanName]);
+        .includes(needle);
+    });
+  }, [query, pegawai, pegawaiJabatan]);
 
   const handleDelete = () => {
     if (!deleting) return;
@@ -163,10 +164,27 @@ export function PegawaiClient({
                       ) : null}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {[item.nip, item.niy, jabatanName.get(item.jabatan_id ?? "") ?? null, statusName.get(item.status_kepegawaian_id ?? "") ?? null]
+                      {[item.nip, item.niy, statusName.get(item.status_kepegawaian_id ?? "") ?? null]
                         .filter(Boolean)
                         .join(" • ") || "Tidak ada nomor induk"}
                     </p>
+                    {(pegawaiJabatan[item.id] ?? []).length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {(pegawaiJabatan[item.id] ?? []).map((info) => (
+                          <span
+                            key={info.jabatan_id}
+                            className={
+                              info.is_utama
+                                ? "rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                                : "rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                            }
+                          >
+                            {info.is_utama ? "★ " : ""}
+                            {info.nama}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   {permissions.update || permissions.delete ? (
                     <div className="flex shrink-0 gap-2">
@@ -200,6 +218,7 @@ export function PegawaiClient({
         onOpenChange={setFormOpen}
         editing={editing}
         options={options}
+        jabatanTerpilih={editing ? (pegawaiJabatan[editing.id] ?? []) : []}
       />
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
@@ -238,14 +257,19 @@ function PegawaiFormDialog({
   onOpenChange,
   editing,
   options,
+  jabatanTerpilih,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: Pegawai | null;
   options: PegawaiOptionLists;
+  jabatanTerpilih: PegawaiJabatanInfo[];
 }) {
   const isEdit = Boolean(editing);
   const [isActive, setIsActive] = useState(editing?.is_active ?? true);
+  const [selectedJabatanIds, setSelectedJabatanIds] = useState<string[]>(
+    jabatanTerpilih.map((info) => info.jabatan_id)
+  );
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
     savePegawai,
     undefined
@@ -361,7 +385,59 @@ function PegawaiFormDialog({
               "nama_status",
               editing?.status_kepegawaian_id
             )}
-            {renderSelect("jabatan_id", "Jabatan", options.jabatan, "nama_jabatan", editing?.jabatan_id)}
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Jabatan (boleh lebih dari satu)</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {options.jabatan.map((jabatan) => {
+                  const checked = selectedJabatanIds.includes(jabatan.id);
+                  return (
+                    <div key={jabatan.id} className="flex items-center gap-2.5">
+                      <Checkbox
+                        id={`jabatan_${jabatan.id}`}
+                        checked={checked}
+                        onCheckedChange={(next) => {
+                          setSelectedJabatanIds((prev) =>
+                            next
+                              ? [...prev, jabatan.id]
+                              : prev.filter((id) => id !== jabatan.id)
+                          );
+                        }}
+                      />
+                      <Label
+                        htmlFor={`jabatan_${jabatan.id}`}
+                        className="cursor-pointer font-normal"
+                      >
+                        {jabatan.nama_jabatan}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+              {options.jabatan.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Belum ada jabatan. Tambahkan lewat menu Master Data.
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jabatan_utama_id">Jabatan Utama</Label>
+              <select
+                id="jabatan_utama_id"
+                name="jabatan_utama_id"
+                defaultValue={jabatanTerpilih.find((info) => info.is_utama)?.jabatan_id ?? ""}
+                key={selectedJabatanIds.join(",")}
+                className={selectClass}
+              >
+                <option value="">- pilih jabatan utama -</option>
+                {options.jabatan
+                  .filter((jabatan) => selectedJabatanIds.includes(jabatan.id))
+                  .map((jabatan) => (
+                    <option key={jabatan.id} value={jabatan.id}>
+                      {jabatan.nama_jabatan}
+                    </option>
+                  ))}
+              </select>
+            </div>
             {renderSelect("golongan_id", "Golongan", options.golongan, "kode_golongan", editing?.golongan_id)}
             {renderSelect("unit_kerja_id", "Unit Kerja", options.unit_kerja, "nama_unit", editing?.unit_kerja_id)}
             <div className="space-y-2">

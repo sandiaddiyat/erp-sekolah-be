@@ -19,6 +19,12 @@ export type PegawaiOptionLists = {
   bank: { id: string; nama_bank: string }[];
 };
 
+export type PegawaiJabatanInfo = {
+  jabatan_id: string;
+  nama: string;
+  is_utama: boolean;
+};
+
 export default async function PegawaiPage() {
   const current = await requirePermission(PERMISSIONS.pegawaiView);
   const supabase = await createClient();
@@ -34,6 +40,7 @@ export default async function PegawaiPage() {
     jurusanResult,
     sertifikasiResult,
     bankResult,
+    pegawaiJabatanResult,
   ] = await Promise.all([
     supabase
       .from("pegawai")
@@ -60,6 +67,9 @@ export default async function PegawaiPage() {
       .select("id, nama_sertifikasi")
       .order("nama_sertifikasi"),
     supabase.from("bank").select("id, nama_bank").order("nama_bank"),
+    supabase
+      .from("pegawai_jabatan")
+      .select("pegawai_id, jabatan_id, is_utama"),
   ]);
 
   const loadError =
@@ -72,7 +82,8 @@ export default async function PegawaiPage() {
     jenjangResult.error ??
     jurusanResult.error ??
     sertifikasiResult.error ??
-    bankResult.error;
+    bankResult.error ??
+    pegawaiJabatanResult.error;
   if (loadError) {
     return <DataError message="Gagal memuat data pegawai." />;
   }
@@ -91,10 +102,30 @@ export default async function PegawaiPage() {
 
   const pegawai = (pegawaiResult.data ?? []) as Pegawai[];
 
+  const jabatanNama = new Map(
+    options.jabatan.map((item) => [item.id, item.nama_jabatan])
+  );
+
+  const pegawaiJabatan: Record<string, PegawaiJabatanInfo[]> = {};
+  for (const row of (pegawaiJabatanResult.data ?? []) as {
+    pegawai_id: string;
+    jabatan_id: string;
+    is_utama: boolean;
+  }[]) {
+    const nama = jabatanNama.get(row.jabatan_id);
+    if (!nama) continue;
+    (pegawaiJabatan[row.pegawai_id] ??= []).push({
+      jabatan_id: row.jabatan_id,
+      nama,
+      is_utama: row.is_utama,
+    });
+  }
+
   return (
     <PegawaiClient
       pegawai={pegawai}
       options={options}
+      pegawaiJabatan={pegawaiJabatan}
       permissions={{
         create: can(current.permissions, PERMISSIONS.pegawaiCreate, current.isSuperAdmin),
         update: can(current.permissions, PERMISSIONS.pegawaiUpdate, current.isSuperAdmin),
