@@ -674,6 +674,171 @@ export interface Database {
         };
         Relationships: [];
       };
+      bill_items: {
+        Row: {
+          id: string;
+          school_id: string;
+          nama_item: string;
+          nominal: number;
+          frekuensi: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          nama_item: string;
+          nominal: number;
+          frekuensi?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          nama_item?: string;
+          nominal?: number;
+          frekuensi?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      bills: {
+        Row: {
+          id: string;
+          school_id: string;
+          student_id: string;
+          bill_item_id: string | null;
+          deskripsi: string;
+          nominal: number;
+          jatuh_tempo: string | null;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          student_id: string;
+          bill_item_id?: string | null;
+          deskripsi: string;
+          nominal: number;
+          jatuh_tempo?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          student_id?: string;
+          bill_item_id?: string | null;
+          deskripsi?: string;
+          nominal?: number;
+          jatuh_tempo?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bills_school_id_fkey";
+            columns: ["school_id"];
+            isOneToOne: false;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bills_student_id_fkey";
+            columns: ["student_id"];
+            isOneToOne: false;
+            referencedRelation: "students";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bills_bill_item_id_fkey";
+            columns: ["bill_item_id"];
+            isOneToOne: false;
+            referencedRelation: "bill_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payments: {
+        Row: {
+          id: string;
+          school_id: string;
+          bill_id: string;
+          dicatat_oleh: string;
+          nominal: number;
+          metode: string;
+          bukti_url: string | null;
+          catatan: string | null;
+          status: string;
+          diverifikasi_oleh: string | null;
+          diverifikasi_pada: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          bill_id: string;
+          dicatat_oleh: string;
+          nominal: number;
+          metode: string;
+          bukti_url?: string | null;
+          catatan?: string | null;
+          status?: string;
+          diverifikasi_oleh?: string | null;
+          diverifikasi_pada?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          bill_id?: string;
+          dicatat_oleh?: string;
+          nominal?: number;
+          metode?: string;
+          bukti_url?: string | null;
+          catatan?: string | null;
+          status?: string;
+          diverifikasi_oleh?: string | null;
+          diverifikasi_pada?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payments_school_id_fkey";
+            columns: ["school_id"];
+            isOneToOne: false;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_bill_id_fkey";
+            columns: ["bill_id"];
+            isOneToOne: false;
+            referencedRelation: "bills";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_dicatat_oleh_fkey";
+            columns: ["dicatat_oleh"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_diverifikasi_oleh_fkey";
+            columns: ["diverifikasi_oleh"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

@@ -230,3 +230,56 @@ export type Siswa = {
   status: SiswaStatus;
 };
 
+// =============================================================================
+// Keuangan (Issue #17)
+// =============================================================================
+
+export type BillFrekuensi = "sekali" | "bulanan" | "tahunan";
+
+export type BillStatus =
+  | "belum_bayar"
+  | "menunggu_verifikasi"
+  | "lunas"
+  | "batal";
+
+export type PaymentMetode = "transfer" | "tunai" | "qris";
+
+export type PaymentStatus = "menunggu" | "terverifikasi" | "ditolak";
+
+export type BillItem = {
+  id: string;
+  school_id: string;
+  nama_item: string;
+  nominal: number;
+  frekuensi: BillFrekuensi;
+};
+
+export type Bill = {
+  id: string;
+  school_id: string;
+  student_id: string;
+  bill_item_id: string | null;
+  deskripsi: string;
+  nominal: number;
+  jatuh_tempo: string | null;
+  status: BillStatus;
+};
+
+export type BillWithStudent = Bill & {
+  student_nama: string | null;
+};
+
+export type Payment = {
+  id: string;
+  school_id: string;
+  bill_id: string;
+  dicatat_oleh: string;
+  nominal: number;
+  metode: PaymentMetode;
+  bukti_url: string | null;
+  catatan: string | null;
+  status: PaymentStatus;
+  diverifikasi_oleh: string | null;
+  diverifikasi_pada: string | null;
+};
+
