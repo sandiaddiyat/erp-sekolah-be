@@ -32,15 +32,10 @@ function buildPayload(command: SavePegawaiInput, schoolId: string): PegawaiPaylo
     jabatan_id: command.jabatan_utama_id || null,
     golongan_id: command.golongan_id || null,
     unit_kerja_id: command.unit_kerja_id || null,
-    pendidikan_terakhir_id: command.pendidikan_terakhir_id || null,
-    jurusan_id: command.jurusan_id || null,
-    jenis_sertifikasi_id: command.jenis_sertifikasi_id || null,
     tahun_masuk: command.tahun_masuk || null,
     alamat: command.alamat || null,
     phone: command.phone || null,
     email: command.email || null,
-    bank_id: command.bank_id || null,
-    no_rekening: command.no_rekening || null,
     is_active: command.is_active,
   };
 }
@@ -137,6 +132,151 @@ async function syncPegawaiJabatan(
 }
 
 /**
+ * Jenjang pendidikan diurutkan dari terendah ke tertinggi; urutan ini juga
+ * disimpan sebagai kolom `urutan` di tabel jenjang_pendidikan (migrasi 0014).
+ */
+const URUTAN_JENJANG: Record<string, number> = {
+  SD: 1,
+  SMP: 2,
+  "SMA/SMK": 3,
+  D1: 4,
+  D2: 5,
+  D3: 6,
+  D4: 7,
+  S1: 8,
+  S2: 9,
+  S3: 10,
+};
+
+type PendidikanJenjangInfo = {
+  id: string;
+  jenjang_pendidikan_id: string;
+  nama_jenjang: string | null;
+};
+
+/**
+ * Ambil jenjang tertinggi dari daftar baris pendidikan (pemetaan nama jenjang;
+ * kolom `urutan` DB tidak terbaca di service karena master global tidak
+ * menyertakannya pada saat query halaman).
+ */
+function highestJenjangId(
+  rows: PendidikanJenjangInfo[]
+): string | null {
+  let bestId: string | null = null;
+  let bestUrutan = -1;
+  for (const row of rows) {
+    const urutan = row.nama_jenjang ? URUTAN_JENJANG[row.nama_jenjang] ?? 0 : 0;
+    if (urutan > bestUrutan) {
+      bestUrutan = urutan;
+      bestId = row.jenjang_pendidikan_id;
+    }
+  }
+  return bestId;
+}
+
+type PendidikanRow = NonNullable<
+  SavePegawaiInput["pendidikan"]
+>[number];
+type SertifikasiRow = NonNullable<
+  SavePegawaiInput["sertifikasi"]
+>[number];
+
+/**
+ * Sinkronisasi penuh (replace-all) baris pendidikan & sertifikasi pegawai:
+ * hapus semua baris lama lalu bulk insert daftar final. Setelahnya update
+ * `pendidikan_terakhir_id` = jenjang tertinggi dari baris pendidikan.
+ * Gagal sinkron TIDAK menggagalkan penyimpanan pegawai.
+ */
+async function syncPegawaiDetail(
+  supabase: SupabaseClient<Database>,
+  schoolId: string,
+  pegawaiId: string,
+  pendidikan: PendidikanRow[],
+  sertifikasi: SertifikasiRow[]
+): Promise<boolean> {
+  // a. Hapus semua baris lama (replace-all).
+  const hapusPendidikan = await supabase
+    .from("pegawai_pendidikan")
+    .delete()
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId);
+  if (hapusPendidikan.error) return false;
+
+  const hapusSertifikasi = await supabase
+    .from("pegawai_sertifikasi")
+    .delete()
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId);
+  if (hapusSertifikasi.error) return false;
+
+  // b. Bulk insert daftar final.
+  if (pendidikan.length > 0) {
+    const { error } = await supabase.from("pegawai_pendidikan").insert(
+      pendidikan.map((row) => ({
+        school_id: schoolId,
+        pegawai_id: pegawaiId,
+        jenjang_pendidikan_id: row.jenjang_pendidikan_id || null,
+        jurusan: row.jurusan || null,
+        nama_institusi: row.nama_institusi || null,
+        tahun_lulus: row.tahun_lulus || null,
+      }))
+    );
+    if (error) return false;
+  }
+
+  if (sertifikasi.length > 0) {
+    const { error } = await supabase.from("pegawai_sertifikasi").insert(
+      sertifikasi.map((row) => ({
+        school_id: schoolId,
+        pegawai_id: pegawaiId,
+        nama_sertifikasi: row.nama_sertifikasi,
+        tanggal_berlaku: row.tanggal_berlaku || null,
+        tanggal_kedaluwarsa: row.tanggal_kedaluwarsa || null,
+        nomor_sertifikat: row.nomor_sertifikat || null,
+        penerbit: row.penerbit || null,
+      }))
+    );
+    if (error) return false;
+  }
+
+  // c. Backfill pendidikan_terakhir_id = jenjang tertinggi dari baris pendidikan.
+  const jenjangIds = [
+    ...new Set(
+      pendidikan
+        .map((row) => row.jenjang_pendidikan_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  let pendidikanTerakhirId: string | null = null;
+  if (jenjangIds.length > 0) {
+    const jenjangResult = await supabase
+      .from("jenjang_pendidikan")
+      .select("id, nama_jenjang")
+      .in("id", jenjangIds);
+    if (jenjangResult.error) return false;
+    const rows = ((jenjangResult.data ?? []) as {
+      id: string;
+      nama_jenjang: string | null;
+    }[]).map((row) => ({
+      id: row.id,
+      jenjang_pendidikan_id: row.id,
+      nama_jenjang: row.nama_jenjang,
+    }));
+    pendidikanTerakhirId = highestJenjangId(rows);
+  }
+
+  const { error: updateError } = await supabase
+    .from("pegawai")
+    .update({ pendidikan_terakhir_id: pendidikanTerakhirId })
+    .eq("id", pegawaiId)
+    .eq("school_id", schoolId);
+  if (updateError) return false;
+
+  return true;
+}
+
+/**
  * Simpan pegawai (buat bila command tanpa `id`, ubah bila ada).
  * `school_id` SELALU dari user yang login — bukan dari input form.
  * Setelah pegawai tersimpan, daftar jabatan disinkronkan penuh ke
@@ -172,16 +312,23 @@ export async function savePegawaiRecord(
       );
     }
 
-    const synced = await syncPegawaiJabatan(
+    const syncedJabatan = await syncPegawaiJabatan(
       supabase,
       schoolId,
       command.id,
       command.jabatan_ids,
       jabatanUtamaId
     );
-    if (!synced) {
+    const syncedDetail = await syncPegawaiDetail(
+      supabase,
+      schoolId,
+      command.id,
+      command.pendidikan ?? [],
+      command.sertifikasi ?? []
+    );
+    if (!syncedJabatan || !syncedDetail) {
       return okResult(
-        "Pegawai tersimpan, namun gagal menyinkronkan jabatan."
+        "Pegawai tersimpan, namun gagal menyinkronkan jabatan/detail."
       );
     }
     return okResult(`Data ${command.full_name} berhasil diperbarui.`);
@@ -204,16 +351,23 @@ export async function savePegawaiRecord(
 
   const pegawaiId = (insertResult.data as { id: string } | null)?.id;
   if (pegawaiId) {
-    const synced = await syncPegawaiJabatan(
+    const syncedJabatan = await syncPegawaiJabatan(
       supabase,
       schoolId,
       pegawaiId,
       command.jabatan_ids,
       jabatanUtamaId
     );
-    if (!synced) {
+    const syncedDetail = await syncPegawaiDetail(
+      supabase,
+      schoolId,
+      pegawaiId,
+      command.pendidikan ?? [],
+      command.sertifikasi ?? []
+    );
+    if (!syncedJabatan || !syncedDetail) {
       return okResult(
-        "Pegawai tersimpan, namun gagal menyinkronkan jabatan."
+        "Pegawai tersimpan, namun gagal menyinkronkan jabatan/detail."
       );
     }
   }
@@ -221,7 +375,7 @@ export async function savePegawaiRecord(
   return okResult(`Pegawai ${command.full_name} berhasil ditambahkan.`);
 }
 
-/** Hapus pegawai milik sekolah yang sedang login (beserta baris pivotnya). */
+/** Hapus pegawai milik sekolah yang sedang login (beserta baris detailnya). */
 export async function deletePegawaiRecord(
   deps: PegawaiMutationsDeps,
   current: CurrentUser,
@@ -233,7 +387,25 @@ export async function deletePegawaiRecord(
     return errResult("Hanya admin sekolah yang boleh mengelola data pegawai.");
   }
 
-  // Hapus pivot dulu (eksplisit; FK cascade hanya lapis cadangan).
+  // Hapus detail & pivot dulu (eksplisit; FK cascade hanya lapis cadangan).
+  const { error: pendidikanError } = await deps.supabase
+    .from("pegawai_pendidikan")
+    .delete()
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId);
+  if (pendidikanError) {
+    return errResult(serverError(pendidikanError, "Gagal menghapus pegawai."));
+  }
+
+  const { error: sertifikasiError } = await deps.supabase
+    .from("pegawai_sertifikasi")
+    .delete()
+    .eq("pegawai_id", pegawaiId)
+    .eq("school_id", schoolId);
+  if (sertifikasiError) {
+    return errResult(serverError(sertifikasiError, "Gagal menghapus pegawai."));
+  }
+
   const { error: pivotError } = await deps.supabase
     .from("pegawai_jabatan")
     .delete()

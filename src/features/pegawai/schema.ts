@@ -27,6 +27,27 @@ const optionalText = (max: number, label: string) =>
     .optional()
     .transform((v) => v || undefined);
 
+export const pendidikanRowSchema = z.object({
+  jenjang_pendidikan_id: optionalUuid,
+  jurusan: optionalText(150, "Jurusan"),
+  nama_institusi: optionalText(150, "Nama institusi"),
+  tahun_lulus: optionalText(4, "Tahun lulus").refine(
+    (v) => !v || /^\d{4}$/.test(v),
+    "Tahun lulus harus 4 digit."
+  ),
+});
+
+export const sertifikasiRowSchema = z.object({
+  nama_sertifikasi: z
+    .string({ error: "Nama sertifikasi wajib diisi." })
+    .trim()
+    .min(1, "Nama sertifikasi wajib diisi."),
+  tanggal_berlaku: optionalDate,
+  tanggal_kedaluwarsa: optionalDate,
+  nomor_sertifikat: optionalText(100, "Nomor sertifikat"),
+  penerbit: optionalText(150, "Penerbit"),
+});
+
 export const savePegawaiSchema = z
   .object({
     id: optionalUuid,
@@ -49,10 +70,9 @@ export const savePegawaiSchema = z
     jabatan_utama_id: optionalUuid,
     golongan_id: optionalUuid,
     unit_kerja_id: optionalUuid,
-    pendidikan_terakhir_id: optionalUuid,
-    jurusan_id: optionalUuid,
-    jenis_sertifikasi_id: optionalUuid,
     tahun_masuk: optionalDate,
+    pendidikan: z.array(pendidikanRowSchema).max(20).default([]),
+    sertifikasi: z.array(sertifikasiRowSchema).max(30).default([]),
     alamat: optionalText(500, "Alamat"),
     phone: optionalText(30, "Telepon"),
     email: z
@@ -64,8 +84,6 @@ export const savePegawaiSchema = z
         (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
         "Format email tidak valid."
       ),
-    bank_id: optionalUuid,
-    no_rekening: optionalText(50, "Nomor rekening"),
     is_active: z.boolean().default(true),
   })
   .superRefine((data, ctx) => {
@@ -101,8 +119,21 @@ export type SavePegawaiParseResult =
   | { ok: true; command: SavePegawaiInput }
   | { ok: false; error: string };
 
+/** Baca array baris (pendidikan/sertifikasi) dari hidden input JSON FormData. */
+function readJsonArray(formData: FormData, key: string): unknown[] {
+  const raw = formData.get(key);
+  if (typeof raw !== "string" || raw.trim() === "") return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Baca + validasi FormData form pegawai, lalu susun menjadi command.
+ * Array pendidikan & sertifikasi dikirim sebagai JSON string lewat hidden input.
  */
 export function readSavePegawaiInput(formData: FormData): SavePegawaiParseResult {
   const parsed = savePegawaiSchema.safeParse({
@@ -120,15 +151,12 @@ export function readSavePegawaiInput(formData: FormData): SavePegawaiParseResult
     jabatan_utama_id: formData.get("jabatan_utama_id") ?? "",
     golongan_id: formData.get("golongan_id") ?? "",
     unit_kerja_id: formData.get("unit_kerja_id") ?? "",
-    pendidikan_terakhir_id: formData.get("pendidikan_terakhir_id") ?? "",
-    jurusan_id: formData.get("jurusan_id") ?? "",
-    jenis_sertifikasi_id: formData.get("jenis_sertifikasi_id") ?? "",
     tahun_masuk: formData.get("tahun_masuk") ?? "",
+    pendidikan: readJsonArray(formData, "pendidikan"),
+    sertifikasi: readJsonArray(formData, "sertifikasi"),
     alamat: formData.get("alamat") ?? "",
     phone: formData.get("phone") ?? "",
     email: formData.get("email") ?? "",
-    bank_id: formData.get("bank_id") ?? "",
-    no_rekening: formData.get("no_rekening") ?? "",
     is_active: formData.get("is_active") !== "false",
   });
 

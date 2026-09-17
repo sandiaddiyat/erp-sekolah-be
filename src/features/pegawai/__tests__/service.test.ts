@@ -93,7 +93,7 @@ function makeUser(): CurrentUser {
 
 /**
  * Supabase mock yang memberikan QueryMock berikutnya dari antrean per tabel
- * (service memanggil from() berkali-kali untuk sinkronisasi pegawai_jabatan).
+ * (service memanggil from() berkali-kali untuk sinkronisasi pivot & detail).
  */
 function makeSupabase(
   queues: Record<string, QueryMock[]>
@@ -111,6 +111,17 @@ function makeSupabase(
     },
   } as unknown as SupabaseClient<Database>;
 }
+
+/**
+ * Antrean default untuk penyimpanan tanpa jabatan/pendidikan/sertifikasi:
+ * pegawai (simpan + backfill), pendidikan (delete), sertifikasi (delete).
+ */
+const BASE_QUEUES = (): Record<string, QueryMock[]> => ({
+  pegawai: [new QueryMock(), new QueryMock()],
+  pegawai_pendidikan: [new QueryMock()],
+  pegawai_sertifikasi: [new QueryMock()],
+  pegawai_jabatan: [new QueryMock([]), new QueryMock(), new QueryMock()],
+});
 
 function pegawaiFormData(
   entries: Record<string, string | string[]>
@@ -141,6 +152,8 @@ describe("readSavePegawaiInput (schema)", () => {
       expect(result.command.full_name).toBe("Ahmad Fauzi");
       expect(result.command.is_active).toBe(true);
       expect(result.command.jabatan_ids).toEqual([]);
+      expect(result.command.pendidikan).toEqual([]);
+      expect(result.command.sertifikasi).toEqual([]);
     }
   });
 
@@ -191,20 +204,65 @@ describe("readSavePegawaiInput (schema)", () => {
     }));
     expect(result.ok).toBe(true);
   });
+
+  it("menerima baris pendidikan & sertifikasi dari hidden input JSON", () => {
+    const pendidikan = [
+      {
+        jenjang_pendidikan_id: "33333333-3333-3333-8333-333333333333",
+        jurusan: "IPA",
+        nama_institusi: "SMA Negeri 1",
+        tahun_lulus: "2010",
+      },
+    ];
+    const sertifikasi = [
+      {
+        nama_sertifikasi: "Sertifikat Guru",
+        tanggal_berlaku: "2024-01-01",
+      },
+    ];
+    const result = readSavePegawaiInput(pegawaiFormData({
+      ...VALID_FORM,
+      pendidikan: JSON.stringify(pendidikan),
+      sertifikasi: JSON.stringify(sertifikasi),
+    }));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.pendidikan).toEqual(pendidikan);
+      expect(result.command.sertifikasi).toEqual(sertifikasi);
+    }
+  });
+
+  it("menolak sertifikasi tanpa nama_sertifikasi dengan pesan ramah", () => {
+    const result = readSavePegawaiInput(pegawaiFormData({
+      ...VALID_FORM,
+      sertifikasi: JSON.stringify([{ tanggal_berlaku: "2024-01-01" }]),
+    }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("Nama sertifikasi wajib diisi");
+    }
+  });
+
+  it("menolak tahun_lulus bukan 4 digit", () => {
+    const result = readSavePegawaiInput(pegawaiFormData({
+      ...VALID_FORM,
+      pendidikan: JSON.stringify([
+        { jurusan: "IPA", tahun_lulus: "20xx" },
+      ]),
+    }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("4 digit");
+    }
+  });
 });
 
 describe("savePegawaiRecord (service)", () => {
   it("menambahkan pegawai dengan school_id dari user login", async () => {
     const pegawaiInsert = new QueryMock({ id: "pegawai-1" });
-    const supabase = makeSupabase({
-      pegawai: [pegawaiInsert],
-      pegawai_jabatan: [
-        new QueryMock([]),
-        new QueryMock(),
-        new QueryMock(),
-        new QueryMock(),
-      ],
-    });
+    const queues = BASE_QUEUES();
+    queues.pegawai = [pegawaiInsert, new QueryMock()];
+    const supabase = makeSupabase(queues);
 
     const parsed = readSavePegawaiInput(pegawaiFormData(VALID_FORM));
     expect(parsed.ok).toBe(true);
@@ -223,8 +281,141 @@ describe("savePegawaiRecord (service)", () => {
     expect(payload.school_id).toBe("school-1");
     expect(payload.full_name).toBe("Ahmad Fauzi");
     expect(payload.jenis_kelamin).toBe("L");
- expect(pegawaiInsert.calls.some((c) => c === "select:id")).toBe(true);
+    expect(pegawaiInsert.calls.some((c) => c === "select:id")).toBe(true);
     expect(pegawaiInsert.calls.some((c) => c === "single")).toBe(true);
+  });
+
+  it("menyimpan 2 pendidikan + 1 sertifikasi: hapus lama lalu bulk insert dengan school_id dari profil login", async () => {
+    const pendidikanDelete = new QueryMock();
+    const pendidikanInsert = new QueryMock();
+    const sertifikasiDelete = new QueryMock();
+    const sertifikasiInsert = new QueryMock();
+    const pegawaiInsert = new QueryMock({ id: "pegawai-1" });
+    const pegawaiBackfill = new QueryMock();
+    const supabase = makeSupabase({
+      pegawai: [pegawaiInsert, pegawaiBackfill],
+      pegawai_pendidikan: [pendidikanDelete, pendidikanInsert],
+      pegawai_sertifikasi: [sertifikasiDelete, sertifikasiInsert],
+      pegawai_jabatan: [new QueryMock([]), new QueryMock(), new QueryMock()],
+      jenjang_pendidikan: [
+        new QueryMock([
+          { id: "33333333-3333-3333-8333-333333333333", nama_jenjang: "SMA/SMK" },
+          { id: "44444444-4444-4444-8444-444444444444", nama_jenjang: "S1" },
+        ]),
+      ],
+    });
+
+    const pendidikan = [
+      {
+        jenjang_pendidikan_id: "33333333-3333-3333-8333-333333333333",
+        jurusan: "IPA",
+        nama_institusi: "SMA Negeri 1",
+        tahun_lulus: "2010",
+      },
+      {
+        jenjang_pendidikan_id: "44444444-4444-4444-8444-444444444444",
+        jurusan: "Pendidikan Matematika",
+        nama_institusi: "Universitas Pendidikan",
+        tahun_lulus: "2015",
+      },
+    ];
+    const sertifikasi = [
+      {
+        nama_sertifikasi: "Sertifikat Guru Profesional",
+        tanggal_berlaku: "2024-01-01",
+        penerbit: "Kemendikbud",
+      },
+    ];
+
+    const parsed = readSavePegawaiInput(pegawaiFormData({
+      ...VALID_FORM,
+      pendidikan: JSON.stringify(pendidikan),
+      sertifikasi: JSON.stringify(sertifikasi),
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const result = await savePegawaiRecord({ supabase }, makeUser(), parsed.command);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).not.toContain("gagal");
+    }
+
+    // Replace-all: delete lama dulu, selalu dengan filter school_id.
+    expect(pendidikanDelete.calls.some((c) => c === "delete")).toBe(true);
+    expect(pendidikanDelete.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+    expect(sertifikasiDelete.calls.some((c) => c === "delete")).toBe(true);
+    expect(sertifikasiDelete.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+
+    // Bulk insert pendidikan (2 baris sekaligus).
+    const pendidikanInsertCall = pendidikanInsert.calls.find((c) =>
+      c.startsWith("insert:")
+    );
+    expect(pendidikanInsertCall).toBeDefined();
+    const pendidikanRows = JSON.parse(
+      pendidikanInsertCall!.slice("insert:".length)
+    ) as { school_id: string; jurusan: string }[];
+    expect(pendidikanRows).toHaveLength(2);
+    expect(pendidikanRows.every((row) => row.school_id === "school-1")).toBe(true);
+    expect(pendidikanRows.map((row) => row.jurusan)).toEqual([
+      "IPA",
+      "Pendidikan Matematika",
+    ]);
+
+    // Bulk insert sertifikasi (1 baris).
+    const sertifikasiInsertCall = sertifikasiInsert.calls.find((c) =>
+      c.startsWith("insert:")
+    );
+    expect(sertifikasiInsertCall).toBeDefined();
+    const sertifikasiRows = JSON.parse(
+      sertifikasiInsertCall!.slice("insert:".length)
+    ) as { school_id: string; nama_sertifikasi: string }[];
+    expect(sertifikasiRows).toHaveLength(1);
+    expect(sertifikasiRows[0].school_id).toBe("school-1");
+    expect(sertifikasiRows[0].nama_sertifikasi).toBe(
+      "Sertifikat Guru Profesional"
+    );
+  });
+
+  it("backfill pendidikan_terakhir_id sesuai jenjang tertinggi", async () => {
+    const s1 = "55555555-5555-5555-8555-555555555555"; // S1 (urutan 8)
+    const s3 = "66666666-6666-6666-8666-666666666666"; // S3 (urutan 10)
+    const pegawaiInsert = new QueryMock({ id: "pegawai-1" });
+    const pegawaiBackfill = new QueryMock();
+    const jenjangQuery = new QueryMock([
+      { id: s1, nama_jenjang: "S1" },
+      { id: s3, nama_jenjang: "S3" },
+    ]);
+    const supabase = makeSupabase({
+      pegawai: [pegawaiInsert, pegawaiBackfill],
+      pegawai_pendidikan: [new QueryMock(), new QueryMock()],
+      pegawai_sertifikasi: [new QueryMock()],
+      pegawai_jabatan: [new QueryMock([]), new QueryMock(), new QueryMock()],
+      jenjang_pendidikan: [jenjangQuery],
+    });
+
+    const parsed = readSavePegawaiInput(pegawaiFormData({
+      ...VALID_FORM,
+      pendidikan: JSON.stringify([
+        { jenjang_pendidikan_id: s1, jurusan: "PGSD" },
+        { jenjang_pendidikan_id: s3, jurusan: "Manajemen" },
+      ]),
+    }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const result = await savePegawaiRecord({ supabase }, makeUser(), parsed.command);
+
+    expect(result.ok).toBe(true);
+    expect(jenjangQuery.calls.some((c) => c === `in:id=[${JSON.stringify([s1, s3]).slice(1, -1)}]`)).toBe(true);
+    const backfillCall = pegawaiBackfill.calls.find((c) => c.startsWith("update:"));
+    expect(backfillCall).toBeDefined();
+    expect(backfillCall).toBe(
+      `update:${JSON.stringify({ pendidikan_terakhir_id: s3 })}`
+    );
+    expect(pegawaiBackfill.calls.some((c) => c === "eq:id=pegawai-1")).toBe(true);
+    expect(pegawaiBackfill.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
   });
 
   it("menyimpan pegawai dengan 2 jabatan (1 utama) ke pivot", async () => {
@@ -234,15 +425,15 @@ describe("savePegawaiRecord (service)", () => {
     const pivotInsert = new QueryMock();
     const pivotReset = new QueryMock();
     const pivotUtama = new QueryMock();
-    const supabase = makeSupabase({
-      pegawai: [pegawaiInsert],
-      pegawai_jabatan: [
-        new QueryMock([]),
-        pivotInsert,
-        pivotReset,
-        pivotUtama,
-      ],
-    });
+    const queues = BASE_QUEUES();
+    queues.pegawai = [pegawaiInsert, new QueryMock()];
+    queues.pegawai_jabatan = [
+      new QueryMock([]),
+      pivotInsert,
+      pivotReset,
+      pivotUtama,
+    ];
+    const supabase = makeSupabase(queues);
 
     const parsed = readSavePegawaiInput(
       pegawaiFormData({
@@ -285,15 +476,15 @@ describe("savePegawaiRecord (service)", () => {
   it("memperbarui hanya baris milik sekolah yang sedang login", async () => {
     const utama = "11111111-1111-1111-8111-111111111111";
     const pegawaiUpdate = new QueryMock();
-    const supabase = makeSupabase({
-      pegawai: [pegawaiUpdate],
-      pegawai_jabatan: [
-        new QueryMock([]),
-        new QueryMock(),
-        new QueryMock(),
-        new QueryMock(),
-      ],
-    });
+    const queues = BASE_QUEUES();
+    queues.pegawai = [pegawaiUpdate, new QueryMock()];
+    queues.pegawai_jabatan = [
+      new QueryMock([]),
+      new QueryMock(),
+      new QueryMock(),
+      new QueryMock(),
+    ];
+    const supabase = makeSupabase(queues);
 
     const parsed = readSavePegawaiInput(
       pegawaiFormData({
@@ -325,19 +516,19 @@ describe("savePegawaiRecord (service)", () => {
     const pivotInsert = new QueryMock();
     const pivotReset = new QueryMock();
     const pivotUtama = new QueryMock();
-    const supabase = makeSupabase({
-      pegawai: [pegawaiUpdate],
-      pegawai_jabatan: [
-        // select existing: masih punya jabatan lama j-lama
-        new QueryMock([
-          { id: "pivot-1", jabatan_id: "j-lama" },
-        ]),
-        pivotDelete,
-        pivotInsert,
-        pivotReset,
-        pivotUtama,
-      ],
-    });
+    const queues = BASE_QUEUES();
+    queues.pegawai = [pegawaiUpdate, new QueryMock()];
+    queues.pegawai_jabatan = [
+      // select existing: masih punya jabatan lama j-lama
+      new QueryMock([
+        { id: "pivot-1", jabatan_id: "j-lama" },
+      ]),
+      pivotDelete,
+      pivotInsert,
+      pivotReset,
+      pivotUtama,
+    ];
+    const supabase = makeSupabase(queues);
 
     const parsed = readSavePegawaiInput(
       pegawaiFormData({
@@ -375,14 +566,14 @@ describe("savePegawaiRecord (service)", () => {
     const pegawaiUpdate = new QueryMock();
     const pivotDelete = new QueryMock();
     const pivotReset = new QueryMock();
-    const supabase = makeSupabase({
-      pegawai: [pegawaiUpdate],
-      pegawai_jabatan: [
-        new QueryMock([{ id: "pivot-1", jabatan_id: "j-lama" }]),
-        pivotDelete,
-        pivotReset,
-      ],
-    });
+    const queues = BASE_QUEUES();
+    queues.pegawai = [pegawaiUpdate, new QueryMock()];
+    queues.pegawai_jabatan = [
+      new QueryMock([{ id: "pivot-1", jabatan_id: "j-lama" }]),
+      pivotDelete,
+      pivotReset,
+    ];
+    const supabase = makeSupabase(queues);
 
     const parsed = readSavePegawaiInput(
       pegawaiFormData({
@@ -406,13 +597,13 @@ describe("savePegawaiRecord (service)", () => {
 
   it("tetap sukses dengan pesan peringatan bila sinkronisasi pivot gagal", async () => {
     const pegawaiUpdate = new QueryMock();
-    const supabase = makeSupabase({
-      pegawai: [pegawaiUpdate],
-      pegawai_jabatan: [
-        // select existing gagal
-        new QueryMock(null, { message: "db error" }),
-      ],
-    });
+    const queues = BASE_QUEUES();
+    queues.pegawai = [pegawaiUpdate, new QueryMock()];
+    queues.pegawai_jabatan = [
+      // select existing gagal
+      new QueryMock(null, { message: "db error" }),
+    ];
+    const supabase = makeSupabase(queues);
 
     const parsed = readSavePegawaiInput(
       pegawaiFormData({
@@ -427,7 +618,7 @@ describe("savePegawaiRecord (service)", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.message).toContain("gagal menyinkronkan jabatan");
+      expect(result.message).toContain("gagal menyinkronkan");
     }
   });
 
@@ -470,10 +661,14 @@ describe("savePegawaiRecord (service)", () => {
 });
 
 describe("deletePegawaiRecord (service)", () => {
-  it("menghapus pivot dulu lalu pegawai dengan filter school_id", async () => {
+  it("menghapus pendidikan, sertifikasi, pivot lalu pegawai dengan filter school_id", async () => {
+    const pendidikanDelete = new QueryMock();
+    const sertifikasiDelete = new QueryMock();
     const pivotDelete = new QueryMock();
     const pegawaiDelete = new QueryMock();
     const supabase = makeSupabase({
+      pegawai_pendidikan: [pendidikanDelete],
+      pegawai_sertifikasi: [sertifikasiDelete],
       pegawai_jabatan: [pivotDelete],
       pegawai: [pegawaiDelete],
     });
@@ -481,6 +676,11 @@ describe("deletePegawaiRecord (service)", () => {
     const result = await deletePegawaiRecord({ supabase }, makeUser(), "row-7");
 
     expect(result.ok).toBe(true);
+    expect(pendidikanDelete.calls.some((c) => c === "delete")).toBe(true);
+    expect(pendidikanDelete.calls.some((c) => c === "eq:pegawai_id=row-7")).toBe(true);
+    expect(pendidikanDelete.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+    expect(sertifikasiDelete.calls.some((c) => c === "delete")).toBe(true);
+    expect(sertifikasiDelete.calls.some((c) => c === "eq:pegawai_id=row-7")).toBe(true);
     expect(pivotDelete.calls.some((c) => c === "delete")).toBe(true);
     expect(pivotDelete.calls.some((c) => c === "eq:pegawai_id=row-7")).toBe(true);
     expect(pivotDelete.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);

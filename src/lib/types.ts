@@ -194,14 +194,10 @@ export type Pegawai = {
   golongan_id: string | null;
   unit_kerja_id: string | null;
   pendidikan_terakhir_id: string | null;
-  jurusan_id: string | null;
-  jenis_sertifikasi_id: string | null;
   tahun_masuk: string | null;
   alamat: string | null;
   phone: string | null;
   email: string | null;
-  bank_id: string | null;
-  no_rekening: string | null;
   is_active: boolean;
 };
 
@@ -215,6 +211,31 @@ export type PegawaiJabatan = {
   pegawai_id: string;
   jabatan_id: string;
   is_utama: boolean;
+};
+
+// =============================================================================
+// Detail pegawai: pendidikan & sertifikasi multi-baris (Issue #21)
+// =============================================================================
+
+export type PegawaiPendidikan = {
+  id: string;
+  school_id: string;
+  pegawai_id: string;
+  jenjang_pendidikan_id: string | null;
+  jurusan: string | null;
+  nama_institusi: string | null;
+  tahun_lulus: string | null;
+};
+
+export type PegawaiSertifikasi = {
+  id: string;
+  school_id: string;
+  pegawai_id: string;
+  nama_sertifikasi: string;
+  tanggal_berlaku: string | null;
+  tanggal_kedaluwarsa: string | null;
+  nomor_sertifikat: string | null;
+  penerbit: string | null;
 };
 
 // =============================================================================
