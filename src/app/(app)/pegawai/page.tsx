@@ -2,7 +2,11 @@ import { DataError } from "@/components/data-error";
 import { requirePermission } from "@/lib/auth";
 import { PERMISSIONS, can } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
-import type { Pegawai } from "@/lib/types";
+import type {
+  Pegawai,
+  PegawaiPendidikan,
+  PegawaiSertifikasi,
+} from "@/lib/types";
 import { PegawaiClient } from "./pegawai-client";
 
 export const metadata = { title: "Data Pegawai" };
@@ -14,9 +18,6 @@ export type PegawaiOptionLists = {
   golongan: { id: string; kode_golongan: string; keterangan: string | null }[];
   unit_kerja: { id: string; nama_unit: string }[];
   jenjang_pendidikan: { id: string; nama_jenjang: string }[];
-  jurusan: { id: string; nama_jurusan: string }[];
-  jenis_sertifikasi: { id: string; nama_sertifikasi: string }[];
-  bank: { id: string; nama_bank: string }[];
 };
 
 export type PegawaiJabatanInfo = {
@@ -24,6 +25,16 @@ export type PegawaiJabatanInfo = {
   nama: string;
   is_utama: boolean;
 };
+
+function groupByPegawai<T extends { pegawai_id: string }>(
+  rows: T[]
+): Record<string, T[]> {
+  const grouped: Record<string, T[]> = {};
+  for (const row of rows) {
+    (grouped[row.pegawai_id] ??= []).push(row);
+  }
+  return grouped;
+}
 
 export default async function PegawaiPage() {
   const current = await requirePermission(PERMISSIONS.pegawaiView);
@@ -37,10 +48,9 @@ export default async function PegawaiPage() {
     golonganResult,
     unitResult,
     jenjangResult,
-    jurusanResult,
-    sertifikasiResult,
-    bankResult,
     pegawaiJabatanResult,
+    pendidikanResult,
+    sertifikasiResult,
   ] = await Promise.all([
     supabase
       .from("pegawai")
@@ -61,15 +71,17 @@ export default async function PegawaiPage() {
       .from("jenjang_pendidikan")
       .select("id, nama_jenjang")
       .order("nama_jenjang"),
-    supabase.from("jurusan").select("id, nama_jurusan").order("nama_jurusan"),
-    supabase
-      .from("jenis_sertifikasi")
-      .select("id, nama_sertifikasi")
-      .order("nama_sertifikasi"),
-    supabase.from("bank").select("id, nama_bank").order("nama_bank"),
     supabase
       .from("pegawai_jabatan")
       .select("pegawai_id, jabatan_id, is_utama"),
+    supabase
+      .from("pegawai_pendidikan")
+      .select("*")
+      .order("created_at"),
+    supabase
+      .from("pegawai_sertifikasi")
+      .select("*")
+      .order("created_at"),
   ]);
 
   const loadError =
@@ -80,10 +92,9 @@ export default async function PegawaiPage() {
     golonganResult.error ??
     unitResult.error ??
     jenjangResult.error ??
-    jurusanResult.error ??
-    sertifikasiResult.error ??
-    bankResult.error ??
-    pegawaiJabatanResult.error;
+    pegawaiJabatanResult.error ??
+    pendidikanResult.error ??
+    sertifikasiResult.error;
   if (loadError) {
     return <DataError message="Gagal memuat data pegawai." />;
   }
@@ -95,9 +106,6 @@ export default async function PegawaiPage() {
     golongan: (golonganResult.data ?? []) as PegawaiOptionLists["golongan"],
     unit_kerja: (unitResult.data ?? []) as PegawaiOptionLists["unit_kerja"],
     jenjang_pendidikan: (jenjangResult.data ?? []) as PegawaiOptionLists["jenjang_pendidikan"],
-    jurusan: (jurusanResult.data ?? []) as PegawaiOptionLists["jurusan"],
-    jenis_sertifikasi: (sertifikasiResult.data ?? []) as PegawaiOptionLists["jenis_sertifikasi"],
-    bank: (bankResult.data ?? []) as PegawaiOptionLists["bank"],
   };
 
   const pegawai = (pegawaiResult.data ?? []) as Pegawai[];
@@ -126,6 +134,12 @@ export default async function PegawaiPage() {
       pegawai={pegawai}
       options={options}
       pegawaiJabatan={pegawaiJabatan}
+      pegawaiPendidikan={groupByPegawai(
+        (pendidikanResult.data ?? []) as PegawaiPendidikan[]
+      )}
+      pegawaiSertifikasi={groupByPegawai(
+        (sertifikasiResult.data ?? []) as PegawaiSertifikasi[]
+      )}
       permissions={{
         create: can(current.permissions, PERMISSIONS.pegawaiCreate, current.isSuperAdmin),
         update: can(current.permissions, PERMISSIONS.pegawaiUpdate, current.isSuperAdmin),

@@ -330,9 +330,9 @@ export interface Database {
         Relationships: [];
       };
       jenjang_pendidikan: {
-        Row: { id: string; nama_jenjang: string; created_at: string };
-        Insert: { id?: string; nama_jenjang: string; created_at?: string };
-        Update: { id?: string; nama_jenjang?: string; created_at?: string };
+        Row: { id: string; nama_jenjang: string; urutan: number; created_at: string };
+        Insert: { id?: string; nama_jenjang: string; urutan?: number; created_at?: string };
+        Update: { id?: string; nama_jenjang?: string; urutan?: number; created_at?: string };
         Relationships: [];
       };
       status_kepegawaian: {
@@ -539,14 +539,10 @@ export interface Database {
           golongan_id: string | null;
           unit_kerja_id: string | null;
           pendidikan_terakhir_id: string | null;
-          jurusan_id: string | null;
-          jenis_sertifikasi_id: string | null;
           tahun_masuk: string | null;
           alamat: string | null;
           phone: string | null;
           email: string | null;
-          bank_id: string | null;
-          no_rekening: string | null;
           is_active: boolean;
           created_at: string;
           updated_at: string;
@@ -568,14 +564,10 @@ export interface Database {
           golongan_id?: string | null;
           unit_kerja_id?: string | null;
           pendidikan_terakhir_id?: string | null;
-          jurusan_id?: string | null;
-          jenis_sertifikasi_id?: string | null;
           tahun_masuk?: string | null;
           alamat?: string | null;
           phone?: string | null;
           email?: string | null;
-          bank_id?: string | null;
-          no_rekening?: string | null;
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -597,14 +589,10 @@ export interface Database {
           golongan_id?: string | null;
           unit_kerja_id?: string | null;
           pendidikan_terakhir_id?: string | null;
-          jurusan_id?: string | null;
-          jenis_sertifikasi_id?: string | null;
           tahun_masuk?: string | null;
           alamat?: string | null;
           phone?: string | null;
           email?: string | null;
-          bank_id?: string | null;
-          no_rekening?: string | null;
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -656,6 +644,112 @@ export interface Database {
             columns: ["jabatan_id"];
             isOneToOne: false;
             referencedRelation: "jabatan";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pegawai_pendidikan: {
+        Row: {
+          id: string;
+          school_id: string;
+          pegawai_id: string;
+          jenjang_pendidikan_id: string | null;
+          jurusan: string | null;
+          nama_institusi: string | null;
+          tahun_lulus: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          pegawai_id: string;
+          jenjang_pendidikan_id?: string | null;
+          jurusan?: string | null;
+          nama_institusi?: string | null;
+          tahun_lulus?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          pegawai_id?: string;
+          jenjang_pendidikan_id?: string | null;
+          jurusan?: string | null;
+          nama_institusi?: string | null;
+          tahun_lulus?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pegawai_pendidikan_school_id_fkey";
+            columns: ["school_id"];
+            isOneToOne: false;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pegawai_pendidikan_pegawai_id_fkey";
+            columns: ["pegawai_id"];
+            isOneToOne: false;
+            referencedRelation: "pegawai";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pegawai_pendidikan_jenjang_pendidikan_id_fkey";
+            columns: ["jenjang_pendidikan_id"];
+            isOneToOne: false;
+            referencedRelation: "jenjang_pendidikan";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pegawai_sertifikasi: {
+        Row: {
+          id: string;
+          school_id: string;
+          pegawai_id: string;
+          nama_sertifikasi: string;
+          tanggal_berlaku: string | null;
+          tanggal_kedaluwarsa: string | null;
+          nomor_sertifikat: string | null;
+          penerbit: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          pegawai_id: string;
+          nama_sertifikasi: string;
+          tanggal_berlaku?: string | null;
+          tanggal_kedaluwarsa?: string | null;
+          nomor_sertifikat?: string | null;
+          penerbit?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          pegawai_id?: string;
+          nama_sertifikasi?: string;
+          tanggal_berlaku?: string | null;
+          tanggal_kedaluwarsa?: string | null;
+          nomor_sertifikat?: string | null;
+          penerbit?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pegawai_sertifikasi_school_id_fkey";
+            columns: ["school_id"];
+            isOneToOne: false;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pegawai_sertifikasi_pegawai_id_fkey";
+            columns: ["pegawai_id"];
+            isOneToOne: false;
+            referencedRelation: "pegawai";
             referencedColumns: ["id"];
           },
         ];
