@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Bell, GraduationCap, Menu } from "lucide-react";
+import { Bell, GraduationCap, Menu, PanelLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import type { NavItem, PlannedModule } from "@/lib/nav";
 import { NAV_GROUPS } from "@/lib/nav";
+import { cn } from "@/lib/utils";
 import { UserMenu } from "./user-menu";
 
 const ICON_MAP: Record<NavItem["icon"], React.ComponentType<{ className?: string }>> = {
@@ -83,20 +85,22 @@ function Wallet({ className }: { className?: string }) {
   );
 }
 
-function Brand({ name }: { name: string }) {
+function Brand({ name, collapsed }: { name: string; collapsed?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
-      <span className="grid size-8 place-items-center rounded-lg bg-[#185743] text-white shadow-[0_4px_10px_rgb(4_37_29/18%)] dark:bg-[#d7f0dd] dark:text-[#154d40]">
+    <Link href="/" className={collapsed ? "grid place-items-center" : "flex items-center gap-2.5"}>
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#185743] text-white shadow-[0_4px_10px_rgb(4_37_29/18%)] dark:bg-[#d7f0dd] dark:text-[#154d40]">
         <GraduationCap className="size-[19px]" />
       </span>
-      <span className="min-w-0">
-        <strong className="block truncate font-display text-sm font-bold tracking-[-0.03em] text-[#173b32] dark:text-[#e8f0ec]">
-          {name}
-        </strong>
-        <span className="block truncate text-[10px] text-[#8a9f95] dark:text-[#6b7f76]">
-          {name}
+      {!collapsed ? (
+        <span className="min-w-0">
+          <strong className="block truncate font-display text-sm font-bold tracking-[-0.03em] text-[#173b32] dark:text-[#e8f0ec]">
+            {name}
+          </strong>
+          <span className="block truncate text-[10px] text-[#8a9f95] dark:text-[#6b7f76]">
+            {name}
+          </span>
         </span>
-      </span>
+      ) : null}
     </Link>
   );
 }
@@ -104,9 +108,11 @@ function Brand({ name }: { name: string }) {
 function NavLinks({
   items,
   onNavigate,
+  collapsed,
 }: {
   items: NavItem[];
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   return (
     <nav aria-label="Navigasi utama">
@@ -115,10 +121,14 @@ function NavLinks({
         if (groupItems.length === 0) return null;
         return (
           <div key={group.key} className="mb-5">
-            <span className="block px-2.5 pb-2 text-[10px] font-bold uppercase tracking-[0.09em] text-[#a1b1a9] dark:text-[#5c6f66]">
-              {group.label}
-            </span>
-            <div className="space-y-0.5">
+            {collapsed ? (
+              <div className="mx-auto mb-2 h-px w-6 bg-[#e5eee8] dark:bg-[#22332c]" />
+            ) : (
+              <span className="block px-2.5 pb-2 text-[10px] font-bold uppercase tracking-[0.09em] text-[#a1b1a9] dark:text-[#5c6f66]">
+                {group.label}
+              </span>
+            )}
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : "space-y-0.5"}>
               {groupItems.map((item) => {
                 const Icon = ICON_MAP[item.icon];
                 return (
@@ -126,10 +136,15 @@ function NavLinks({
                     key={item.href}
                     href={item.href}
                     onClick={onNavigate}
-                    className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-[#698079] transition-colors hover:bg-[#f0f7f2] hover:text-[#1d664d] dark:text-[#8fa39a] dark:hover:bg-[#162620] dark:hover:text-[#b8e8c8]"
+                    title={item.title}
+                    className={cn(
+                      collapsed
+                        ? "grid h-9 w-9 place-items-center rounded-lg text-[#698079] transition-colors hover:bg-[#f0f7f2] hover:text-[#1d664d] dark:text-[#8fa39a] dark:hover:bg-[#162620] dark:hover:text-[#b8e8c8]"
+                        : "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-[#698079] transition-colors hover:bg-[#f0f7f2] hover:text-[#1d664d] dark:text-[#8fa39a] dark:hover:bg-[#162620] dark:hover:text-[#b8e8c8]"
+                    )}
                   >
                     <Icon className="size-[17px] shrink-0" />
-                    <span className="truncate">{item.title}</span>
+                    {!collapsed ? <span className="truncate">{item.title}</span> : null}
                   </Link>
                 );
               })}
@@ -190,42 +205,28 @@ export function AppShell({
   items,
   planned,
 }: AppShellProps) {
-  const sidebar = (
-    <div className="flex h-full flex-col">
-      <div className="flex min-h-[72px] items-center justify-between px-4.5 py-4 border-b border-[#edf2ee] dark:border-[#22332c]">
-        <Brand name={appName} />
-        <Sheet>
-          <SheetTrigger className="lg:hidden">
-            <Button variant="ghost" size="icon" aria-label="Buka menu">
-              <Menu />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
-            <div className="flex h-full flex-col">
-              <div className="flex min-h-[72px] items-center justify-between px-4.5 py-4 border-b border-[#edf2ee]">
-                <Brand name={appName} />
-              </div>
-              <div className="flex-1 overflow-y-auto px-2.5 pt-5">
-                <NavLinks items={items} />
-              </div>
-              <UpcomingModules planned={planned} />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-      <div className="hidden lg:block flex-1 overflow-y-auto px-2.5 pt-5">
-        <NavLinks items={items} />
-      </div>
-      <div className="hidden lg:block">
-        <UpcomingModules planned={planned} />
-      </div>
-    </div>
-  );
+  const [collapsed, setCollapsed] = useState(false);
+  const toggle = () => setCollapsed((value) => !value);
 
   return (
-    <div className="min-h-svh bg-[#f6f9f7] lg:grid lg:grid-cols-[16rem_1fr] dark:bg-[#0b1512]">
+    <div
+      className={cn(
+        "min-h-svh bg-[#f6f9f7] lg:grid dark:bg-[#0b1512]",
+        collapsed ? "lg:grid-cols-[4.5rem_1fr]" : "lg:grid-cols-[16rem_1fr]"
+      )}
+    >
       <aside className="hidden border-r border-[#e5eee8] bg-white lg:block dark:border-[#22332c] dark:bg-[#0f1f1a]">
-        <div className="sticky top-0 h-svh">{sidebar}</div>
+        <div className="sticky top-0 h-svh">
+          <div className="flex h-full flex-col">
+            <div className="flex min-h-[72px] items-center justify-between border-b border-[#edf2ee] px-4 py-4 dark:border-[#22332c]">
+              <Brand name={appName} collapsed={collapsed} />
+            </div>
+            <div className="flex-1 overflow-y-auto px-2.5 pt-5">
+              <NavLinks items={items} collapsed={collapsed} />
+            </div>
+            {!collapsed ? <UpcomingModules planned={planned} /> : null}
+          </div>
+        </div>
       </aside>
 
       <div className="flex min-h-svh flex-col">
@@ -237,11 +238,28 @@ export function AppShell({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
-              {sidebar}
+              <div className="flex h-full flex-col">
+                <div className="flex min-h-[72px] items-center justify-between border-b border-[#edf2ee] px-4 py-4">
+                  <Brand name={appName} />
+                </div>
+                <div className="flex-1 overflow-y-auto px-2.5 pt-5">
+                  <NavLinks items={items} />
+                </div>
+                <UpcomingModules planned={planned} />
+              </div>
             </SheetContent>
           </Sheet>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:inline-flex"
+            onClick={toggle}
+            aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+          >
+            <PanelLeftIcon className="size-[19px]" />
+          </Button>
           <div className="flex-1" />
-          <Button variant="ghost" size="icon" aria-label="Notifikasi" className="relative rounded-lg size-[35px] text-[#71877d] hover:bg-[#eef6f0] hover:text-[#176148] dark:text-[#6b7f76] dark:hover:bg-[#162620] dark:hover:text-[#b8e8c8]">
+          <Button variant="ghost" size="icon" aria-label="Notifikasi" className="relative hidden rounded-lg size-[35px] text-[#71877d] hover:bg-[#eef6f0] hover:text-[#176148] sm:inline-flex dark:text-[#6b7f76] dark:hover:bg-[#162620] dark:hover:text-[#b8e8c8]">
             <Bell className="size-[19px]" />
             <span className="absolute top-[7px] right-[7px] size-[6px] rounded-full border border-white bg-[#e38a4b] dark:border-[#0f1f1a]" />
           </Button>

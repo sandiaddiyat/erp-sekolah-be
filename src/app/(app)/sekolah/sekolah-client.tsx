@@ -58,49 +58,59 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1190px] w-full space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-semibold">Sekolah</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#4c9a77]">
+            Profil Sekolah
+          </p>
+          <h1 className="font-heading text-2xl font-bold text-[#183d32]">
+            Sekolah
+          </h1>
+          <p className="mt-1 text-sm text-[#82978d]">
             Daftarkan sekolah baru dan atur masa aktifnya.
           </p>
         </div>
-        <Button onClick={openCreate}>
+        <Button
+          onClick={openCreate}
+          className="border-[#185743] bg-[#185743] text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
+        >
           <PlusIcon data-icon="inline-start" />
           Daftarkan Sekolah
         </Button>
       </div>
 
       {expiredCount > 0 ? (
-        <div className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-500">
+        <div className="rounded-lg border border-[#e8bcb4] bg-[#fcf3e3] px-3.5 py-2.5 text-sm text-[#a67437]">
           {expiredCount} sekolah perlu perpanjangan atau sedang disuspend.
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader className="gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+      <Card className="border-[#e2ece5] shadow-[0_3px_7px_#1c443305]">
+        <CardHeader className="gap-3 border-b border-[#edf2ee] sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
-            <CardTitle>Daftar Sekolah</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-heading text-[#21483b]">
+              Daftar Sekolah
+            </CardTitle>
+            <CardDescription className="text-[#8b9f95]">
               {filtered.length} dari {schools.length} sekolah
             </CardDescription>
           </div>
           <div className="relative sm:w-64">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-[#91a49a]" />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Cari nama, slug, atau NPSN..."
-              className="pl-8"
+              className="h-[35px] w-full rounded-[9px] border border-[#e2ece5] bg-[#fcfdfc] pl-8 text-sm text-[#284a3d] placeholder-[#a8b7b0] focus:border-[#9dc7a8] focus:ring-[#4d986f]/10"
             />
           </div>
         </CardHeader>
         <CardContent className="px-0">
           {filtered.length === 0 ? (
             <div className="px-6 py-10 text-center">
-              <p className="text-sm font-medium">Belum ada sekolah</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm font-medium text-[#3e5c50]">Belum ada sekolah</p>
+              <p className="text-sm text-[#a0afa8]">
                 {schools.length === 0
                   ? "Daftarkan sekolah pertama untuk mulai."
                   : "Tidak ada sekolah yang cocok dengan pencarian."}

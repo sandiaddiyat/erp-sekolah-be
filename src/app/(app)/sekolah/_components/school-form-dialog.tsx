@@ -8,9 +8,9 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,10 +45,10 @@ export function SchoolFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <form action={formAction} className="space-y-4">
+      <DialogContent className="border-[#dbe8df] bg-[#fbfdfb] sm:max-w-4xl">
+        <form action={formAction} className="space-y-6">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-heading text-[#183d32]">
               {isEdit ? "Ubah Sekolah" : "Daftarkan Sekolah"}
             </DialogTitle>
             <DialogDescription>
@@ -65,90 +65,114 @@ export function SchoolFormDialog({
             value={withAdmin ? "true" : "false"}
           />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nama Sekolah</Label>
+          {/* Identitas */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2 sm:col-span-3">
+              <Label htmlFor="name" className="text-xs font-bold text-[#4c6a5e]">
+                Nama Sekolah
+              </Label>
               <Input
                 id="name"
                 name="name"
                 defaultValue={school?.name ?? ""}
                 placeholder="Contoh: SMP Nurul Huda"
                 required
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="slug">Slug</Label>
+              <Label htmlFor="slug" className="text-xs font-bold text-[#4c6a5e]">
+                Slug
+              </Label>
               <Input
                 id="slug"
                 name="slug"
                 defaultValue={school?.slug ?? ""}
                 placeholder="otomatis dari nama"
                 disabled={isEdit}
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
               />
             </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="level">Jenjang</Label>
+              <Label htmlFor="level" className="text-xs font-bold text-[#4c6a5e]">
+                Jenjang
+              </Label>
               <Input
                 id="level"
                 name="level"
                 defaultValue={school?.level ?? ""}
                 placeholder="SMP / SMA / MI"
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="npsn">NPSN</Label>
+              <Label htmlFor="npsn" className="text-xs font-bold text-[#4c6a5e]">
+                NPSN
+              </Label>
               <Input
                 id="npsn"
                 name="npsn"
                 defaultValue={school?.npsn ?? ""}
                 placeholder="8 digit"
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Telepon</Label>
+              <Label htmlFor="phone" className="text-xs font-bold text-[#4c6a5e]">
+                Telepon
+              </Label>
               <Input
                 id="phone"
                 name="phone"
                 defaultValue={school?.phone ?? ""}
                 placeholder="021xxxxxxx"
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-3">
+              <Label htmlFor="email" className="text-xs font-bold text-[#4c6a5e]">
+                Email Sekolah
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                defaultValue={school?.email ?? ""}
+                placeholder="info@sekolah.sch.id"
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Sekolah</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              defaultValue={school?.email ?? ""}
-              placeholder="info@sekolah.sch.id"
-            />
-          </div>
+          <Separator className="border-[#e3ece6]" />
 
+          {/* Alamat */}
           <div className="space-y-2">
-            <Label htmlFor="address">Alamat</Label>
+            <Label htmlFor="address" className="text-xs font-bold text-[#4c6a5e]">
+              Alamat
+            </Label>
             <Input
               id="address"
               name="address"
               defaultValue={school?.address ?? ""}
               placeholder="Jalan, nomor, kota"
+              className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
             />
           </div>
 
-          <Separator />
+          <Separator className="border-[#e3ece6]" />
 
+          {/* Status & Masa Aktif */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status" className="text-xs font-bold text-[#4c6a5e]">
+                Status
+              </Label>
               <select
                 id="status"
                 name="status"
                 defaultValue={school?.status ?? "trial"}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                className="h-8 w-full rounded-lg border border-[#dfeae3] bg-transparent px-2.5 text-sm text-[#284a3d] outline-none focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10"
               >
                 <option value="trial">Uji Coba</option>
                 <option value="active">Aktif</option>
@@ -156,71 +180,106 @@ export function SchoolFormDialog({
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="active_until">Masa Aktif Sampai</Label>
+              <Label
+                htmlFor="active_until"
+                className="text-xs font-bold text-[#4c6a5e]"
+              >
+                Masa Aktif Sampai
+              </Label>
               <Input
                 id="active_until"
                 name="active_until"
                 type="date"
                 defaultValue={school?.active_until ?? ""}
+                className="border-[#dfeae3] text-[#284a3d] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#9aaa9f]">
                 Kosongkan bila tanpa batas waktu.
               </p>
             </div>
           </div>
 
+          <Separator className="border-[#e3ece6]" />
+
+          {/* Catatan */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Catatan</Label>
+            <Label htmlFor="notes" className="text-xs font-bold text-[#4c6a5e]">
+              Catatan
+            </Label>
             <Input
               id="notes"
               name="notes"
               defaultValue={school?.notes ?? ""}
               placeholder="Catatan internal, mis. tanggal penagihan"
+              className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
             />
           </div>
 
           {!isEdit ? (
             <>
-              <Separator />
+              <Separator className="border-[#e3ece6]" />
+
               <div className="flex items-center gap-2.5">
                 <Checkbox
                   id="with_admin"
                   checked={withAdmin}
                   onCheckedChange={(checked) => setWithAdmin(Boolean(checked))}
+                  className="border-[#c1d6c8] text-[#2e7a58] focus:ring-[#4f9970]/10 data-[state=checked]:bg-[#2e7a58] data-[state=checked]:text-white"
                 />
-                <Label htmlFor="with_admin" className="cursor-pointer">
+                <Label
+                  htmlFor="with_admin"
+                  className="text-xs font-bold text-[#4c6a5e] cursor-pointer"
+                >
                   Buatkan akun admin sekolah sekarang
                 </Label>
               </div>
 
               {withAdmin ? (
-                <div className="grid gap-4 rounded-lg border border-border p-3 sm:grid-cols-2">
+                <div className="grid gap-4 rounded-lg border border-[#e2ece5] p-3 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="admin_name">Nama Admin</Label>
+                    <Label
+                      htmlFor="admin_name"
+                      className="text-xs font-bold text-[#4c6a5e]"
+                    >
+                      Nama Admin
+                    </Label>
                     <Input
                       id="admin_name"
                       name="admin_name"
                       placeholder="Contoh: Siti Aminah"
+                      className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="admin_email">Email Admin</Label>
+                    <Label
+                      htmlFor="admin_email"
+                      className="text-xs font-bold text-[#4c6a5e]"
+                    >
+                      Email Admin
+                    </Label>
                     <Input
                       id="admin_email"
                       name="admin_email"
                       type="email"
                       placeholder="admin@sekolah.sch.id"
+                      className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="admin_password">Password Awal</Label>
+                    <Label
+                      htmlFor="admin_password"
+                      className="text-xs font-bold text-[#4c6a5e]"
+                    >
+                      Password Awal
+                    </Label>
                     <Input
                       id="admin_password"
                       name="admin_password"
                       type="password"
                       placeholder="Minimal 8 karakter"
+                      className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[#9aaa9f]">
                       Berikan password ini ke admin sekolah, dan minta segera
                       diganti.
                     </p>
@@ -235,10 +294,15 @@ export function SchoolFormDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className="border-[#d7e6dc] text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5]"
             >
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="border-[#185743] bg-[#185743] text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
+            >
               {isSubmitting
                 ? "Menyimpan..."
                 : isEdit

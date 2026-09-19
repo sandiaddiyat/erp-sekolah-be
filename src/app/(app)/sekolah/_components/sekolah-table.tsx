@@ -32,13 +32,10 @@ import {
 } from "@/lib/school";
 import type { SchoolStatus, SchoolWithCounts } from "@/lib/types";
 
-const STATUS_VARIANT: Record<
-  SchoolStatus,
-  "default" | "secondary" | "destructive"
-> = {
-  active: "default",
-  trial: "secondary",
-  suspended: "destructive",
+const STATUS_CLASS: Record<SchoolStatus, string> = {
+  active: "rounded-[99px] border-transparent bg-[#e7f5e9] px-[8px] py-[4px] text-[9px] font-bold text-[#2b7254]",
+  trial: "rounded-[99px] border-transparent bg-[#fcf3e3] px-[8px] py-[4px] text-[9px] font-bold text-[#a67437]",
+  suspended: "rounded-[99px] border-transparent bg-[#fdf0ee] px-[8px] py-[4px] text-[9px] font-bold text-[#ad685d]",
 };
 
 function StatusCell({ school }: { school: SchoolWithCounts }) {
@@ -47,16 +44,16 @@ function StatusCell({ school }: { school: SchoolWithCounts }) {
 
   return (
     <div className="space-y-1">
-      <Badge variant={STATUS_VARIANT[school.status]}>
+      <Badge className={STATUS_CLASS[school.status]}>
         {SCHOOL_STATUS_LABELS[school.status]}
       </Badge>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-[#9aaa9f]">
         s/d {formatActiveUntil(school.active_until)}
       </p>
       {problem === "expired" ? (
-        <p className="text-xs text-destructive">Masa aktif sudah lewat</p>
+        <p className="text-xs text-[#ad685d]">Masa aktif sudah lewat</p>
       ) : days !== null && days >= 0 && days <= 30 ? (
-        <p className="text-xs text-amber-600">Tersisa {days} hari</p>
+        <p className="text-xs text-[#a67437]">Tersisa {days} hari</p>
       ) : null}
     </div>
   );
@@ -76,45 +73,60 @@ export function SekolahTable({
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Sekolah</TableHead>
-          <TableHead className="hidden md:table-cell">Status</TableHead>
-          <TableHead className="hidden sm:table-cell">User</TableHead>
-          <TableHead className="hidden sm:table-cell">Role</TableHead>
+        <TableRow className="border-b border-[#e5eee8]">
+          <TableHead className="px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279]">
+            Sekolah
+          </TableHead>
+          <TableHead className="hidden px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] md:table-cell">
+            Status
+          </TableHead>
+          <TableHead className="hidden px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] sm:table-cell">
+            User
+          </TableHead>
+          <TableHead className="hidden px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] sm:table-cell">
+            Role
+          </TableHead>
           <TableHead className="w-12" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {schools.map((school) => (
-          <TableRow key={school.id}>
-            <TableCell>
-              <div className="space-y-0.5">
-                <p className="flex items-center gap-1.5 font-medium">
-                  <SchoolIcon className="size-4 text-muted-foreground" />
-                  {school.name}
-                </p>
-                <p className="font-mono text-xs text-muted-foreground">
-                  {school.slug}
-                </p>
-                {school.level || school.npsn ? (
-                  <p className="text-xs text-muted-foreground">
-                    {[school.level, school.npsn && `NPSN ${school.npsn}`]
-                      .filter(Boolean)
-                      .join(" • ")}
+          <TableRow
+            key={school.id}
+            className="border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
+          >
+            <TableCell className="px-3.5 py-3 align-middle">
+              <div className="flex items-center gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[#def1e2]">
+                  <SchoolIcon className="size-4 text-[#2b7254]" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[12px] font-semibold text-[#2b493e]">
+                    {school.name}
                   </p>
-                ) : null}
+                  <p className="truncate font-mono text-[10px] text-[#7d9389]">
+                    {school.slug}
+                  </p>
+                  {school.level || school.npsn ? (
+                    <p className="truncate text-xs text-[#9aaa9f]">
+                      {[school.level, school.npsn && `NPSN ${school.npsn}`]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </TableCell>
-            <TableCell className="hidden md:table-cell">
+            <TableCell className="hidden px-3.5 py-3 align-middle md:table-cell">
               <StatusCell school={school} />
             </TableCell>
-            <TableCell className="hidden text-sm sm:table-cell">
+            <TableCell className="hidden px-3.5 py-3 text-sm text-[#3e5c50] align-middle sm:table-cell">
               {school.user_count}
             </TableCell>
-            <TableCell className="hidden text-sm sm:table-cell">
+            <TableCell className="hidden px-3.5 py-3 text-sm text-[#3e5c50] align-middle sm:table-cell">
               {school.role_count}
             </TableCell>
-            <TableCell>
+            <TableCell className="px-3 py-3 align-middle">
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -122,23 +134,24 @@ export function SekolahTable({
                       variant="ghost"
                       size="icon-sm"
                       disabled={isPending}
+                      className="text-[#8ca096] hover:bg-[#eef7f0] hover:text-[#2b7254]"
                     />
                   }
                 >
                   <MoreHorizontalIcon />
                   <span className="sr-only">Aksi</span>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem onClick={() => onEdit(school)}>
                     <PencilIcon />
                     Ubah
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-[#e3ece6]" />
                   {school.status === "suspended" ? (
                     <DropdownMenuItem
                       onClick={() => onChangeStatus(school, "active")}
                     >
-                      <RotateCcwIcon />
+                      <RotateCcwIcon className="text-[#2b7254]" />
                       Aktifkan kembali
                     </DropdownMenuItem>
                   ) : (
@@ -146,7 +159,7 @@ export function SekolahTable({
                       variant="destructive"
                       onClick={() => onChangeStatus(school, "suspended")}
                     >
-                      <BanIcon />
+                      <BanIcon className="text-[#ad685d]" />
                       Suspend
                     </DropdownMenuItem>
                   )}
