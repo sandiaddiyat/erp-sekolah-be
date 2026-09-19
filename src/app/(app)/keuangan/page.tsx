@@ -39,7 +39,7 @@ export default async function KeuanganPage() {
   }
 
   type BillRow = Omit<Bill, "student_nama"> & {
-    students: { nama_lengkap: string }[] | null;
+    students: { nama_lengkap: string } | { nama_lengkap: string }[] | null;
   };
 
   const bills = (billsResult.data ?? []) as unknown as BillRow[];
@@ -47,19 +47,22 @@ export default async function KeuanganPage() {
   const students = (studentsResult.data ?? []) as StudentOption[];
   const payments = (paymentsResult.data ?? []) as Payment[];
 
-  const billsWithStudent: BillWithStudent[] = bills.map((bill) => ({
-    id: bill.id,
-    school_id: bill.school_id,
-    student_id: bill.student_id,
-    bill_item_id: bill.bill_item_id,
-    deskripsi: bill.deskripsi,
-    nominal: bill.nominal,
-    diskon: bill.diskon,
-    diskon_keterangan: bill.diskon_keterangan,
-    jatuh_tempo: bill.jatuh_tempo,
-    status: bill.status as Bill["status"],
-    student_nama: bill.students?.[0]?.nama_lengkap ?? null,
-  }));
+  const billsWithStudent: BillWithStudent[] = bills.map((bill) => {
+    const student = Array.isArray(bill.students) ? bill.students[0] : bill.students;
+    return {
+      id: bill.id,
+      school_id: bill.school_id,
+      student_id: bill.student_id,
+      bill_item_id: bill.bill_item_id,
+      deskripsi: bill.deskripsi,
+      nominal: bill.nominal,
+      diskon: bill.diskon,
+      diskon_keterangan: bill.diskon_keterangan,
+      jatuh_tempo: bill.jatuh_tempo,
+      status: bill.status as Bill["status"],
+      student_nama: student?.nama_lengkap ?? null,
+    };
+  });
 
   return (
     <KeuanganClient
