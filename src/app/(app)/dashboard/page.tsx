@@ -1,12 +1,4 @@
-import Link from "next/link";
-import {
-  ChevronRightIcon,
-  CircleHelpIcon,
-  MoreHorizontalIcon,
-  ShieldCheckIcon,
-  UserCogIcon,
-  UsersIcon,
-} from "lucide-react";
+import { ChevronRight, CircleHelp, ShieldCheck, Users, UserCog } from "lucide-react";
 import { DataError } from "@/components/data-error";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -14,13 +6,65 @@ import { PERMISSIONS, MODULE_LABELS, MODULE_ORDER, can } from "@/lib/rbac";
 
 export const metadata = { title: "Dashboard" };
 
-type Tone = "green" | "blue" | "amber";
+type StatCardTone = "green" | "blue" | "amber";
 
-const TONE_CHIP: Record<Tone, string> = {
-  green: "bg-[#e7f5e9] text-[#2b7b5a]",
-  blue: "bg-[#e8f2f5] text-[#3a7591]",
-  amber: "bg-[#fcf3e3] text-[#a67437]",
+const STAT_TONES: Record<
+  StatCardTone,
+  { iconBg: string; iconRing: string }
+> = {
+  green: {
+    iconBg: "bg-[#e7f5e9] dark:bg-[#162620]",
+    iconRing: "ring-[#e7f5e9]/60 dark:ring-[#162620]/60",
+  },
+  blue: {
+    iconBg: "bg-[#e8f2f5] dark:bg-[#142026]",
+    iconRing: "ring-[#e8f2f5]/60 dark:ring-[#142026]/60",
+  },
+  amber: {
+    iconBg: "bg-[#fcf3e3] dark:bg-[#262014]",
+    iconRing: "ring-[#fcf3e3]/60 dark:ring-[#262014]/60",
+  },
 };
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string | number;
+  detail: string;
+  tone: StatCardTone;
+}) {
+  const tones = STAT_TONES[tone];
+  return (
+    <article className="group relative min-h-[141px] overflow-hidden rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-[0_3px_7px_rgb(28_68_51/2%)] transition-shadow hover:shadow-[0_8px_20px_rgb(28_68_51/6%)] dark:border-[#22332c] dark:bg-[#0f1f1a]">
+      <div className="relative flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-[#789087] dark:text-[#8fa39a]">
+          {label}
+        </span>
+        <span
+          className={`grid size-[30px] place-items-center rounded-lg ${tones.iconBg} ${tones.iconRing} ring-4`}
+        >
+          <Icon className="size-[17px] text-current" />
+        </span>
+      </div>
+      <strong className="relative mt-[15px] block font-display text-[27px] font-bold tracking-[-0.06em] text-[#183c31] dark:text-[#e8f0ec]">
+        {value}
+      </strong>
+      <p className="relative mt-[5px] text-[11px] text-[#9aaa9f] dark:text-[#6b7f76]">
+        {detail}
+      </p>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-[22px] -bottom-[46px] size-[105px] rounded-full border border-[rgb(89_163_117/10%)] shadow-[0_0_0_18px_rgb(89_163_117/3%),0_0_0_36px_rgb(89_163_117/2%)] dark:border-[rgb(184_232_200/12%)]"
+      />
+    </article>
+  );
+}
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -49,63 +93,54 @@ export default async function DashboardPage() {
     return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
   });
 
-  const stats: {
-    title: string;
-    value: string | number;
-    description: string;
-    icon: typeof UsersIcon;
-    tone: Tone;
-  }[] = [
+  const stats = [
     {
-      title: "Total User",
+      icon: Users,
+      label: "Total User",
       value:
         countsError ||
         !(user.isSuperAdmin || can(user.permissions, PERMISSIONS.usersView, false))
           ? "—"
           : (usersResult.count ?? 0),
-      description: "Akun di sekolah Anda",
-      icon: UsersIcon,
-      tone: "green",
+      detail: "Akun di sekolah Anda",
+      tone: "green" as const,
     },
     {
-      title: "Total Role",
+      icon: ShieldCheck,
+      label: "Total Role",
       value:
         countsError ||
         !(user.isSuperAdmin || can(user.permissions, PERMISSIONS.rolesView, false))
           ? "—"
           : (rolesResult.count ?? 0),
-      description: "Role dan hak akses",
-      icon: ShieldCheckIcon,
-      tone: "blue",
+      detail: "Role dan hak akses",
+      tone: "blue" as const,
     },
     {
-      title: "Role Saya",
+      icon: UserCog,
+      label: "Role Saya",
       value: user.isSuperAdmin ? "Super Admin" : user.roles.length,
-      description: user.isSuperAdmin
+      detail: user.isSuperAdmin
         ? "Akses penuh ke seluruh sekolah"
         : user.roles.map((role) => role.name).join(", ") || "Belum ada role",
-      icon: UserCogIcon,
-      tone: "amber",
+      tone: "amber" as const,
     },
   ];
 
   return (
-    <div className="space-y-6">
-      {countsError ? <DataError message="Gagal memuat data statistik." /> : null}
-
-      {/* ===== Heading ===== */}
-      <div className="flex flex-wrap items-end justify-between gap-5">
+    <div className="mx-auto max-w-[1350px] space-y-7">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="mb-2.5 block text-[10px] font-bold tracking-[0.1em] text-[#4c9a77] uppercase">
-            Ruang Kerja Sekolah
+          <span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-[#4c9a77] dark:text-[#6b9c82]">
+            Ruang kerja sekolah
           </span>
-          <h1 className="font-heading text-2xl font-semibold tracking-[-0.05em] text-[#183d32] lg:text-3xl">
+          <h1 className="mt-2.5 font-display text-[clamp(23px,2.4vw,31px)] font-bold leading-[1.2] tracking-[-0.06em] text-[#183d32] dark:text-[#e8f0ec]">
             Selamat datang,{" "}
-            <strong className="font-semibold text-[#2c7c5c]">
+            <strong className="text-[#2c7c5c] dark:text-[#a9dbba]">
               {user.profile.full_name || user.email}
             </strong>
           </h1>
-          <p className="mt-2 text-xs text-[#82978d]">
+          <p className="mt-2 text-[12px] text-[#82978d] dark:text-[#6b7f76]">
             {user.school
               ? `Anda mengakses data ${user.school.name}.`
               : "Anda mengakses platform sebagai super admin."}
@@ -113,126 +148,93 @@ export default async function DashboardPage() {
         </div>
         <button
           type="button"
-          className="hidden h-[35px] items-center gap-2 rounded-[9px] border border-[#d9e8dd] bg-white px-3.5 text-[11px] font-bold text-[#38775d] sm:inline-flex"
+          className="flex h-9 items-center gap-1.5 rounded-lg border border-[#d9e8dd] bg-white px-3 text-[11px] font-bold text-[#38775d] transition-colors hover:border-[#a8cfb3] hover:bg-[#f3faf4] dark:border-[#22332c] dark:bg-[#0f1f1a] dark:text-[#8fc4a8] dark:hover:border-[#3a5c4c] dark:hover:bg-[#162620]"
         >
-          <CircleHelpIcon className="size-4" />
-          Pusat Bantuan
+          <CircleHelp className="size-4" />
+          Pusat bantuan
         </button>
       </div>
 
-      {/* ===== Statistik ===== */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.title}
-              className="relative min-h-[141px] overflow-hidden rounded-[14px] border border-[#e2ece5] bg-white p-5"
-            >
-              <div className="relative z-10 flex items-center justify-between text-[11px] font-semibold text-[#789087]">
-                {stat.title}
-                <span
-                  className={`grid size-8 place-items-center rounded-[9px] ${TONE_CHIP[stat.tone]}`}
-                >
-                  <Icon className="size-[17px]" />
-                </span>
-              </div>
-              <strong className="mt-4 block font-heading text-[27px] font-semibold text-[#183c31]">
-                {stat.value}
-              </strong>
-              <p className="mt-1.5 text-[11px] text-[#9aaa9f]">{stat.description}</p>
-              <span className="pointer-events-none absolute -right-[22px] -bottom-[46px] size-[105px] rounded-full border border-[#59a3751a] shadow-[0_0_0_18px_#59a3750d,0_0_0_36px_#59a37505]" />
-            </div>
-          );
-        })}
-      </div>
+      {countsError ? (
+        <DataError message="Gagal memuat data statistik." />
+      ) : null}
 
-      {/* ===== Panel hak akses ===== */}
-      <div className="rounded-[15px] border border-[#e2ece5] bg-white">
-        <div className="flex items-center justify-between gap-4 border-b border-[#edf2ee] px-6 py-5">
+      <section
+        aria-label="Ringkasan sekolah"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {stats.map((stat) => (
+          <StatCard key={stat.label} {...stat} />
+        ))}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-[#e2ece5] bg-white shadow-[0_3px_7px_rgb(28_68_51/2%)] dark:border-[#22332c] dark:bg-[#0f1f1a]">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#edf2ee] px-5 py-5 dark:border-[#22332c]">
           <div>
-            <h2 className="font-heading text-[15px] font-semibold text-[#21483b]">
-              Hak Akses Anda
+            <h2 className="font-display text-[15px] font-bold tracking-[-0.035em] text-[#21483b] dark:text-[#d9e8dd]">
+              Hak akses Anda
             </h2>
-            <p className="mt-1.5 text-[11px] text-[#8b9f95]">
+            <p className="mt-1.5 text-[11px] text-[#8b9f95] dark:text-[#6b7f76]">
               {user.isSuperAdmin
                 ? "Super admin memiliki akses ke seluruh modul."
                 : `Terhubung dari ${user.roles.length} role. Modul di bawah ini yang bisa Anda akses.`}
             </p>
           </div>
-          <button
-            type="button"
-            aria-label="Pilihan hak akses"
-            className="grid size-7 place-items-center rounded-[7px] border-0 text-[#8aa097]"
-          >
-            <MoreHorizontalIcon className="size-[19px]" />
-          </button>
         </div>
 
-        {user.isSuperAdmin ? (
-          <div className="px-6 py-5">
-            <span className="inline-flex items-center gap-1 rounded-[5px] bg-[#e7f5e9] px-2 py-1 text-[11px] font-bold text-[#2b7254]">
-              <ShieldCheckIcon className="size-4" />
-              Akses penuh ke seluruh modul
+        <div className="px-5 py-5">
+          {user.isSuperAdmin ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary/20">
+              <ShieldCheck className="size-3.5" />
+              Akses penuh
             </span>
-          </div>
-        ) : modules.length === 0 ? (
-          <div className="px-6 py-5 text-sm text-muted-foreground">
-            Belum ada hak akses yang diberikan. Hubungi administrator sekolah.
-          </div>
-        ) : (
-          <div className="grid gap-3 px-6 py-5 sm:grid-cols-2">
-            {modules.map((moduleKey) => (
-              <div
-                key={moduleKey}
-                className="min-h-[68px] rounded-[10px] border border-[#e9efeb] bg-[#fcfdfc] p-3"
-              >
-                <div className="flex items-center justify-between text-[11px] font-bold text-[#2a4a3e]">
-                  {MODULE_LABELS[moduleKey] ?? moduleKey}
-                  <ChevronRightIcon className="size-[15px] text-[#b0c1b8]" />
-                </div>
-                <div className="mt-2.5 flex flex-wrap gap-1">
-                  {permissionsByModule[moduleKey].sort().map((action) => (
-                    <span
-                      key={action}
-                      className="rounded-[5px] bg-[#eef2ef] px-[7px] py-1 text-[9px] font-semibold text-[#70867b]"
-                    >
-                      {action}
+          ) : modules.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Belum ada hak akses yang diberikan. Hubungi administrator sekolah.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {modules.map((moduleKey) => (
+                <article
+                  key={moduleKey}
+                  className="min-h-[68px] rounded-xl border border-[#e9efeb] bg-[#fcfdfc] p-3 transition-all hover:-translate-y-0.5 hover:border-[#bddac4] hover:shadow-[0_5px_12px_rgb(34_90_62/5%)] dark:border-[#22332c] dark:bg-[#11221a] dark:hover:border-[#3a5c4c]"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#2a4a3e] dark:text-[#c3dbd1]">
+                      {MODULE_LABELS[moduleKey] ?? moduleKey}
                     </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                    <ChevronRight className="size-[15px] text-[#b0c1b8] dark:text-[#5c6f66]" />
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap gap-1">
+                    {permissionsByModule[moduleKey].sort().map((action) => (
+                      <span
+                        key={action}
+                        className="rounded bg-[#eef2ef] px-1.5 py-0.5 text-[9px] font-semibold text-[#70867b] dark:bg-[#1a2e25] dark:text-[#8fa39a]"
+                      >
+                        {action}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf2ee] px-6 py-3.5 text-[10px] text-[#91a49a]">
-          <span className="inline-flex items-center gap-1.5">
-            <ShieldCheckIcon className="size-[15px]" />
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#edf2ee] px-5 py-3.5 dark:border-[#22332c]">
+          <span className="inline-flex items-center gap-1.5 text-[10px] text-[#91a49a] dark:text-[#5c6f66]">
+            <ShieldCheck className="size-[15px] text-[#5d9c76] dark:text-[#8fc4a8]" />
             Akses diperbarui otomatis dari role Anda
           </span>
-          <div className="flex flex-wrap gap-2">
-            {can(user.permissions, PERMISSIONS.usersView, user.isSuperAdmin) ? (
-              <Link
-                href="/users"
-                className="inline-flex items-center gap-1 text-[10px] font-bold text-[#33805d] hover:text-[#2b7254]"
-              >
-                Kelola User
-                <ChevronRightIcon className="size-3.5" />
-              </Link>
-            ) : null}
-            {can(user.permissions, PERMISSIONS.rolesView, user.isSuperAdmin) ? (
-              <Link
-                href="/roles"
-                className="inline-flex items-center gap-1 text-[10px] font-bold text-[#33805d] hover:text-[#2b7254]"
-              >
-                Kelola Role
-                <ChevronRightIcon className="size-3.5" />
-              </Link>
-            ) : null}
-          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 text-[10px] font-bold text-[#33805d] hover:underline dark:text-[#8fc4a8]"
+          >
+            Lihat detail akses
+            <ChevronRight className="size-3.5" />
+          </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
