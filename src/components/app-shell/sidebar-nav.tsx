@@ -42,12 +42,16 @@ type SidebarNavProps = {
 function Brand({ appName, schoolName }: { appName: string; schoolName: string }) {
   return (
     <div className="flex items-center gap-2.5 p-4">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary font-heading text-sm font-semibold text-primary-foreground">
+      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#185743] font-heading text-sm font-semibold text-white shadow-[0_4px_10px_#18574333]">
         {appName.charAt(0).toUpperCase()}
       </div>
       <div className="min-w-0">
-        <p className="truncate font-heading text-sm font-medium">{appName}</p>
-        <p className="truncate text-xs text-muted-foreground">{schoolName}</p>
+        <p className="truncate font-heading text-[13px] font-semibold text-[#173b32] leading-tight">
+          {appName}
+        </p>
+        <p className="truncate text-[10px] leading-tight text-[#8a9f95]">
+          {schoolName}
+        </p>
       </div>
     </div>
   );
@@ -63,7 +67,7 @@ function NavLinks({ items }: { items: NavItem[] }) {
         if (groupItems.length === 0) return null;
         return (
           <div key={group.key}>
-            <p className="px-2.5 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-2.5 pt-[18px] pb-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-[#a1b1a9]">
               {group.label}
             </p>
             <div className="space-y-1">
@@ -78,10 +82,10 @@ function NavLinks({ items }: { items: NavItem[] }) {
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-[9px] text-[12px] transition-colors",
                       isActive
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "bg-[#e7f2e9] font-semibold text-[#175b43]"
+                        : "text-[#698079] hover:bg-[#f0f7f2] hover:text-[#1d664d]"
                     )}
                   >
                     <Icon className="size-4 shrink-0" />
@@ -102,20 +106,22 @@ function PlannedModules({ planned }: { planned: PlannedModule[] }) {
 
   return (
     <div className="px-4 pb-4">
-      <Separator className="mb-3" />
-      <p className="mb-2 text-xs font-medium text-muted-foreground">
+      <Separator className="mb-3 border-[#e5eee8]" />
+      <p className="mb-2 text-[10px] font-medium text-[#a1b1a9]">
         Modul berikutnya
       </p>
       <ul className="space-y-2.5">
         {planned.map((module) => (
           <li key={module.title} className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium">{module.title}</p>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="truncate text-[11px] font-medium text-[#2a483e]">
+                {module.title}
+              </p>
+              <p className="truncate text-[10px] text-[#9aaa9f]">
                 {module.description}
               </p>
             </div>
-            <Badge variant="secondary" className="shrink-0 text-[10px]">
+            <Badge className="shrink-0 rounded-[99px] border-0 bg-[#f3f5e9] px-[7px] py-[3px] text-[9px] font-bold text-[#7d8b67]">
               Soon
             </Badge>
           </li>
@@ -129,8 +135,8 @@ export function SidebarNav({ items, planned, appName, schoolName }: SidebarNavPr
   return (
     <div className="flex h-full flex-col">
       <Brand appName={appName} schoolName={schoolName} />
-      <Separator />
-      <div className="flex-1 overflow-y-auto py-3">
+      <Separator className="border-[#e5eee8]" />
+      <div className="flex-1 overflow-y-auto py-[18px] px-[11px]">
         <NavLinks items={items} />
       </div>
       <PlannedModules planned={planned} />
@@ -142,12 +148,12 @@ export function MobileNav(props: SidebarNavProps) {
   return (
     <Sheet>
       <SheetTrigger
-        render={<Button variant="ghost" size="icon" className="lg:hidden" />}
+        render={<Button variant="ghost" size="icon" className="hidden lg:inline-flex h-9 w-9" />}
       >
         <MenuIcon />
         <span className="sr-only">Buka menu</span>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 gap-0 p-0">
+      <SheetContent side="left" className="w-[258px] p-0">
         <SidebarNav {...props} />
       </SheetContent>
     </Sheet>

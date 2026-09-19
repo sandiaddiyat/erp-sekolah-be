@@ -46,7 +46,7 @@ export function UserMenu({
       <DropdownMenuTrigger
         render={<Button variant="ghost" className="h-9 gap-2 px-1.5" />}
       >
-        <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+        <span className="grid size-7 place-items-center rounded-full bg-[#d9eedb] text-[10px] font-bold text-[#286247]">
           {initials(name)}
         </span>
         <span className="hidden max-w-32 truncate text-sm sm:inline">
