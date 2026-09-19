@@ -41,12 +41,12 @@ type SidebarNavProps = {
 
 function Brand({ appName, schoolName }: { appName: string; schoolName: string }) {
   return (
-    <div className="flex items-center gap-2.5 p-4">
-      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#185743] font-heading text-sm font-semibold text-white shadow-[0_4px_10px_#18574333]">
+    <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-[#edf2ee] px-4 lg:h-[76px] lg:px-[18px]">
+      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#185743] font-heading text-sm font-semibold text-white shadow-[0_4px_10px_#18574333] lg:size-[34px]">
         {appName.charAt(0).toUpperCase()}
       </div>
       <div className="min-w-0">
-        <p className="truncate font-heading text-[13px] font-semibold text-[#173b32] leading-tight">
+        <p className="truncate font-heading text-[13px] font-semibold leading-tight text-[#173b32]">
           {appName}
         </p>
         <p className="truncate text-[10px] leading-tight text-[#8a9f95]">
@@ -135,7 +135,6 @@ export function SidebarNav({ items, planned, appName, schoolName }: SidebarNavPr
   return (
     <div className="flex h-full flex-col">
       <Brand appName={appName} schoolName={schoolName} />
-      <Separator className="border-[#e5eee8]" />
       <div className="flex-1 overflow-y-auto py-[18px] px-[11px]">
         <NavLinks items={items} />
       </div>
@@ -148,7 +147,7 @@ export function MobileNav(props: SidebarNavProps) {
   return (
     <Sheet>
       <SheetTrigger
-        render={<Button variant="ghost" size="icon" className="hidden lg:inline-flex h-9 w-9" />}
+        render={<Button variant="ghost" size="icon" className="lg:hidden" />}
       >
         <MenuIcon />
         <span className="sr-only">Buka menu</span>

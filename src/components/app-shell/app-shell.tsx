@@ -35,7 +35,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-h-svh flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-[#e5eee8] bg-white/95 px-3 backdrop-blur lg:px-4">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-[#e5eee8] bg-white/95 px-3 backdrop-blur lg:h-[76px] lg:px-6">
           <MobileNav {...navProps} />
           <div className="flex-1" />
           <UserMenu {...user} />
