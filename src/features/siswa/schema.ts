@@ -45,6 +45,12 @@ export const saveSiswaSchema = z
     nama_ibu: optionalText(150, "Nama ibu"),
     nama_wali: optionalText(150, "Nama wali"),
     telepon_wali: optionalText(30, "Telepon wali"),
+    photo_url: z
+      .string()
+      .trim()
+      .url("URL foto tidak valid")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
     status: z.enum(["aktif", "lulus", "pindah", "keluar"]).default("aktif"),
   })
   .superRefine((data, ctx) => {
@@ -82,6 +88,7 @@ export function readSaveSiswaInput(formData: FormData): SaveSiswaParseResult {
     nama_ibu: formData.get("nama_ibu") ?? "",
     nama_wali: formData.get("nama_wali") ?? "",
     telepon_wali: formData.get("telepon_wali") ?? "",
+    photo_url: formData.get("photo_url") ?? "",
     status: formData.get("status") ?? "aktif",
   });
 

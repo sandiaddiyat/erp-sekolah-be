@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { guardAction } from "@/lib/action-guard";
 import { PERMISSIONS } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
+import { uploadStudentPhoto } from "@/lib/supabase/storage";
 import { deleteSiswaRecord, saveSiswaRecord } from "@/features/siswa/service";
 import { readSaveSiswaInput } from "@/features/siswa/schema";
 import type { FormState } from "@/lib/types";
@@ -30,6 +31,22 @@ export async function saveSiswa(
 
   const command = readSaveSiswaInput(formData);
   if (!command.ok) return { error: command.error };
+
+  // Foto baru (file) menimpa photo_url lama dari hidden input.
+  const photoFile = formData.get("photo");
+  if (photoFile instanceof File && photoFile.size > 0) {
+    const supabaseForUpload = await createClient();
+    try {
+      const photoUrl = await uploadStudentPhoto(
+        supabaseForUpload,
+        guard.user.profile.school_id ?? "",
+        photoFile
+      );
+      if (photoUrl) command.command.photo_url = photoUrl;
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Gagal mengunggah foto." };
+    }
+  }
 
   const isEdit = Boolean(command.command.id);
   const authorize = await guardAction({
