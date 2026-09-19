@@ -260,6 +260,7 @@ export type Siswa = {
   nama_ibu: string | null;
   nama_wali: string | null;
   telepon_wali: string | null;
+  photo_url: string | null;
   status: SiswaStatus;
 };
 

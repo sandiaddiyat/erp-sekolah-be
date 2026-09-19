@@ -771,6 +771,7 @@ export interface Database {
           nama_ibu: string | null;
           nama_wali: string | null;
           telepon_wali: string | null;
+          photo_url: string | null;
           status: string;
           created_at: string;
           updated_at: string;
@@ -791,6 +792,7 @@ export interface Database {
           nama_ibu?: string | null;
           nama_wali?: string | null;
           telepon_wali?: string | null;
+          photo_url?: string | null;
           status?: string;
           created_at?: string;
           updated_at?: string;
@@ -811,6 +813,7 @@ export interface Database {
           nama_ibu?: string | null;
           nama_wali?: string | null;
           telepon_wali?: string | null;
+          photo_url?: string | null;
           status?: string;
           created_at?: string;
           updated_at?: string;

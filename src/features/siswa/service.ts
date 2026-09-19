@@ -31,6 +31,7 @@ function buildPayload(command: SaveSiswaInput, schoolId: string): SiswaPayload {
     nama_ibu: command.nama_ibu || null,
     nama_wali: command.nama_wali || null,
     telepon_wali: command.telepon_wali || null,
+    photo_url: command.photo_url || null,
     status: command.status,
   };
 }
