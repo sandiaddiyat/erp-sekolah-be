@@ -37,27 +37,41 @@ type SidebarNavProps = {
   planned: PlannedModule[];
   appName: string;
   schoolName: string;
+  collapsed?: boolean;
 };
 
-function Brand({ appName, schoolName }: { appName: string; schoolName: string }) {
+function Brand({
+  appName,
+  schoolName,
+  collapsed,
+}: {
+  appName: string;
+  schoolName: string;
+  collapsed?: boolean;
+}) {
   return (
     <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-[#edf2ee] px-4 lg:h-[76px] lg:px-[18px]">
-      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#185743] font-heading text-sm font-semibold text-white shadow-[0_4px_10px_#18574333] lg:size-[34px]">
+      <div
+        className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#185743] font-heading text-sm font-semibold text-white shadow-[0_4px_10px_#18574333] lg:size-[34px]"
+        title={appName}
+      >
         {appName.charAt(0).toUpperCase()}
       </div>
-      <div className="min-w-0">
-        <p className="truncate font-heading text-[13px] font-semibold leading-tight text-[#173b32]">
-          {appName}
-        </p>
-        <p className="truncate text-[10px] leading-tight text-[#8a9f95]">
-          {schoolName}
-        </p>
-      </div>
+      {!collapsed ? (
+        <div className="min-w-0">
+          <p className="truncate font-heading text-[13px] font-semibold leading-tight text-[#173b32]">
+            {appName}
+          </p>
+          <p className="truncate text-[10px] leading-tight text-[#8a9f95]">
+            {schoolName}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function NavLinks({ items }: { items: NavItem[] }) {
+function NavLinks({ items, collapsed }: { items: NavItem[]; collapsed?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -67,10 +81,14 @@ function NavLinks({ items }: { items: NavItem[] }) {
         if (groupItems.length === 0) return null;
         return (
           <div key={group.key}>
-            <p className="px-2.5 pt-[18px] pb-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-[#a1b1a9]">
-              {group.label}
-            </p>
-            <div className="space-y-1">
+            {!collapsed ? (
+              <p className="px-2.5 pt-[18px] pb-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-[#a1b1a9]">
+                {group.label}
+              </p>
+            ) : (
+              <div className="mx-auto my-3 h-px w-6 bg-[#e5eee8]" />
+            )}
+            <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
               {groupItems.map((item) => {
                 const Icon = ICONS[item.icon];
                 const isActive =
@@ -80,16 +98,20 @@ function NavLinks({ items }: { items: NavItem[] }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    title={item.title}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-2.5 py-[9px] text-[12px] transition-colors",
+                      "flex items-center rounded-lg transition-colors",
+                      collapsed
+                        ? "size-[36px] justify-center"
+                        : "gap-2.5 px-2.5 py-[9px] text-[12px]",
                       isActive
                         ? "bg-[#e7f2e9] font-semibold text-[#175b43]"
                         : "text-[#698079] hover:bg-[#f0f7f2] hover:text-[#1d664d]"
                     )}
                   >
                     <Icon className="size-4 shrink-0" />
-                    <span className="truncate">{item.title}</span>
+                    {!collapsed ? <span className="truncate">{item.title}</span> : null}
                   </Link>
                 );
               })}
@@ -131,14 +153,25 @@ function PlannedModules({ planned }: { planned: PlannedModule[] }) {
   );
 }
 
-export function SidebarNav({ items, planned, appName, schoolName }: SidebarNavProps) {
+export function SidebarNav({
+  items,
+  planned,
+  appName,
+  schoolName,
+  collapsed,
+}: SidebarNavProps) {
   return (
     <div className="flex h-full flex-col">
-      <Brand appName={appName} schoolName={schoolName} />
-      <div className="flex-1 overflow-y-auto py-[18px] px-[11px]">
-        <NavLinks items={items} />
+      <Brand appName={appName} schoolName={schoolName} collapsed={collapsed} />
+      <div
+        className={cn(
+          "flex-1 overflow-y-auto py-[18px]",
+          collapsed ? "px-0" : "px-[11px]"
+        )}
+      >
+        <NavLinks items={items} collapsed={collapsed} />
       </div>
-      <PlannedModules planned={planned} />
+      {!collapsed ? <PlannedModules planned={planned} /> : null}
     </div>
   );
 }
