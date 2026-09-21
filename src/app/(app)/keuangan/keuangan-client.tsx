@@ -26,7 +26,7 @@ import type { BillItem, Payment } from "@/lib/types";
 import type { BillWithStudent } from "@/lib/types";
 import type { FormState } from "@/lib/types";
 import { formatRupiah } from "@/lib/utils";
-import { createBill, deleteBill, deleteBillItem, recordPayment, saveBillItem, verifyPayment } from "./actions";
+import { createBill, deleteBill, recordPayment, verifyPayment } from "./actions";
 import type { StudentOption } from "./page";
 
 type Permissions = {
@@ -105,8 +105,6 @@ export function KeuanganClient({
   const [payTarget, setPayTarget] = useState<BillWithStudent | null>(null);
   const [verifying, setVerifying] = useState<Payment | null>(null);
   const [deleting, setDeleting] = useState<BillWithStudent | null>(null);
-  const [itemOpen, setItemOpen] = useState(false);
-  const [deletingItem, setDeletingItem] = useState<BillItem | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const paymentByBill = useMemo(() => {
@@ -149,17 +147,6 @@ export function KeuanganClient({
       if (result?.error) toast.error(result.error);
       else if (result?.success) toast.success(result.success);
       setDeleting(null);
-    });
-  };
-
-  const handleDeleteItem = () => {
-    if (!deletingItem) return;
-    const target = deletingItem;
-    startTransition(async () => {
-      const result = await deleteBillItem(target.id);
-      if (result?.error) toast.error(result.error);
-      else if (result?.success) toast.success(result.success);
-      setDeletingItem(null);
     });
   };
 
@@ -231,48 +218,6 @@ export function KeuanganClient({
           </strong>
         </article>
       </div>
-
-      {permissions.billCreate ? (
-        <section className={FINANCE_PANEL}>
-          <div className={FINANCE_HEADING}>
-            <div>
-              <h2 className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">
-                Jenis Tagihan
-              </h2>
-              <p className="mt-1.5 text-[11px] text-[#8b9f95]">
-                Katalog tagihan: {billItems.length} jenis
-              </p>
-            </div>
-            <Button variant="outline" className={OUTLINE_BUTTON} onClick={() => setItemOpen(true)}>
-              <PlusIcon data-icon="inline-start" className="size-3.5" />
-              Tambah Jenis
-            </Button>
-          </div>
-          {billItems.length > 0 ? (
-            <div className={FINANCE_LIST}>
-              {billItems.map((item) => (
-                <div key={item.id} className={`${FINANCE_ROW} min-h-[72px]`}>
-                  <div className="min-w-0 flex-1">
-                    <strong className="block text-[12px] text-[#2b493e]">
-                      {item.nama_item}
-                    </strong>
-                    <span className="mt-1 block text-[10px] text-[#7d9389]">
-                      {formatRupiah(Number(item.nominal))} · {item.frekuensi}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className={DELETE_BUTTON}
-                    onClick={() => setDeletingItem(item)}
-                  >
-                    Hapus
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
 
       <section className={`${FINANCE_PANEL} mb-0`}>
         <div className={`${FINANCE_HEADING} flex-col sm:flex-row`}>
@@ -384,37 +329,6 @@ export function KeuanganClient({
         </div>
       </section>
 
-      <AlertDialog
-        open={Boolean(deletingItem)}
-        onOpenChange={(open) => !open && setDeletingItem(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus jenis tagihan ini?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletingItem?.nama_item} akan dihapus dari katalog. Tagihan yang
-              sudah dibuat tidak ikut terhapus.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteItem}
-              disabled={isPending}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <BillItemFormDialog
-        key="new-bill-item"
-        open={itemOpen}
-        onOpenChange={setItemOpen}
-      />
-
       <BillFormDialog
         key="new-bill"
         open={billOpen}
@@ -488,100 +402,6 @@ export function KeuanganClient({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-function BillItemFormDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
-    saveBillItem,
-    undefined
-  );
-
-  useEffect(() => {
-    if (state?.success) {
-      toast.success(state.success);
-      onOpenChange(false);
-    } else if (state?.error) {
-      toast.error(state.error);
-    }
-  }, [state, onOpenChange]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={MODAL_CONTENT}>
-        <form action={formAction}>
-          <div className={MODAL_HEADER}>
-            <DialogTitle className="font-heading text-[20px] tracking-[-0.05em] text-[#183d32]">
-              Tambah Jenis Tagihan
-            </DialogTitle>
-            <DialogDescription className="mt-1.5 text-[11px] leading-relaxed text-[#83988e]">
-              Katalog jenis tagihan yang bisa dipilih saat membuat tagihan.
-            </DialogDescription>
-          </div>
-
-          <div className={MODAL_BODY}>
-            <div className="space-y-2">
-              <Label htmlFor="nama_item" className={LABEL_CLASS}>
-                Nama Jenis
-              </Label>
-              <Input
-                id="nama_item"
-                name="nama_item"
-                placeholder="Contoh: SPP Bulanan"
-                className={INPUT_CLASS}
-                required
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="item_nominal" className={LABEL_CLASS}>
-                  Nominal (Rp)
-                </Label>
-                <Input
-                  id="item_nominal"
-                  name="nominal"
-                  placeholder="150000"
-                  className={INPUT_CLASS}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="frekuensi" className={LABEL_CLASS}>
-                  Frekuensi
-                </Label>
-                <select
-                  id="frekuensi"
-                  name="frekuensi"
-                  required
-                  defaultValue="bulanan"
-                  className={SELECT_CLASS}
-                >
-                  <option value="sekali">Sekali</option>
-                  <option value="bulanan">Bulanan</option>
-                  <option value="tahunan">Tahunan</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className={MODAL_FOOTER}>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className={PRIMARY_BUTTON}>
-              {isSubmitting ? "Menyimpan..." : "Tambah Jenis"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 

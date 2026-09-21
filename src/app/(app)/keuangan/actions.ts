@@ -6,15 +6,12 @@ import { PERMISSIONS } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 import {
   createBillRecord,
-  deleteBillItemRecord,
   deleteBillRecord,
   recordPaymentRecord,
-  saveBillItemRecord,
   verifyPaymentRecord,
 } from "@/features/keuangan/service";
 import {
   readSaveBillInput,
-  readSaveBillItemInput,
   readSavePaymentInput,
   readVerifyPaymentInput,
 } from "@/features/keuangan/schema";
@@ -117,44 +114,6 @@ export async function deleteBill(billId: string): Promise<FormState> {
 
   const supabase = await createClient();
   const result = await deleteBillRecord({ supabase }, guard.user, billId);
-
-  if (!result.ok) return { error: result.error };
-
-  revalidateKeuanganPages();
-  return { success: result.message };
-}
-
-export async function saveBillItem(
-  _prevState: FormState,
-  formData: FormData
-): Promise<FormState> {
-  const guard = await guardAction({
-    permission: PERMISSIONS.financeBillCreate,
-    deniedMessage: "Anda tidak punya izin mengelola jenis tagihan.",
-  });
-  if ("error" in guard) return { error: guard.error };
-
-  const command = readSaveBillItemInput(formData);
-  if (!command.ok) return { error: command.error };
-
-  const supabase = await createClient();
-  const result = await saveBillItemRecord({ supabase }, guard.user, command.command);
-
-  if (!result.ok) return { error: result.error };
-
-  revalidateKeuanganPages();
-  return { success: result.message };
-}
-
-export async function deleteBillItem(billItemId: string): Promise<FormState> {
-  const guard = await guardAction({
-    permission: PERMISSIONS.financeBillCreate,
-    deniedMessage: "Anda tidak punya izin mengelola jenis tagihan.",
-  });
-  if ("error" in guard) return { error: guard.error };
-
-  const supabase = await createClient();
-  const result = await deleteBillItemRecord({ supabase }, guard.user, billItemId);
 
   if (!result.ok) return { error: result.error };
 

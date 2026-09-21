@@ -47,7 +47,9 @@ from (
     ('finance',   'bill_create',       'Buat Tagihan',               'Membuat tagihan SPP / lainnya'),
     ('finance',   'payment_create',    'Input Pembayaran',           'Mencatat pembayaran masuk'),
     ('finance',   'payment_verify',    'Verifikasi Pembayaran',      'Memverifikasi pembayaran'),
-    ('finance',   'report_view',       'Laporan Keuangan',           'Melihat laporan keuangan'),
+    ('finance',   'report_view',       'Laporan Keuangan',         'Melihat laporan keuangan'),
+    ('finance',   'bill_item_view',    'Lihat Jenis Tagihan',      'Melihat katalog jenis tagihan'),
+    ('finance',   'bill_item_manage',  'Kelola Jenis Tagihan',      'Menambah dan menghapus jenis tagihan'),
     ('academics', 'view',              'Lihat Akademik',             'Melihat data akademik'),
     ('academics', 'attendance_manage', 'Kelola Absensi',             'Mengelola absensi siswa'),
     ('academics', 'grade_manage',      'Kelola Nilai',               'Mengelola nilai siswa'),
@@ -107,6 +109,7 @@ begin
   from public.permissions p
   where p.action = 'view'
      or p.slug = 'finance.report_view'
+     or p.slug = 'finance.bill_item_view'
   on conflict do nothing;
 
   -- ===== Staf TU: administrasi siswa, guru, kelas, absensi =====
@@ -158,6 +161,7 @@ begin
     'students.view',
     'finance.view', 'finance.bill_create', 'finance.payment_create',
     'finance.payment_verify', 'finance.report_view',
+    'finance.bill_item_view', 'finance.bill_item_manage',
     'reports.view'
   ])
   on conflict do nothing;
