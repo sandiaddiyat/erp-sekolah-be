@@ -1,22 +1,9 @@
-buatkan issue.md yang berisi perencanaan untuk nanti di implementasikan oleh junior programmer atau ai model yang lebih low atau murah.
-
-isi dari planning nya buat perencanaan untuk :
-Master Data
-1. Master Kurikulum
-2. Master Tingkatan Kelas
-
-1. Fitur mengelola Jenjang Pendidikan (Education Level) yang menempel ke masing-masing sekolah. 1 sekolah bisa memiliki lebih dari 1 jenjang pendidikan (TK/SD/SMP/SMA)
-Daftar jenjang yang dikelola (TK, SD, SMP, SMA/SMK)
-Tingkatan kelas per jenjang (misal SD: kelas 1–6; SMP: kelas 7–9; SMA: kelas 10–12)
-Kurikulum yang digunakan per jenjang (Kurikulum Merdeka, dll.)
-2. Fitur mengelola 
--Tahun Ajaran (Academic Year).
--Nama tahun ajaran (misal: 2026/2027)
--Tanggal mulai dan tanggal selesai
--Semester (Ganjil/Genap) beserta periode masing-masing
--Status aktif (menandai tahun ajaran yang sedang berjalan)
-3. Fitur mengelola Kelas 
-
-
-jelaskan tahapan-tahapan  yang harus dilakukan untuk perubahan tampilan ini. anggap nanti akan
-di implementasikan oleh junior programmer atau ai model yang lebih low atau murah.
+Form dibawah belum ada menu pengelolaanya :
+education_levels  — jenjang: TK, SD, SMP, SMA (code, name)
+grades            — tingkat per jenjang, mis. Kelas 7 (education_level_id, name, sort_order)
+majors            — jurusan khusus SMA/SMK (education_level_id, name)
+rooms             — ruangan (name, type, capacity)
+classes           — rombel per tahun ajaran (academic_year_id, grade_id, major_id, room_id,
+                    homeroom_teacher_id, name, capacity)
+student_enrollments — penempatan siswa per kelas/tahun ajaran (student_id, academic_year_id,
+                      class_id, enrollment_date, exit_date, status)

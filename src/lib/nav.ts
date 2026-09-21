@@ -29,6 +29,8 @@ export type NavGroupKey =
   | "orang"
   | "referensi"
   | "keuangan"
+  | "tagihan"
+  | "diskon"
   | "akses";
 
 /** Urutan & label tampilan tiap grup menu. */
@@ -38,6 +40,8 @@ export const NAV_GROUPS: { key: NavGroupKey; label: string }[] = [
   { key: "orang", label: "Manajemen Orang" },
   { key: "referensi", label: "Referensi" },
   { key: "keuangan", label: "Keuangan" },
+  { key: "tagihan", label: "Tagihan Otomatis" },
+  { key: "diskon", label: "Diskon & Beasiswa" },
   { key: "akses", label: "Penggunaan & Akses" },
 ];
 
@@ -89,6 +93,83 @@ export const MAIN_NAV: NavItem[] = [
     icon: "keuangan",
     permission: PERMISSIONS.financeBillItemView,
     group: "keuangan",
+  },
+  {
+    title: "Skema Biaya",
+    href: "/keuangan/skema-biaya",
+    icon: "keuangan",
+    permission: PERMISSIONS.feeStructureView,
+    group: "tagihan",
+  },
+  {
+    title: "Tagihan Otomatis",
+    href: "/keuangan/tagihan-otomatis",
+    icon: "keuangan",
+    permission: PERMISSIONS.billingView,
+    group: "tagihan",
+  },
+  {
+    title: "Rekonsiliasi",
+    href: "/keuangan/rekonsiliasi",
+    icon: "keuangan",
+    permission: PERMISSIONS.paymentV2View,
+    group: "tagihan",
+  },
+  {
+    title: "Diskon & Beasiswa",
+    href: "/keuangan/diskon",
+    icon: "keuangan",
+    permission: PERMISSIONS.discountView,
+    group: "diskon",
+  },
+  {
+    title: "Akademik",
+    href: "/akademik/tahun-ajaran",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
+    title: "Jenjang",
+    href: "/akademik/jenjang",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
+    title: "Tingkat",
+    href: "/akademik/tingkat",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
+    title: "Jurusan",
+    href: "/akademik/jurusan",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
+    title: "Ruangan",
+    href: "/akademik/ruangan",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
+    title: "Kelas",
+    href: "/akademik/kelas",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
+    title: "Pendaftaran Siswa",
+    href: "/akademik/pendaftaran",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
   },
   {
     title: "User",

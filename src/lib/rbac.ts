@@ -52,6 +52,19 @@ export const PERMISSIONS = {
   financeBillItemManage: "finance.bill_item_manage",
 
   academicsView: "academics.view",
+  academicsManage: "academics.manage",
+  feeStructureView: "fee_structure.view",
+  feeStructureManage: "fee_structure.manage",
+
+  billingView: "billing.view",
+  billingManage: "billing.manage",
+
+  discountView: "discount.view",
+  discountManage: "discount.manage",
+
+  paymentV2View: "payment_v2.view",
+  paymentV2Manage: "payment_v2.manage",
+
   academicsAttendanceManage: "academics.attendance_manage",
   academicsGradeManage: "academics.grade_manage",
   academicsReportCardPublish: "academics.report_card_publish",
@@ -76,7 +89,10 @@ export const MODULE_LABELS: Record<string, string> = {
   teachers: "Data Guru",
   classes: "Kelas & Rombel",
   finance: "Keuangan",
+  fee_structure: "Skema Biaya",
   academics: "Akademik",
+  billing: "Tagihan Otomatis",
+  discount: "Diskon & Beasiswa",
   reports: "Laporan",
   settings: "Pengaturan",
 };
@@ -93,7 +109,10 @@ export const MODULE_ORDER: string[] = [
   "teachers",
   "classes",
   "finance",
+  "fee_structure",
   "academics",
+  "billing",
+  "discount",
   "reports",
   "settings",
 ];

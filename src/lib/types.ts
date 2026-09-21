@@ -320,3 +320,226 @@ export type Payment = {
   diverifikasi_pada: string | null;
 };
 
+// =============================================================================
+// Otomasi Tagihan (Issue #49)
+// =============================================================================
+
+export type AcademicYearStatus = "draft" | "active" | "closed";
+
+export type AcademicYear = {
+  id: string;
+  school_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: AcademicYearStatus;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EducationLevel = {
+  id: string;
+  school_id: string;
+  code: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Grade = {
+  id: string;
+  school_id: string;
+  education_level_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Major = {
+  id: string;
+  school_id: string;
+  education_level_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Room = {
+  id: string;
+  school_id: string;
+  name: string;
+  type: string | null;
+  capacity: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Class = {
+  id: string;
+  school_id: string;
+  academic_year_id: string;
+  grade_id: string;
+  major_id: string | null;
+  room_id: string | null;
+  homeroom_teacher_id: string | null;
+  name: string;
+  capacity: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentEnrollmentStatus = "active" | "keluar" | "pindah" | "lulus";
+
+export type StudentEnrollment = {
+  id: string;
+  school_id: string;
+  student_id: string;
+  academic_year_id: string;
+  class_id: string;
+  enrollment_date: string;
+  exit_date: string | null;
+  status: StudentEnrollmentStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FeeCategory = {
+  id: string;
+  school_id: string;
+  name: string;
+  billing_cycle: "bulanan" | "semester" | "tahunan" | "sekali";
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FeeStructure = {
+  id: string;
+  school_id: string;
+  academic_year_id: string;
+  education_level_id: string;
+  grade_id: string;
+  major_id: string | null;
+  fee_category_id: string;
+  amount: number;
+  due_day: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Family = {
+  id: string;
+  school_id: string;
+  family_code: string | null;
+  home_address: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Guardian = {
+  id: string;
+  school_id: string;
+  family_id: string;
+  name: string;
+  relation: string;
+  phone: string | null;
+  email: string | null;
+  is_primary_billing_contact: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvoiceStatus = "belum_bayar" | "sebagian" | "lunas" | "batal";
+
+export type Invoice = {
+  id: string;
+  school_id: string;
+  student_id: string;
+  guardian_id: string | null;
+  academic_year_id: string;
+  period_label: string;
+  issue_date: string;
+  due_date: string;
+  total_amount: number;
+  status: InvoiceStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvoiceDetail = {
+  id: string;
+  invoice_id: string;
+  fee_structure_id: string;
+  description: string;
+  base_amount: number;
+  discount_amount: number;
+  final_amount: number;
+  created_at: string;
+};
+
+export type BillingRunStatus = "berjalan" | "selesai" | "gagal";
+
+export type BillingRunLog = {
+  id: string;
+  school_id: string;
+  academic_year_id: string;
+  period_label: string;
+  run_at: string;
+  total_invoices_generated: number;
+  status: BillingRunStatus;
+  error_message: string | null;
+  created_at: string;
+};
+
+export type DiscountCalcType = "percent" | "fixed";
+
+export type DiscountType = {
+  id: string;
+  school_id: string;
+  code: string;
+  name: string;
+  calc_type: DiscountCalcType;
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentDiscountStatus = "pending" | "disetujui" | "ditolak" | "berakhir";
+
+export type StudentDiscount = {
+  id: string;
+  school_id: string;
+  student_id: string;
+  discount_type_id: string;
+  value: number;
+  start_date: string;
+  end_date: string;
+  status: StudentDiscountStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentMethod = {
+  id: string;
+  school_id: string;
+  name: string;
+  is_cash: boolean;
+  is_gateway: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BankAccount = {
+  id: string;
+  school_id: string;
+  bank_name: string;
+  account_number: string;
+  account_holder: string;
+  created_at: string;
+  updated_at: string;
+};
+
