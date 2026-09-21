@@ -54,6 +54,12 @@ from (
     ('academics', 'attendance_manage', 'Kelola Absensi',             'Mengelola absensi siswa'),
     ('academics', 'grade_manage',      'Kelola Nilai',               'Mengelola nilai siswa'),
     ('academics', 'report_card_publish','Terbitkan Rapor',           'Menerbitkan rapor siswa'),
+    ('fee_structure', 'view',        'Lihat Skema Biaya',           'Melihat skema biaya'),
+    ('fee_structure', 'manage',      'Kelola Skema Biaya',           'Membuat dan mengelola skema biaya'),
+    ('billing',     'view',          'Lihat Billing',                'Melihat job dan laporan billing otomatis'),
+    ('billing',     'manage',        'Kelola Billing',               'Menjalankan job billing'),
+    ('discount',    'view',          'Lihat Diskon',                 'Melihat daftar diskon & beasiswa'),
+    ('discount',    'manage',        'Kelola Diskon',                'Mengatur diskon & alur approval'),
     ('reports',   'view',              'Lihat Laporan',              'Melihat laporan umum'),
     ('settings',  'view',              'Lihat Pengaturan',           'Melihat pengaturan aplikasi'),
     ('settings',  'update',            'Ubah Pengaturan',            'Mengubah pengaturan aplikasi')
@@ -110,6 +116,9 @@ begin
   where p.action = 'view'
      or p.slug = 'finance.report_view'
      or p.slug = 'finance.bill_item_view'
+     or p.slug = 'fee_structure.view'
+     or p.slug = 'billing.view'
+     or p.slug = 'discount.view'
   on conflict do nothing;
 
   -- ===== Staf TU: administrasi siswa, guru, kelas, absensi =====
@@ -156,12 +165,15 @@ begin
   insert into public.role_permissions (role_id, permission_id)
   select v_role_id, p.id
   from public.permissions p
-  where p.slug = any (array[
+   where p.slug = any (array[
     'dashboard.view',
     'students.view',
     'finance.view', 'finance.bill_create', 'finance.payment_create',
     'finance.payment_verify', 'finance.report_view',
     'finance.bill_item_view', 'finance.bill_item_manage',
+    'fee_structure.view',
+    'billing.view', 'billing.manage',
+    'discount.view', 'discount.manage',
     'reports.view'
   ])
   on conflict do nothing;
