@@ -56,3 +56,7 @@ using (
     )
   )
 );
+
+-- Kolom photo_url di tabel pegawai (idempotent: hanya untuk environment yang belum ada).
+alter table public.pegawai add column if not exists photo_url text;
+
