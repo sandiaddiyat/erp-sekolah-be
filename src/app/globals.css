@@ -129,3 +129,73 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  /* Employee page tweaks */
+  .employee-page .page-heading h1 {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    letter-spacing: -0.06em;
+  }
+  .employee-page .employee-card__heading {
+    padding: 20px 21px 17px;
+  }
+  .employee-page .employee-card__heading h2 {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 15px;
+    color: #21483b;
+    letter-spacing: -0.035em;
+  }
+  .employee-page .employee-card__heading p {
+    color: #8b9f95;
+    font-size: 11px;
+  }
+  .employee-page .cell-avatar {
+    border-radius: 9px;
+  }
+  .employee-page .form-field input,
+  .employee-page .select-field,
+  .employee-page .multi-select {
+    height: 40px;
+    border: 1px solid #dfeae3;
+    border-radius: 9px;
+  }
+  .employee-page .form-field input:focus,
+  .employee-page .select-field:focus,
+  .employee-page .multi-select:focus {
+    border-color: #78ad8a;
+    box-shadow: 0 0 0 3px rgb(79 153 112 / 10%);
+  }
+  .employee-page .form-field > span {
+    margin-bottom: 7px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #4c6a5e;
+  }
+  .employee-page .form-field > span small {
+    color: #98aaa1;
+    font-size: 9px;
+  }
+  .employee-page .form-tab--active {
+    color: #185743;
+    border-bottom-color: #185743;
+  }
+  .employee-page .form-tab {
+    color: #83988e;
+    padding: 13px 16px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .employee-page .form-tab:hover {
+    background: #f6fbf7;
+  }
+  .employee-page .modal-kicker {
+    color: #4d9775;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .employee-page .modal-close {
+    border-radius: 9px;
+  }
+}
