@@ -198,6 +198,7 @@ export type Pegawai = {
   alamat: string | null;
   phone: string | null;
   email: string | null;
+  photo_url: string | null;
   is_active: boolean;
 };
 
