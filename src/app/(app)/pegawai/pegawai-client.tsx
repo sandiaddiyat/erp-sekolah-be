@@ -10,7 +10,9 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  ShieldCheck,
   Trash2Icon,
+  UploadIcon,
   UserPlusIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,6 +75,8 @@ import type {
   PegawaiSertifikasi,
 } from "@/lib/types";
 import { deletePegawai, savePegawai } from "./actions";
+import { importPegawai } from "./import-action";
+import type { ImportPegawaiResult } from "./import-action";
 import type { PegawaiJabatanInfo, PegawaiOptionLists } from "./page";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
@@ -116,6 +120,11 @@ export function PegawaiClient({
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Pegawai | null>(null);
   const [deleting, setDeleting] = useState<Pegawai | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<
+    NonNullable<ImportPegawaiResult["result"]> | null
+  >(null);
   const [isPending, startTransition] = useTransition();
 
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
@@ -258,30 +267,61 @@ export function PegawaiClient({
     setFormOpen(true);
   };
 
+  const handleImport = () => {
+    setImportResult(null);
+    setImportOpen(true);
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importFile) return;
+    const formData = new FormData();
+    formData.append("file", importFile);
+    const result = await importPegawai(undefined, formData);
+    if (result?.error) {
+      toast.error(result.error);
+    } else if (result?.result) {
+      const r = result.result;
+      if (r.success > 0) {
+        toast.success(`${r.success} pegawai berhasil diimpor.`);
+      }
+      if (r.failed > 0) {
+        toast.error(`${r.failed} baris gagal. ${r.errors.length} detail di console.`);
+        console.table(r.errors);
+      }
+      setImportResult(r);
+      setImportFile(null);
+    }
+  };
+
   const openEdit = (item: Pegawai) => {
     setEditing(item);
     setFormOpen(true);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 employee-page">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-semibold">Data Pegawai</h1>
-          <p className="text-sm text-muted-foreground">
-            Kelola data kepegawaian sekolah. Akun login dikelola lewat menu User.
-          </p>
+          <span className="mb-2 block text-[10px] font-bold tracking-[.1em] uppercase text-[#4c9a77]">Manajemen orang</span>
+          <h1 className="font-heading text-2xl font-semibold tracking-[-.06em] text-[#183d32]">Data Pegawai</h1>
+          <p className="text-sm text-muted-foreground">Kelola data kepegawaian sekolah dengan lebih teratur.</p>
         </div>
         {permissions.create ? (
-          <Button onClick={openCreate}>
-            <UserPlusIcon data-icon="inline-start" />
-            Tambah Pegawai
-          </Button>
+          <>
+            <Button onClick={openCreate}>
+              <UserPlusIcon data-icon="inline-start" />
+              Tambah Pegawai
+            </Button>
+            <Button variant="outline" onClick={handleImport}>
+              <UploadIcon data-icon="inline-start" />
+              Import Excel
+            </Button>
+          </>
         ) : null}
       </div>
 
       <Card className="border-[#e2ece5] shadow-[0_3px_7px_#1c443305]">
-        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between employee-card__heading">
           <div>
             <CardTitle className="font-heading text-[#21483b]">
               Daftar Pegawai
@@ -335,14 +375,14 @@ export function PegawaiClient({
           <Table>
             <TableHeader>
               <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
-                {visibleColumnList.map((col) => {
-                  const isSorted = sortColumn === col.key;
-                  return (
-                    <TableHead
-                      key={col.key}
-                      onClick={() => handleSort(col.key)}
-                      className="px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] whitespace-nowrap cursor-pointer select-none hover:text-[#2b7254]"
-                    >
+                {visibleColumnList.map((col, index) => {
+                 const isSorted = sortColumn === col.key;
+                 return (
+                   <TableHead
+                     key={col.key}
+                     onClick={() => handleSort(col.key)}
+                     className={`px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] whitespace-nowrap cursor-pointer select-none hover:text-[#2b7254] ${index === 0 ? "pl-6" : ""}`}
+                   >
                       <div className="flex items-center gap-1.5">
                         <span className={isSorted ? "text-[#2b7254]" : ""}>
                           {col.label}
@@ -360,7 +400,7 @@ export function PegawaiClient({
                     </TableHead>
                   );
                 })}
-                <TableHead className="w-10 justify-end text-right text-[10px] font-bold text-[#6c8279]">Aksi</TableHead>
+                <TableHead className="w-10 pr-6 justify-end text-right text-[10px] font-bold text-[#6c8279]">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -400,13 +440,13 @@ export function PegawaiClient({
                           return (
                             <TableCell
                               key={col.key}
-                              className="px-3.5 py-3 align-middle"
+                              className="pl-6 px-3.5 py-3 align-middle"
                             >
                               <div
                                 className="flex items-center gap-3"
                                 title={item.full_name ?? ""}
                               >
-                                <Avatar size="default" className="size-8 shrink-0">
+                           <Avatar size="default" className="size-8 shrink-0 rounded-[9px] cell-avatar">
                                   <AvatarFallback className="bg-[#def1e2] text-[#2b7254] font-semibold">
                                     {getInitials(item.full_name ?? "")}
                                   </AvatarFallback>
@@ -532,7 +572,7 @@ export function PegawaiClient({
                           return null;
                       }
                     })}
-                    <TableCell className="px-3 py-3 align-middle">
+                     <TableCell className="px-3 pr-6 py-3 align-middle">
                       {permissions.update || permissions.delete ? (
                         <div className="flex items-center justify-end gap-1">
                           {permissions.update ? (
@@ -599,6 +639,60 @@ export function PegawaiClient({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import Data Pegawai</DialogTitle>
+            <DialogDescription>
+              Unggah file Excel (.xlsx / .xls) untuk import data pegawai secara bulk.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setImportFile(f);
+                  setImportResult(null);
+                }}
+                className="flex-1"
+              />
+            </div>
+            {importResult && (
+              <div className="rounded-lg border p-3 text-sm">
+                <p className="font-semibold text-green-700">Berhasil: {importResult.success}</p>
+                <p className="font-semibold text-red-700">Gagal: {importResult.failed}</p>
+                {importResult.errors.length > 0 && (
+                  <pre className="mt-2 max-h-40 overflow-auto text-xs text-muted-foreground">
+                    {JSON.stringify(importResult.errors, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Download template di{" "}
+              <a
+                href="/templates/template-import-pegawai.xlsx"
+                download
+                className="text-primary underline"
+              >
+                sini
+              </a>
+              .
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
+            <Button onClick={handleImportSubmit} disabled={!importFile || isPending}>
+              Upload & Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -711,12 +805,15 @@ function PegawaiFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
+           <DialogContent className="max-h-[92vh] sm:max-w-[870px] overflow-hidden rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)]">
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{isEdit ? "Ubah Pegawai" : "Tambah Pegawai"}</DialogTitle>
-            <DialogDescription>
-              Pegawai belum tentu punya akun login. Akun dibuat lewat menu User.
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] uppercase text-[#4d9775]">Data kepegawaian</span>
+            <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {isEdit ? "Ubah Pegawai" : "Tambah Pegawai"}
+            </DialogTitle>
+            <DialogDescription className="text-[11px] text-[#83988e] mt-[7px]">
+              Lengkapi informasi pegawai untuk menyimpan data baru.
             </DialogDescription>
           </DialogHeader>
 
@@ -1243,13 +1340,18 @@ function PegawaiFormDialog({
             </TabsContent>
           </Tabs>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Tambah Pegawai"}
-            </Button>
+          <DialogFooter className="justify-between">
+            <span className="text-[10px] text-[#96a9a0]">
+              <ShieldCheck className="mr-1 inline-block size-[15px] text-[#5a9a74]" /> Data dapat dilengkapi kembali nanti
+            </span>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Simpan pegawai"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
