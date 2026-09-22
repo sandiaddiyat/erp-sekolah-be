@@ -147,6 +147,7 @@ export default async function PegawaiPage() {
         delete: can(current.permissions, PERMISSIONS.pegawaiDelete, current.isSuperAdmin),
       }}
       uploadPegawaiPhotoAction={uploadPegawaiPhotoAction}
+      schoolId={current.profile.school_id ?? ""}
     />
   );
 }

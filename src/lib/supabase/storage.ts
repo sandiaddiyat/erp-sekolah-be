@@ -73,7 +73,7 @@ export async function uploadPegawaiPhoto(
     .upload(path, file, { cacheControl: "3600", upsert: false });
 
   if (error) {
-    throw new Error("Gagal mengunggah foto pegawai.");
+    throw new Error(`Gagal mengunggah foto pegawai: ${error.message}`);
   }
 
   const { data } = supabase.storage.from("pegawai-photos").getPublicUrl(path);

@@ -112,6 +112,7 @@ export function PegawaiClient({
   pegawaiSertifikasi,
   permissions,
   uploadPegawaiPhotoAction,
+  schoolId,
 }: {
   pegawai: Pegawai[];
   options: PegawaiOptionLists;
@@ -120,6 +121,7 @@ export function PegawaiClient({
   pegawaiSertifikasi: Record<string, PegawaiSertifikasi[]>;
   permissions: Permissions;
   uploadPegawaiPhotoAction: (formData: FormData) => Promise<{ url?: string; error?: string }>;
+  schoolId: string;
 }) {
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -634,6 +636,7 @@ export function PegawaiClient({
         pendidikanAwal={editing ? (pegawaiPendidikan[editing.id] ?? []) : []}
         sertifikasiAwal={editing ? (pegawaiSertifikasi[editing.id] ?? []) : []}
         uploadPegawaiPhotoAction={uploadPegawaiPhotoAction}
+        schoolId={schoolId}
       />
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
@@ -753,6 +756,7 @@ function PegawaiFormDialog({
   pendidikanAwal,
   sertifikasiAwal,
   uploadPegawaiPhotoAction,
+  schoolId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -762,6 +766,7 @@ function PegawaiFormDialog({
   pendidikanAwal: PegawaiPendidikan[];
   sertifikasiAwal: PegawaiSertifikasi[];
   uploadPegawaiPhotoAction: (formData: FormData) => Promise<{ url?: string; error?: string }>;
+  schoolId: string;
 }) {
   const isEdit = Boolean(editing);
   const [isActive, setIsActive] = useState(editing?.is_active ?? true);
@@ -840,7 +845,7 @@ function PegawaiFormDialog({
 
     const formData = new FormData();
     formData.append("photo", file);
-    if (editing?.school_id) formData.append("school_id", editing.school_id);
+    formData.append("school_id", schoolId);
 
     setIsUploading(true);
     setUploadError(null);
@@ -916,14 +921,7 @@ function PegawaiFormDialog({
 
             {/* ===== Tab 1: Informasi Dasar ===== */}
             <TabsContent value="basic" keepMounted className="space-y-4 pt-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">Informasi Dasar</h3>
-                <p className="text-xs text-muted-foreground">
-                  Identitas utama dan kontak pegawai yang akan disimpan.
-                </p>
-              </div>
-
-              <div className="mb-4 flex items-end justify-between">
+              <div className="mb-4 flex items-center justify-between">
                 <div className="space-y-1">
                   <h3 className="text-sm font-semibold text-foreground">Informasi Dasar</h3>
                   <p className="text-xs text-muted-foreground">
