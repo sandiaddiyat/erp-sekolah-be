@@ -859,7 +859,7 @@ function PegawaiFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] gap-0 overflow-hidden sm:max-w-[870px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+      <DialogContent className="max-h-[92vh] gap-0 overflow-hidden sm:max-w-[1000px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
         <form action={formAction} className="flex h-full max-h-[92vh] flex-col">
           <DialogHeader className="px-6 pb-4 pt-6">
             <span className="mb-2 block text-[10px] font-bold tracking-[.1em] uppercase text-[#4d9775]">Data kepegawaian</span>
@@ -902,6 +902,7 @@ function PegawaiFormDialog({
             )}
           />
 
+          <div className="flex-1 overflow-y-auto px-6">
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
               variant="line"
@@ -1458,8 +1459,9 @@ function PegawaiFormDialog({
               )}
             </TabsContent>
           </Tabs>
+          </div>
 
-          <DialogFooter className="justify-between">
+          <DialogFooter className="justify-between px-6 pb-6 pt-4">
             <span className="text-[10px] text-[#96a9a0]">
               <ShieldCheck className="mr-1 inline-block size-[15px] text-[#5a9a74]" /> Data dapat dilengkapi kembali nanti
             </span>
