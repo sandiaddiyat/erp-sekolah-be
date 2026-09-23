@@ -26,6 +26,8 @@ export const PERMISSIONS = {
   pegawaiCreate: "pegawai.create",
   pegawaiUpdate: "pegawai.update",
   pegawaiDelete: "pegawai.delete",
+  pegawaiExport: "pegawai.export",
+  pegawaiImport: "pegawai.import",
 
   studentsView: "students.view",
   studentsCreate: "students.create",

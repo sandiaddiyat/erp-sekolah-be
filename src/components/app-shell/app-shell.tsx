@@ -229,7 +229,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="flex min-h-svh flex-col">
+      <div className="flex min-h-svh min-w-0 flex-col">
         <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-2 border-b border-[#e5eee8] bg-white/82 px-4.5 backdrop-blur lg:px-8 dark:border-[#22332c] dark:bg-[#0f1f1a]/80">
           <Sheet>
             <SheetTrigger className="lg:hidden">
@@ -265,7 +265,7 @@ export function AppShell({
           </Button>
           <UserMenu {...user} />
         </header>
-        <main className="flex-1 p-4.5 lg:p-8">{children}</main>
+        <main className="min-w-0 flex-1 p-4.5 lg:p-8">{children}</main>
       </div>
     </div>
   );

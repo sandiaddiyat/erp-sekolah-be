@@ -16,12 +16,12 @@ export function FieldLabel({
   optional?: boolean;
 }) {
   return (
-    <Label htmlFor={htmlFor}>
+    <Label htmlFor={htmlFor} className="text-[10px] font-bold text-[#4c6a5e]">
       {children}
       {required ? (
-        <span className="ml-0.5 text-destructive">*</span>
+        <span className="text-[#d06a5d]">*</span>
       ) : optional ? (
-        <span className="ml-1 text-xs font-normal text-muted-foreground">
+        <span className="text-[9px] font-medium text-[#98aaa1]">
           (opsional)
         </span>
       ) : null}
