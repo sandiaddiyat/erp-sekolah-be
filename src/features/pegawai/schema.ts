@@ -85,6 +85,11 @@ export const savePegawaiSchema = z
         "Format email tidak valid."
       ),
     is_active: z.boolean().default(true),
+    photo_url: z
+      .string()
+      .url("URL foto tidak valid.")
+      .optional()
+      .or(z.literal("").transform(() => null)),
   })
   .superRefine((data, ctx) => {
     // Setidaknya salah satu nomor induk terisi agar data mudah dirujuk.
@@ -158,6 +163,7 @@ export function readSavePegawaiInput(formData: FormData): SavePegawaiParseResult
     phone: formData.get("phone") ?? "",
     email: formData.get("email") ?? "",
     is_active: formData.get("is_active") !== "false",
+    photo_url: formData.get("photo_url")?.toString() || "",
   });
 
   if (!parsed.success) {

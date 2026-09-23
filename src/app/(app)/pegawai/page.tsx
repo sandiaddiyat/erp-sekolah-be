@@ -8,6 +8,7 @@ import type {
   PegawaiSertifikasi,
 } from "@/lib/types";
 import { PegawaiClient } from "./pegawai-client";
+import { uploadPegawaiPhotoAction } from "./upload-photo-action";
 
 export const metadata = { title: "Data Pegawai" };
 
@@ -145,6 +146,8 @@ export default async function PegawaiPage() {
         update: can(current.permissions, PERMISSIONS.pegawaiUpdate, current.isSuperAdmin),
         delete: can(current.permissions, PERMISSIONS.pegawaiDelete, current.isSuperAdmin),
       }}
+      uploadPegawaiPhotoAction={uploadPegawaiPhotoAction}
+      schoolId={current.profile.school_id ?? ""}
     />
   );
 }

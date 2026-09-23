@@ -36,6 +36,7 @@ function buildPayload(command: SavePegawaiInput, schoolId: string): PegawaiPaylo
     alamat: command.alamat || null,
     phone: command.phone || null,
     email: command.email || null,
+    photo_url: command.photo_url || null,
     is_active: command.is_active,
   };
 }

@@ -11,9 +11,12 @@ import {
   PlusIcon,
   SearchIcon,
   ShieldCheck,
+  DownloadIcon,
   Trash2Icon,
   UploadIcon,
+  UserIcon,
   UserPlusIcon,
+  XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,7 +64,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -108,6 +111,8 @@ export function PegawaiClient({
   pegawaiPendidikan,
   pegawaiSertifikasi,
   permissions,
+  uploadPegawaiPhotoAction,
+  schoolId,
 }: {
   pegawai: Pegawai[];
   options: PegawaiOptionLists;
@@ -115,6 +120,8 @@ export function PegawaiClient({
   pegawaiPendidikan: Record<string, PegawaiPendidikan[]>;
   pegawaiSertifikasi: Record<string, PegawaiSertifikasi[]>;
   permissions: Permissions;
+  uploadPegawaiPhotoAction: (formData: FormData) => Promise<{ url?: string; error?: string }>;
+  schoolId: string;
 }) {
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -269,6 +276,7 @@ export function PegawaiClient({
 
   const handleImport = () => {
     setImportResult(null);
+    setImportFile(null);
     setImportOpen(true);
   };
 
@@ -289,8 +297,8 @@ export function PegawaiClient({
         console.table(r.errors);
       }
       setImportResult(r);
-      setImportFile(null);
     }
+    setImportOpen(false);
   };
 
   const openEdit = (item: Pegawai) => {
@@ -307,16 +315,23 @@ export function PegawaiClient({
           <p className="text-sm text-muted-foreground">Kelola data kepegawaian sekolah dengan lebih teratur.</p>
         </div>
         {permissions.create ? (
-          <>
-            <Button onClick={openCreate}>
-              <UserPlusIcon data-icon="inline-start" />
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={openCreate}
+              className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
+            >
+              <UserPlusIcon data-icon="inline-start" className="size-4" />
               Tambah Pegawai
             </Button>
-            <Button variant="outline" onClick={handleImport}>
-              <UploadIcon data-icon="inline-start" />
+            <Button
+              variant="outline"
+              onClick={handleImport}
+              className="h-9 rounded-[9px] border border-[#d7e6dc] bg-white px-4 text-[11px] font-bold text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5]"
+            >
+              <UploadIcon data-icon="inline-start" className="size-4" />
               Import Excel
             </Button>
-          </>
+          </div>
         ) : null}
       </div>
 
@@ -446,12 +461,15 @@ export function PegawaiClient({
                                 className="flex items-center gap-3"
                                 title={item.full_name ?? ""}
                               >
-                           <Avatar size="default" className="size-8 shrink-0 rounded-[9px] cell-avatar">
-                                  <AvatarFallback className="bg-[#def1e2] text-[#2b7254] font-semibold">
-                                    {getInitials(item.full_name ?? "")}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0">
+                           <Avatar className="size-8 shrink-0 rounded-[9px] cell-avatar">
+                             {item.photo_url ? (
+                               <AvatarImage src={item.photo_url} alt={item.full_name ?? "Pegawai"} />
+                             ) : null}
+                             <AvatarFallback className="bg-[#def1e2] text-[#2b7254] font-semibold">
+                               {getInitials(item.full_name ?? "")}
+                             </AvatarFallback>
+                           </Avatar>
+                                <div className="min-w-0 min-w-[200px]">
                                   <div className="truncate text-[12px] font-semibold text-[#2b493e]">
                                     {item.full_name}
                                   </div>
@@ -617,6 +635,8 @@ export function PegawaiClient({
         jabatanTerpilih={editing ? (pegawaiJabatan[editing.id] ?? []) : []}
         pendidikanAwal={editing ? (pegawaiPendidikan[editing.id] ?? []) : []}
         sertifikasiAwal={editing ? (pegawaiSertifikasi[editing.id] ?? []) : []}
+        uploadPegawaiPhotoAction={uploadPegawaiPhotoAction}
+        schoolId={schoolId}
       />
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
@@ -735,6 +755,8 @@ function PegawaiFormDialog({
   jabatanTerpilih,
   pendidikanAwal,
   sertifikasiAwal,
+  uploadPegawaiPhotoAction,
+  schoolId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -743,9 +765,14 @@ function PegawaiFormDialog({
   jabatanTerpilih: PegawaiJabatanInfo[];
   pendidikanAwal: PegawaiPendidikan[];
   sertifikasiAwal: PegawaiSertifikasi[];
+  uploadPegawaiPhotoAction: (formData: FormData) => Promise<{ url?: string; error?: string }>;
+  schoolId: string;
 }) {
   const isEdit = Boolean(editing);
   const [isActive, setIsActive] = useState(editing?.is_active ?? true);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(editing?.photo_url ?? null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedJabatanIds, setSelectedJabatanIds] = useState<string[]>(
     jabatanTerpilih.map((info) => info.jabatan_id)
   );
@@ -803,11 +830,43 @@ function PegawaiFormDialog({
     );
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Ukuran foto maksimal 2 MB.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Hanya file gambar yang diperbolehkan.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("photo", file);
+    formData.append("school_id", schoolId);
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const res = await uploadPegawaiPhotoAction(formData);
+      if (res.error) {
+        setUploadError(res.error);
+      } else if (res.url) {
+        setPhotoUrl(res.url);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+    e.target.value = "";
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-           <DialogContent className="max-h-[92vh] sm:max-w-[870px] overflow-hidden rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)]">
-        <form action={formAction} className="space-y-4">
-          <DialogHeader>
+      <DialogContent className="max-h-[92vh] gap-0 overflow-hidden sm:max-w-[1000px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+        <form action={formAction} className="flex h-full max-h-[92vh] flex-col">
+          <DialogHeader className="px-6 pb-4 pt-6">
             <span className="mb-2 block text-[10px] font-bold tracking-[.1em] uppercase text-[#4d9775]">Data kepegawaian</span>
             <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {isEdit ? "Ubah Pegawai" : "Tambah Pegawai"}
@@ -848,6 +907,7 @@ function PegawaiFormDialog({
             )}
           />
 
+          <div className="flex-1 overflow-y-auto px-6">
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
               variant="line"
@@ -861,15 +921,73 @@ function PegawaiFormDialog({
 
             {/* ===== Tab 1: Informasi Dasar ===== */}
             <TabsContent value="basic" keepMounted className="space-y-4 pt-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">Informasi Dasar</h3>
-                <p className="text-xs text-muted-foreground">
-                  Identitas utama dan kontak pegawai yang akan disimpan.
-                </p>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-foreground">Informasi Dasar</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Identitas utama dan kontak pegawai yang akan disimpan.
+                  </p>
+                </div>
+                <a
+                  href="/templates/template-import-pegawai.xlsx"
+                  download
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-[#4b8669] hover:underline"
+                >
+                  <DownloadIcon className="size-3" />
+                  Unduh template excel
+                </a>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
+              <input type="hidden" name="photo_url" value={photoUrl ?? ""} />
+
+              <div className="grid items-start gap-4 sm:grid-cols-2">
+                {/* Foto pegawai */}
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="photo" optional>Foto</FieldLabel>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-16 rounded-[9px] border-2 border-[#e2ece5]">
+                      {photoUrl ? (
+                        <AvatarImage src={photoUrl} alt={editing?.full_name ?? "Pegawai"} />
+                      ) : null}
+                      <AvatarFallback className="rounded-[9px] bg-[#e3f0e9] text-[#4b8669]">
+                        {editing?.full_name
+                          ? getInitials(editing.full_name)
+                          : <UserIcon className="size-7" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        id="photo"
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        onChange={handleFileChange}
+                        disabled={isUploading}
+                        className="text-xs file:cursor-pointer file:rounded-[9px] file:border-0 file:bg-[#185743] file:font-bold file:text-white file:hover:bg-[#124936]"
+                      />
+                      {isUploading && <p className="text-xs text-[#4b8669]">Mengunggah...</p>}
+                      {uploadError ? <p className="text-xs text-destructive">{uploadError}</p> : null}
+                    </div>
+                    {photoUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => {
+                          setPhotoUrl(null);
+                          setUploadError(null);
+                        }}
+                        aria-label="Hapus foto"
+                      >
+                        <XIcon className="size-4 text-[#83988e]" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Nama Lengkap (kiri atas foto, sampai dengan kolom NIP) */}
+                <div className="sm:col-span-2">
                   <FieldLabel htmlFor="full_name" required>
                     Nama Lengkap
                   </FieldLabel>
@@ -1339,8 +1457,9 @@ function PegawaiFormDialog({
               )}
             </TabsContent>
           </Tabs>
+          </div>
 
-          <DialogFooter className="justify-between">
+          <DialogFooter className="justify-between px-6 pb-6 pt-4">
             <span className="text-[10px] text-[#96a9a0]">
               <ShieldCheck className="mr-1 inline-block size-[15px] text-[#5a9a74]" /> Data dapat dilengkapi kembali nanti
             </span>
