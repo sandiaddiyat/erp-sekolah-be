@@ -34,7 +34,7 @@ export async function importPegawai(
   formData: FormData
 ): Promise<ImportPegawaiResult> {
   const guard = await guardAction({
-    permission: PERMISSIONS.pegawaiCreate,
+    permission: PERMISSIONS.pegawaiImport,
     deniedMessage: "Anda tidak punya izin mengimpor data pegawai.",
   });
   if ("error" in guard) return { error: guard.error };

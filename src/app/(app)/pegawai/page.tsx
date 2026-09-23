@@ -145,6 +145,8 @@ export default async function PegawaiPage() {
         create: can(current.permissions, PERMISSIONS.pegawaiCreate, current.isSuperAdmin),
         update: can(current.permissions, PERMISSIONS.pegawaiUpdate, current.isSuperAdmin),
         delete: can(current.permissions, PERMISSIONS.pegawaiDelete, current.isSuperAdmin),
+        export: can(current.permissions, PERMISSIONS.pegawaiExport, current.isSuperAdmin),
+        import: can(current.permissions, PERMISSIONS.pegawaiImport, current.isSuperAdmin),
       }}
       uploadPegawaiPhotoAction={uploadPegawaiPhotoAction}
       schoolId={current.profile.school_id ?? ""}
