@@ -276,6 +276,37 @@ export function readSaveClassInput(formData: FormData): SaveClassParseResult {
   return { ok: true, command: parsed.data };
 }
 
+// ===== Copy Classes from Previous Year =====
+
+export const copyClassesSchema = z.object({
+  targetYearId: z
+    .string()
+    .trim()
+    .min(1, "Tahun ajaran tujuan wajib dipilih")
+    .refine((v) => z.uuid().safeParse(v).success, "Tahun ajaran tujuan tidak valid."),
+});
+
+export type CopyClassesInput = z.infer<typeof copyClassesSchema>;
+
+export type CopyClassesParseResult =
+  | { ok: true; command: CopyClassesInput }
+  | { ok: false; error: string };
+
+export function readCopyClassesInput(formData: FormData): CopyClassesParseResult {
+  const parsed = copyClassesSchema.safeParse({
+    targetYearId: formData.get("targetYearId") ?? "",
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
+    };
+  }
+
+  return { ok: true, command: parsed.data };
+}
+
 // ===== Student Enrollments =====
 
 export const saveEnrollmentSchema = z

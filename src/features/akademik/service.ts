@@ -379,6 +379,99 @@ export async function deleteClassRecord(
   return okResult("Kelas berhasil dihapus.");
 }
 
+export type CopyClassesResult =
+  | { ok: true; created: number; skipped: number }
+  | { ok: false; error: string };
+
+export async function copyClassesFromPreviousYear(
+  deps: AkademikMutationsDeps,
+  schoolId: string,
+  targetYearId: string
+): Promise<CopyClassesResult> {
+  if (!schoolId) {
+    return { ok: false, error: "Hanya admin sekolah yang dapat mengelola data akademik." };
+  }
+
+  const { supabase } = deps;
+
+  const { data: targetYear, error: targetError } = await supabase
+    .from("academic_years")
+    .select("id, school_id, start_date")
+    .eq("id", targetYearId)
+    .eq("school_id", schoolId)
+    .single();
+  if (targetError || !targetYear) {
+    return { ok: false, error: "Tahun ajaran tujuan tidak ditemukan." };
+  }
+
+  const { data: sourceYear } = await supabase
+    .from("academic_years")
+    .select("id, name, start_date")
+    .eq("school_id", schoolId)
+    .lt("start_date", targetYear.start_date)
+    .order("start_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!sourceYear) {
+    return { ok: false, error: "Tidak ada tahun ajaran sebelumnya." };
+  }
+
+  const { data: sourceClasses } = await supabase
+    .from("classes")
+    .select("grade_id, major_id, room_id, homeroom_teacher_id, name, capacity")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", sourceYear.id);
+  if (!sourceClasses || sourceClasses.length === 0) {
+    return {
+      ok: false,
+      error: `Tidak ada kelas pada tahun ajaran "${sourceYear.name}" untuk disalin.`,
+    };
+  }
+
+  const { data: targetClasses } = await supabase
+    .from("classes")
+    .select("name, grade_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", targetYear.id);
+
+  const normalizeName = (name: string) => name.trim().toLowerCase();
+  const existingKeys = new Set(
+    (targetClasses ?? []).map((c) => `${normalizeName(c.name)}|${c.grade_id}`)
+  );
+
+  let skipped = 0;
+  const rows: Database["public"]["Tables"]["classes"]["Insert"][] = [];
+  for (const source of sourceClasses) {
+    const key = `${normalizeName(source.name)}|${source.grade_id}`;
+    if (existingKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    existingKeys.add(key);
+    rows.push({
+      school_id: schoolId,
+      academic_year_id: targetYear.id,
+      grade_id: source.grade_id,
+      major_id: source.major_id,
+      room_id: source.room_id,
+      homeroom_teacher_id: source.homeroom_teacher_id,
+      name: source.name,
+      capacity: source.capacity,
+    });
+  }
+
+  if (rows.length === 0) {
+    return { ok: true, created: 0, skipped };
+  }
+
+  const { error: insertError } = await supabase.from("classes").insert(rows);
+  if (insertError) {
+    return { ok: false, error: insertError.message };
+  }
+
+  return { ok: true, created: rows.length, skipped };
+}
+
 // ===== Student Enrollments =====
 
 export async function saveEnrollmentRecord(

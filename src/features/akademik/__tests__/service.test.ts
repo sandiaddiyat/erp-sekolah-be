@@ -14,6 +14,7 @@ import {
   deleteMajorRecord,
   saveClassRecord,
   deleteClassRecord,
+  copyClassesFromPreviousYear,
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
 } from "@/features/akademik/service";
@@ -24,6 +25,7 @@ import {
   readSaveRoomInput,
   readSaveMajorInput,
   readSaveClassInput,
+  readCopyClassesInput,
   readSaveEnrollmentInput,
 } from "@/features/akademik/schema";
 import type { CurrentUser } from "@/lib/types";
@@ -61,6 +63,22 @@ class QueryMock implements PromiseLike<Row> {
   }
   order() {
     this.calls.push("order");
+    return this;
+  }
+  limit(count: number) {
+    this.calls.push(`limit:${count}`);
+    return this;
+  }
+  lt(column: string, value: unknown) {
+    this.calls.push(`lt:${column}=${String(value)}`);
+    return this;
+  }
+  single() {
+    this.calls.push("single");
+    return this;
+  }
+  maybeSingle() {
+    this.calls.push("maybeSingle");
     return this;
   }
   insert(payload: unknown) {
@@ -787,6 +805,172 @@ describe("deleteClassRecord (service)", () => {
     expect(result.ok).toBe(true);
     expect(table.calls.some((c) => c === "eq:id=" + UUID)).toBe(true);
     expect(table.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+  });
+});
+
+// ===== Schema: Copy Classes from Previous Year =====
+
+describe("readCopyClassesInput (schema)", () => {
+  it("menerima tahun ajaran tujuan yang valid", () => {
+    const result = readCopyClassesInput(formData({ targetYearId: UUID }));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.targetYearId).toBe(UUID);
+    }
+  });
+
+  it("menolak tahun ajaran tujuan kosong", () => {
+    expect(readCopyClassesInput(formData({})).ok).toBe(false);
+  });
+
+  it("menolak tahun ajaran tujuan bukan uuid", () => {
+    expect(readCopyClassesInput(formData({ targetYearId: "bukan-uuid" })).ok).toBe(false);
+  });
+});
+
+// ===== Service: Copy Classes from Previous Year =====
+
+const UUID_2 = "22222222-2222-4222-8222-222222222222";
+const GRADE_A = "aaaaaaa1-1111-4111-8111-111111111111";
+const GRADE_B = "aaaaaaa2-2222-4222-8222-222222222222";
+
+function makeCopySupabase(
+  yearMocks: QueryMock[],
+  classMocks: QueryMock[]
+): SupabaseClient<Database> {
+  let yearCall = 0;
+  let classCall = 0;
+  return {
+    from: (table: string) => {
+      if (table === "academic_years") {
+        const mock = yearMocks[yearCall];
+        yearCall += 1;
+        if (!mock) throw new Error(`Panggilan academic_years ke-${yearCall} tidak di-mock`);
+        return mock;
+      }
+      if (table === "classes") {
+        const mock = classMocks[classCall];
+        classCall += 1;
+        if (!mock) throw new Error(`Panggilan classes ke-${classCall} tidak di-mock`);
+        return mock;
+      }
+      throw new Error(`Tabel tak terduga: ${table}`);
+    },
+  } as unknown as SupabaseClient<Database>;
+}
+
+function targetYearMock(): QueryMock {
+  const mock = new QueryMock();
+  mock.data = { id: UUID, school_id: "school-1", start_date: "2025-07-01" };
+  return mock;
+}
+
+describe("copyClassesFromPreviousYear (service)", () => {
+  it("menolak jika tahun ajaran tujuan tidak ditemukan", async () => {
+    const notFound = new QueryMock(null, { message: "row not found" });
+    const supabase = makeCopySupabase([notFound], []);
+
+    const result = await copyClassesFromPreviousYear({ supabase }, "school-1", UUID);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Tahun ajaran tujuan tidak ditemukan.");
+    }
+  });
+
+  it("menolak jika tidak ada tahun ajaran sebelumnya", async () => {
+    const noSource = new QueryMock();
+    noSource.data = null;
+    const supabase = makeCopySupabase([targetYearMock(), noSource], []);
+
+    const result = await copyClassesFromPreviousYear({ supabase }, "school-1", UUID);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("Tidak ada tahun ajaran sebelumnya");
+    }
+  });
+
+  it("menolak jika tahun sumber tidak punya kelas", async () => {
+    const noSource = new QueryMock();
+    noSource.data = { id: UUID_2, name: "2024/2025", start_date: "2024-07-01" };
+    const emptyClasses = new QueryMock();
+    emptyClasses.data = [];
+    const supabase = makeCopySupabase([targetYearMock(), noSource], [emptyClasses]);
+
+    const result = await copyClassesFromPreviousYear({ supabase }, "school-1", UUID);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain('Tidak ada kelas pada tahun ajaran "2024/2025"');
+    }
+  });
+
+  it("menyalin kelas sumber dan melewati duplikat (nama + tingkat sama)", async () => {
+    const noSource = new QueryMock();
+    noSource.data = { id: UUID_2, name: "2024/2025", start_date: "2024-07-01" };
+    const sourceClasses = new QueryMock();
+    sourceClasses.data = [
+      { grade_id: GRADE_A, major_id: null, room_id: null, homeroom_teacher_id: null, name: "7A", capacity: 30 },
+      { grade_id: GRADE_B, major_id: null, room_id: null, homeroom_teacher_id: null, name: "7B", capacity: 32 },
+      { grade_id: GRADE_A, major_id: null, room_id: null, homeroom_teacher_id: null, name: "8A", capacity: 28 },
+    ];
+    const targetClasses = new QueryMock();
+    targetClasses.data = [{ name: "7a", grade_id: GRADE_A }];
+    const insertTable = new QueryMock();
+    const supabase = makeCopySupabase(
+      [targetYearMock(), noSource],
+      [sourceClasses, targetClasses, insertTable]
+    );
+
+    const result = await copyClassesFromPreviousYear({ supabase }, "school-1", UUID);
+
+    expect(result).toEqual({ ok: true, created: 2, skipped: 1 });
+    const insertCall = insertTable.calls.find((c) => c.startsWith("insert:"));
+    expect(insertCall).toBeDefined();
+    const payload = JSON.parse(insertCall!.slice("insert:".length));
+    expect(payload).toHaveLength(2);
+    for (const row of payload) {
+      expect(row.academic_year_id).toBe(UUID);
+      expect(row.school_id).toBe("school-1");
+    }
+    expect(payload.map((row: { name: string }) => row.name).sort()).toEqual(["7B", "8A"]);
+  });
+
+  it("mengembalikan created 0 tanpa error jika semua duplikat", async () => {
+    const noSource = new QueryMock();
+    noSource.data = { id: UUID_2, name: "2024/2025", start_date: "2024-07-01" };
+    const sourceClasses = new QueryMock();
+    sourceClasses.data = [
+      { grade_id: GRADE_A, major_id: null, room_id: null, homeroom_teacher_id: null, name: "7A", capacity: 30 },
+      { grade_id: GRADE_B, major_id: null, room_id: null, homeroom_teacher_id: null, name: "7B", capacity: 32 },
+      { grade_id: GRADE_A, major_id: null, room_id: null, homeroom_teacher_id: null, name: "8A", capacity: 28 },
+    ];
+    const targetClasses = new QueryMock();
+    targetClasses.data = [
+      { name: "7a", grade_id: GRADE_A },
+      { name: "7B", grade_id: GRADE_B },
+      { name: " 8a ", grade_id: GRADE_A },
+    ];
+    const supabase = makeCopySupabase(
+      [targetYearMock(), noSource],
+      [sourceClasses, targetClasses]
+    );
+
+    const result = await copyClassesFromPreviousYear({ supabase }, "school-1", UUID);
+
+    expect(result).toEqual({ ok: true, created: 0, skipped: 3 });
+  });
+
+  it("menolak user tanpa school_id", async () => {
+    const supabase = makeCopySupabase([], []);
+
+    const result = await copyClassesFromPreviousYear({ supabase }, "", UUID);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("admin sekolah");
+    }
   });
 });
 
