@@ -110,6 +110,7 @@ type ColumnKey =
   | "gender"
   | "phone"
   | "email"
+  | "alamat"
   | "status"
   | "role"
   | "unit"
@@ -123,6 +124,7 @@ const allColumns: { key: ColumnKey; label: string }[] = [
   { key: "gender", label: "Jenis Kelamin" },
   { key: "phone", label: "Telepon" },
   { key: "email", label: "Email" },
+  { key: "alamat", label: "Alamat" },
   { key: "status", label: "Status Kepegawaian" },
   { key: "role", label: "Jabatan Utama" },
   { key: "unit", label: "Unit Kerja" },
@@ -160,6 +162,7 @@ export function PegawaiClient({
   const [editing, setEditing] = useState<Pegawai | null>(null);
   const [viewing, setViewing] = useState<Pegawai | null>(null);
   const [deleting, setDeleting] = useState<Pegawai | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<
@@ -232,6 +235,7 @@ export function PegawaiClient({
           item.nuptk ?? "",
           item.phone ?? "",
           item.email ?? "",
+          item.alamat ?? "",
           jabatanGabungan,
         ]
           .join(" ")
@@ -306,6 +310,10 @@ export function PegawaiClient({
         case "email":
           valA = a.email ?? "";
           valB = b.email ?? "";
+          break;
+        case "alamat":
+          valA = a.alamat ?? "";
+          valB = b.alamat ?? "";
           break;
         case "status":
           valA = statusName.get(a.status_kepegawaian_id ?? "") ?? "";
@@ -444,6 +452,7 @@ export function PegawaiClient({
   };
 
   const openCreate = () => {
+    setBanner(null);
     setEditing(null);
     setFormOpen(true);
   };
@@ -476,6 +485,7 @@ export function PegawaiClient({
   };
 
   const openEdit = (item: Pegawai) => {
+    setBanner(null);
     setEditing(item);
     setFormOpen(true);
   };
@@ -522,6 +532,12 @@ export function PegawaiClient({
         ) : null}
       </div>
 
+      {banner ? (
+        <div className="rounded-[10px] border border-[#cbe5d0] bg-[#edf8ef] px-4 py-3 text-xs font-semibold text-[#27704e]">
+          {banner}
+        </div>
+      ) : null}
+
       <Card className="border-[#e2ece5] shadow-[0_3px_7px_#1c443305]">
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between employee-card__heading">
           <div>
@@ -552,7 +568,7 @@ export function PegawaiClient({
                     Pencarian mencakup
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {["Nama", "NIP", "NIY", "NUPTK", "Telepon", "Email", "Jabatan"].map(
+                    {["Nama", "NIP", "NIY", "NUPTK", "Telepon", "Email", "Alamat", "Jabatan"].map(
                       (kolom) => (
                         <span
                           key={kolom}
@@ -899,6 +915,20 @@ export function PegawaiClient({
                               </span>
                             </TableCell>
                           );
+                        case "alamat":
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className="max-w-[200px] px-3.5 py-3 align-middle"
+                            >
+                              <span
+                                className="block truncate text-xs text-[#3e5c50]"
+                                title={item.alamat ?? ""}
+                              >
+                                {item.alamat || "-"}
+                              </span>
+                            </TableCell>
+                          );
                         case "status": {
                           const statusText = statusName.get(
                             item.status_kepegawaian_id ?? ""
@@ -1084,6 +1114,7 @@ export function PegawaiClient({
         sertifikasiAwal={editing ? (pegawaiSertifikasi[editing.id] ?? []) : []}
         uploadPegawaiPhotoAction={uploadPegawaiPhotoAction}
         schoolId={schoolId}
+        onSaved={(message) => setBanner(message)}
       />
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
@@ -1428,6 +1459,7 @@ function PegawaiFormDialog({
   sertifikasiAwal,
   uploadPegawaiPhotoAction,
   schoolId,
+  onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1438,6 +1470,7 @@ function PegawaiFormDialog({
   sertifikasiAwal: PegawaiSertifikasi[];
   uploadPegawaiPhotoAction: (formData: FormData) => Promise<{ url?: string; error?: string }>;
   schoolId: string;
+  onSaved: (message: string) => void;
 }) {
   const isEdit = Boolean(editing);
   const [activeTab, setActiveTab] = useState("basic");
@@ -1475,11 +1508,12 @@ function PegawaiFormDialog({
   useEffect(() => {
     if (state?.success) {
       toast.success(state.success);
+      onSaved(state.success);
       onOpenChange(false);
     } else if (state?.error) {
       toast.error(state.error);
     }
-  }, [state, onOpenChange]);
+  }, [state, onOpenChange, onSaved]);
 
   const selectClass =
     "h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10";
