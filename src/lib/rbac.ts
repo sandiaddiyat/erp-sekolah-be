@@ -33,6 +33,7 @@ export const PERMISSIONS = {
   studentsCreate: "students.create",
   studentsUpdate: "students.update",
   studentsDelete: "students.delete",
+  studentsExport: "students.export",
   studentsImport: "students.import",
 
   teachersView: "teachers.view",

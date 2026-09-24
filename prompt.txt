@@ -1,9 +1,8 @@
-Form dibawah belum ada menu pengelolaanya :
-education_levels  — jenjang: TK, SD, SMP, SMA (code, name)
-grades            — tingkat per jenjang, mis. Kelas 7 (education_level_id, name, sort_order)
-majors            — jurusan khusus SMA/SMK (education_level_id, name)
-rooms             — ruangan (name, type, capacity)
-classes           — rombel per tahun ajaran (academic_year_id, grade_id, major_id, room_id,
-                    homeroom_teacher_id, name, capacity)
-student_enrollments — penempatan siswa per kelas/tahun ajaran (student_id, academic_year_id,
-                      class_id, enrollment_date, exit_date, status)
+buat issue.md yang berisi perencanaan yang nanti akan di implementasikan oleh junior programmer atau ai model yang lebih murah.
+
+planning berisi :
+
+perbaiki form pengelolaan data siswa mengikuti standar tampilan dan fitur yang ada di pengelolaan pegawai.
+tambahkan juga fitur upload dan download
+
+jelaskan tahapan-tahapan yang akan dilakukan dan akan di implementasikan oleh junior programmer atau ai model yang lebih murah

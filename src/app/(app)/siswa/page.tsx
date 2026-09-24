@@ -39,6 +39,8 @@ export default async function SiswaPage() {
         create: can(current.permissions, PERMISSIONS.studentsCreate, current.isSuperAdmin),
         update: can(current.permissions, PERMISSIONS.studentsUpdate, current.isSuperAdmin),
         delete: can(current.permissions, PERMISSIONS.studentsDelete, current.isSuperAdmin),
+        export: can(current.permissions, PERMISSIONS.studentsExport, current.isSuperAdmin),
+        import: can(current.permissions, PERMISSIONS.studentsImport, current.isSuperAdmin),
       }}
     />
   );
