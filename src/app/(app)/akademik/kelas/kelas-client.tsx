@@ -970,7 +970,7 @@ function FormDialog({
             </div>
           </div>
 
-          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px]">
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[24px]">
             <div className="flex w-full justify-end gap-2">
               <Button
                 type="button"
@@ -1092,7 +1092,7 @@ function CopyDialog({
             </div>
           </div>
 
-          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-6 py-[15px]">
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-6 py-[24px]">
             <div className="flex w-full justify-end gap-2">
               <Button
                 type="button"
