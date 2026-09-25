@@ -150,29 +150,22 @@ pada sekolahnya sendiri oleh RLS.
 Sekolah **tidak bisa dihapus dari UI**, hanya disuspend. Menghapus sekolah akan
 mencabut akses banyak orang sekaligus, jadi itu sengaja bukan operasi satu klik.
 
-## Catatan performa
+## Catatan performa dan autentikasi proxy
 
 Karena project Supabase berada di region Tokyo, satu round trip dari Indonesia
-memakan **~120–300 ms**. Dua keputusan desain berikut menjaga navigasi tetap
-ringan (~300 ms per halaman di mode produksi):
+memakan **~120–300 ms**. Proxy melakukan validasi autentikasi authoritative
+dengan `supabase.auth.getUser()` pada setiap request yang cocok dengan matcher.
+Pemanggilan ini memastikan user yang diteruskan ke aplikasi benar-benar valid
+di Supabase Auth, bukan hanya terbaca dari cookie.
 
-- **`getCurrentUser()` hanya satu round trip.** Profil, sekolah, role, dan
-  permission diambil sekaligus lewat fungsi Postgres
-  `get_current_user_context()` (lihat `migrations/0003`). Sebelumnya butuh 4
-  query berurutan, sekitar 650 ms per navigasi.
-- **Proxy memakai `auth.getSession()`, bukan `auth.getUser()`.** `getSession()`
-  membaca cookie dan hanya menyentuh jaringan saat token memang perlu
-  di-refresh, sehingga hemat ~130 ms per request — termasuk pada setiap prefetch
-  link.
+Konsekuensinya, navigasi menambahkan satu round trip validasi ke Supabase
+Auth. Proxy hanya menentukan arah redirect; `getCurrentUser()` tetap mengambil
+profil, sekolah, role, dan permission dalam satu RPC, sedangkan RLS tetap
+menjadi lapisan enforcement untuk otorisasi dan akses data.
 
-  Ini **sengaja dan bukan celah keamanan**. Proxy hanya menentukan arah
-  redirect, bukan memberi izin. Otorisasi sebenarnya terjadi di server component:
-  `getCurrentUser()` mengirim JWT user ke PostgREST, dan Supabase memverifikasi
-  tanda tangan serta masa berlaku token sebelum fungsi apa pun dieksekusi.
-  Cookie palsu akan ditolak di sana dan user diarahkan ke `/login`.
-
-> Jangan mengganti `getSession()` menjadi `getUser()` di proxy tanpa mengukur
-> ulang — itu menambah satu round trip ke Supabase pada tiap request.
+Ketika session di-refresh, proxy meneruskan cookie baru beserta header
+anti-cache dari `@supabase/ssr` ke response, termasuk response redirect, agar
+token tidak hilang atau tersimpan di cache bersama.
 
 ## Struktur proyek
 
@@ -218,5 +211,6 @@ kelas, keuangan, akademik, laporan, pengaturan.
 npm run dev      # development
 npm run build    # build production + typecheck
 npm run lint     # ESLint
+npm test         # test suite
 npm start        # jalankan hasil build
 ```
