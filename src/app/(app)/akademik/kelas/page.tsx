@@ -15,7 +15,7 @@ export default async function KelasPage() {
   const [classesResult, yearsResult, gradesResult, majorsResult, roomsResult, teachersResult] = await Promise.all([
     supabase
       .from("classes")
-      .select("*, academic_years(name), grades(name), majors(name), rooms(name), pegawai(full_name)")
+      .select("*, academic_years!classes_academic_year_tenant_fkey(name), grades!classes_grade_tenant_fkey(name), majors!classes_major_tenant_fkey(name), rooms!classes_room_tenant_fkey(name), pegawai!classes_teacher_tenant_fkey(full_name)")
       .eq("school_id", schoolId)
       .order("name"),
     supabase.from("academic_years").select("id, name, start_date, is_active").eq("school_id", schoolId).order("start_date", { ascending: false }),

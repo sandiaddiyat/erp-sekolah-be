@@ -15,7 +15,7 @@ export default async function TingkatPage() {
   const [gradesResult, levelsResult] = await Promise.all([
     supabase
       .from("grades")
-      .select("*, education_levels!inner(name, code)")
+      .select("*, education_levels!grades_education_level_tenant_fkey!inner(name, code)")
       .eq("school_id", schoolId)
       .order("sort_order"),
     supabase
