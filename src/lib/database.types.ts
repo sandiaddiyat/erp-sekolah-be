@@ -924,10 +924,10 @@ export interface Database {
         Row: {
           id: string;
           school_id: string;
-          bill_id: string;
+          bill_id: string | null;
           dicatat_oleh: string;
           nominal: number;
-          metode: string;
+          metode: string | null;
           bukti_url: string | null;
           catatan: string | null;
           status: string;
@@ -936,29 +936,15 @@ export interface Database {
           created_at: string;
           updated_at: string;
           invoice_id: string | null;
+          payment_method_id: string | null;
         };
         Insert: {
           id?: string;
           school_id: string;
-          bill_id: string;
+          bill_id?: string | null;
           dicatat_oleh: string;
           nominal: number;
-          metode: string;
-          bukti_url?: string | null;
-          catatan?: string | null;
-          status?: string;
-          diverifikasi_oleh?: string | null;
-          diverifikasi_pada?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          school_id?: string;
-          bill_id?: string;
-          dicatat_oleh?: string;
-          nominal?: number;
-          metode?: string;
+          metode?: string | null;
           bukti_url?: string | null;
           catatan?: string | null;
           status?: string;
@@ -967,6 +953,24 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           invoice_id?: string | null;
+          payment_method_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          bill_id?: string | null;
+          dicatat_oleh?: string;
+          nominal?: number;
+          metode?: string | null;
+          bukti_url?: string | null;
+          catatan?: string | null;
+          status?: string;
+          diverifikasi_oleh?: string | null;
+          diverifikasi_pada?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          invoice_id?: string | null;
+          payment_method_id?: string | null;
         };
         Relationships: [
           {
@@ -1002,6 +1006,13 @@ export interface Database {
             columns: ["invoice_id"];
             isOneToOne: false;
             referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_payment_method_id_fkey";
+            columns: ["payment_method_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_methods";
             referencedColumns: ["id"];
           },
         ];
@@ -1652,6 +1663,7 @@ export interface Database {
       invoice_details: {
         Row: {
           id: string;
+          school_id: string;
           invoice_id: string;
           fee_structure_id: string;
           description: string;
@@ -1662,6 +1674,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          school_id: string;
           invoice_id: string;
           fee_structure_id: string;
           description: string;
@@ -1672,6 +1685,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          school_id?: string;
           invoice_id?: string;
           fee_structure_id?: string;
           description?: string;

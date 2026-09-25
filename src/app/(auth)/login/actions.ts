@@ -1,10 +1,16 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
+import {
+  createLoginFailureLimiterFromEnv,
+  normalizeLoginEmail,
+  type LoginFailureLimiter,
+} from "@/lib/rate-limit/login-failure-limiter";
+import { getClientIp } from "./request-ip";
+import { signInWithLimiter } from "./login-service";
 
 export type LoginState = { error?: string } | undefined;
 
@@ -14,55 +20,14 @@ const loginSchema = z.object({
   next: z.string().optional(),
 });
 
-// Rate limiting sederhana berbasis in-memory (per instance). Cukup untuk
-// deployment satu instance; untuk multi-instance gunakan penyimpanan bersama
-// (Redis/Upstash) di masa depan.
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000;
-const BLOCK_MS = 15 * 60 * 1000;
+const LOGIN_SERVICE_ERROR =
+  "Layanan masuk sedang tidak tersedia. Silakan coba lagi sebentar.";
 
-type Attempt = { count: number; firstAttemptAt: number; blockedUntil: number };
+let limiter: LoginFailureLimiter | undefined;
 
-const attempts = new Map<string, Attempt>();
-
-async function clientIp(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-}
-
-function isBlocked(key: string): boolean {
-  const entry = attempts.get(key);
-  if (!entry) return false;
-  if (entry.blockedUntil > Date.now()) return true;
-  attempts.delete(key);
-  return false;
-}
-
-function recordFailure(key: string): void {
-  const now = Date.now();
-  const entry = attempts.get(key);
-  if (!entry || now - entry.firstAttemptAt > WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAttemptAt: now, blockedUntil: 0 });
-    return;
-  }
-  entry.count += 1;
-  if (entry.count >= MAX_ATTEMPTS) {
-    entry.blockedUntil = now + BLOCK_MS;
-  }
-}
-
-function recordSuccess(key: string): void {
-  attempts.delete(key);
-}
-
-function safeNextPath(next: string | undefined): string {
-  if (!next) return "/dashboard";
-  const normalized = next.replace(/\\/g, "/");
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
-    return "/dashboard";
-  }
-  return normalized;
+function getLoginLimiter() {
+  limiter ??= createLoginFailureLimiterFromEnv();
+  return limiter;
 }
 
 export async function signIn(
@@ -85,47 +50,27 @@ export async function signIn(
     };
   }
 
-  const email = parsed.data.email.trim().toLowerCase();
-  const ip = await clientIp();
-
-  if (isBlocked(email) || isBlocked(ip)) {
-    return {
-      error:
-        "Terlalu banyak percobaan masuk. Silakan coba lagi beberapa menit lagi.",
-    };
+  let result;
+  try {
+    const email = normalizeLoginEmail(parsed.data.email);
+    const ip = await getClientIp();
+    result = await signInWithLimiter(
+      {
+        email,
+        password: parsed.data.password,
+        next: parsed.data.next,
+      },
+      { email, ip },
+      {
+        limiter: getLoginLimiter(),
+        createSupabase: createClient,
+      }
+    );
+  } catch (error) {
+    console.error("[login]", error);
+    return { error: LOGIN_SERVICE_ERROR };
   }
 
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password: parsed.data.password,
-  });
-
-  if (error || !data.user) {
-    recordFailure(email);
-    recordFailure(ip);
-    return { error: "Email atau password salah." };
-  }
-
-  recordSuccess(email);
-  recordSuccess(ip);
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_active")
-    .eq("id", data.user.id)
-    .maybeSingle();
-
-  if (profile && profile.is_active === false) {
-    await supabase.auth.signOut();
-    return { error: "Akun kamu dinonaktifkan. Hubungi administrator sekolah." };
-  }
-
-  await supabase
-    .from("profiles")
-    .update({ last_login_at: new Date().toISOString() })
-    .eq("id", data.user.id);
-
-  redirect(safeNextPath(parsed.data.next));
+  if ("error" in result) return { error: result.error };
+  redirect(result.destination);
 }

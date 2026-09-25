@@ -41,8 +41,16 @@ cp .env.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+UPSTASH_REDIS_REST_URL=https://xxxxx.upstash.io
+UPSTASH_REDIS_REST_TOKEN=...
 NEXT_PUBLIC_APP_NAME=ERP Sekolah
 ```
+
+Untuk login di development, Redis boleh belum diisi dan limiter memakai penyimpanan
+memory per-process. Production pada Vercel **wajib** mengisi kedua env Upstash;
+login fail-closed sebelum memanggil Supabase Auth apabila Redis tidak tersedia.
+Production juga mengambil IP dari header tepercaya `x-vercel-forwarded-for`,
+sedangkan development memakai fallback lokal `127.0.0.1`.
 
 ### 3. Jalankan SQL
 
@@ -166,6 +174,34 @@ menjadi lapisan enforcement untuk otorisasi dan akses data.
 Ketika session di-refresh, proxy meneruskan cookie baru beserta header
 anti-cache dari `@supabase/ssr` ke response, termasuk response redirect, agar
 token tidak hilang atau tersimpan di cache bersama.
+
+### Rate limiter login
+
+Rate limiter memakai `@upstash/redis` untuk email dan IP secara atomic, dengan
+batas 5 kegagalan dalam 15 menit dan block 15 menit setelah kegagalan kelima.
+Setiap attempt login memakai reservation token agar request paralel tidak semuanya
+melewati batas. Key identifier di-hash, tidak menyimpan email atau IP mentah di
+Redis. Development boleh memakai memory fallback; production di Vercel memerlukan
+`UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` serta menolak login
+ketika Redis tidak dapat diakses.
+
+### RLS akademik dan billing
+
+Migration `supabase/migrations/0029_rls_hardening.sql` mengaktifkan RLS pada
+18 tabel akademik, keluarga, billing, diskon, dan rekonsiliasi. Policy memakai
+`current_access_ok()`, batas tenant, dan permission masing-masing modul;
+`invoice_details` juga dipolicy melalui invoice induk dan fee structure.
+Migration tersebut menutup helper policy dinamis `grant_tenant_policies()` dari
+akses role `authenticated`.
+
+Migration `0030` menambahkan composite foreign key tenant, `school_id` pada
+invoice detail, dan dukungan payment invoice. Migration `0031` menutup
+relasi `bills` serta membuat payment invoice tidak dapat diubah oleh user biasa.
+Migration `0032` memastikan setiap payment konsisten: payment tagihan wajib
+memakai `bill_id` + `metode`, sedangkan payment invoice wajib memakai
+`invoice_id` + `payment_method_id`. Migration `0033` melengkapi composite
+foreign key pada relasi pendidikan, jenjang, dan approver diskon agar seluruh
+referensi tenant utama tetap konsisten.
 
 ## Struktur proyek
 

@@ -146,12 +146,26 @@ export async function recordInvoicePayment(
     return errResult("Tagihan ini sudah lunas.");
   }
 
+  const methodResult = await supabase
+    .from("payment_methods")
+    .select("id")
+    .eq("id", payment_method_id)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (methodResult.error || !methodResult.data) {
+    return errResult("Metode pembayaran tidak valid.");
+  }
+
   // Hitung total sudah dibayar
   const paymentsResult = await supabase
     .from("payments")
     .select("nominal")
     .eq("invoice_id", invoice_id)
+    .eq("school_id", schoolId)
     .eq("status", "terverifikasi");
+  if (paymentsResult.error) {
+    return errResult("Gagal memuat riwayat pembayaran.");
+  }
 
   const totalTerverifikasi = ((paymentsResult.data ?? []) as { nominal: number }[])
     .reduce((sum, p) => sum + Number(p.nominal), 0);
@@ -167,13 +181,14 @@ export async function recordInvoicePayment(
   const { error: insertError } = await supabase.from("payments").insert({
     school_id: schoolId,
     invoice_id,
+    payment_method_id,
     nominal,
     catatan: catatan ?? null,
     status: "terverifikasi",
     dicatat_oleh: current.id,
     diverifikasi_oleh: current.id,
     diverifikasi_pada: new Date().toISOString(),
-  } as never);
+  });
 
   if (insertError) return handleError(insertError, "Gagal mencatat pembayaran.");
 
@@ -181,10 +196,14 @@ export async function recordInvoicePayment(
   const totalBaru = totalTerverifikasi + nominal;
   const statusBaru = totalBaru >= Number(invoice.total_amount) ? "lunas" : "sebagian";
 
-  await supabase
+  const { error: invoiceUpdateError } = await supabase
     .from("invoices")
     .update({ status: statusBaru })
-    .eq("id", invoice_id);
+    .eq("id", invoice_id)
+    .eq("school_id", schoolId);
+  if (invoiceUpdateError) {
+    return handleError(invoiceUpdateError, "Pembayaran tercatat namun status tagihan gagal diperbarui.");
+  }
 
   return okResult(
     statusBaru === "lunas"

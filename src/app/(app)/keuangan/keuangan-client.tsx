@@ -23,11 +23,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BillItem, Payment } from "@/lib/types";
-import type { BillWithStudent } from "@/lib/types";
+import type { BillWithStudent, PaymentMetode } from "@/lib/types";
 import type { FormState } from "@/lib/types";
 import { formatRupiah } from "@/lib/utils";
 import { createBill, deleteBill, recordPayment, verifyPayment } from "./actions";
 import type { StudentOption } from "./page";
+
+type BillPayment = Payment & {
+  bill_id: string;
+  metode: PaymentMetode;
+};
 
 type Permissions = {
   billCreate: boolean;
@@ -56,8 +61,6 @@ const PRIMARY_BUTTON =
   "h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]";
 const SECONDARY_BUTTON =
   "h-[29px] rounded-[9px] border border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]";
-const OUTLINE_BUTTON =
-  "h-8 rounded-[9px] border border-[#d7e6dc] bg-white px-2.5 text-[10px] font-bold text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5] hover:text-[#4b8669]";
 const DELETE_BUTTON =
   "h-[29px] rounded-[7px] border border-[#ecd9d5] bg-white px-[9px] text-[10px] font-bold text-[#b06c63] hover:border-[#dcaea7] hover:bg-[#fff5f3] hover:text-[#b06c63]";
 
@@ -103,16 +106,18 @@ export function KeuanganClient({
   const [query, setQuery] = useState("");
   const [billOpen, setBillOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<BillWithStudent | null>(null);
-  const [verifying, setVerifying] = useState<Payment | null>(null);
+  const [verifying, setVerifying] = useState<BillPayment | null>(null);
   const [deleting, setDeleting] = useState<BillWithStudent | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const paymentByBill = useMemo(() => {
-    const map = new Map<string, Payment[]>();
-    for (const p of payments) {
-      const list = map.get(p.bill_id) ?? [];
-      list.push(p);
-      map.set(p.bill_id, list);
+    const map = new Map<string, BillPayment[]>();
+    for (const payment of payments) {
+      if (!payment.bill_id || !payment.metode) continue;
+      const billPayment = payment as BillPayment;
+      const list = map.get(billPayment.bill_id) ?? [];
+      list.push(billPayment);
+      map.set(billPayment.bill_id, list);
     }
     return map;
   }, [payments]);
@@ -577,7 +582,7 @@ function PaymentFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bill: BillWithStudent | null;
-  billPayments: Payment[];
+  billPayments: BillPayment[];
 }) {
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
     recordPayment,

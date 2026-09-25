@@ -28,7 +28,7 @@ function revalidateReconciliation() {
 // ===== Payment Methods =====
 export async function savePaymentMethod(_prevState: FormState, formData: FormData): Promise<FormState> {
   const guard = await guardAction({
-    permission: PERMISSIONS.paymentV2Manage,
+    permission: PERMISSIONS.billingManage,
     deniedMessage: "Anda tidak punya izin mengelola metode pembayaran.",
   });
   if ("error" in guard) return { error: guard.error };
@@ -46,7 +46,7 @@ export async function savePaymentMethod(_prevState: FormState, formData: FormDat
 
 export async function deletePaymentMethod(_prevState: FormState, formData: FormData): Promise<FormState> {
   const guard = await guardAction({
-    permission: PERMISSIONS.paymentV2Manage,
+    permission: PERMISSIONS.billingManage,
     deniedMessage: "Anda tidak punya izin mengelola metode pembayaran.",
   });
   if ("error" in guard) return { error: guard.error };
@@ -65,7 +65,7 @@ export async function deletePaymentMethod(_prevState: FormState, formData: FormD
 // ===== Bank Accounts =====
 export async function saveBankAccount(_prevState: FormState, formData: FormData): Promise<FormState> {
   const guard = await guardAction({
-    permission: PERMISSIONS.paymentV2Manage,
+    permission: PERMISSIONS.billingManage,
     deniedMessage: "Anda tidak punya izin mengelola rekening.",
   });
   if ("error" in guard) return { error: guard.error };
@@ -83,7 +83,7 @@ export async function saveBankAccount(_prevState: FormState, formData: FormData)
 
 export async function deleteBankAccount(_prevState: FormState, formData: FormData): Promise<FormState> {
   const guard = await guardAction({
-    permission: PERMISSIONS.paymentV2Manage,
+    permission: PERMISSIONS.billingManage,
     deniedMessage: "Anda tidak punya izin mengelola rekening.",
   });
   if ("error" in guard) return { error: guard.error };
@@ -102,7 +102,7 @@ export async function deleteBankAccount(_prevState: FormState, formData: FormDat
 // ===== Record Payment =====
 export async function recordPaymentV2(_prevState: FormState, formData: FormData): Promise<FormState> {
   const guard = await guardAction({
-    permission: PERMISSIONS.paymentV2Manage,
+    permission: PERMISSIONS.billingManage,
     deniedMessage: "Anda tidak punya izin mencatat pembayaran.",
   });
   if ("error" in guard) return { error: guard.error };

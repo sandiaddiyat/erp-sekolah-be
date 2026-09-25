@@ -65,9 +65,6 @@ export const PERMISSIONS = {
   discountView: "discount.view",
   discountManage: "discount.manage",
 
-  paymentV2View: "payment_v2.view",
-  paymentV2Manage: "payment_v2.manage",
-
   academicsAttendanceManage: "academics.attendance_manage",
   academicsGradeManage: "academics.grade_manage",
   academicsReportCardPublish: "academics.report_card_publish",

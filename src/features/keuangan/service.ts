@@ -189,7 +189,7 @@ export async function verifyPaymentRecord(
     bill_id: string;
     status: string;
   } | null;
-  if (paymentResult.error || !payment) {
+  if (paymentResult.error || !payment || !payment.bill_id) {
     return errResult("Pembayaran tidak ditemukan.");
   }
   if (payment.status !== "menunggu") {

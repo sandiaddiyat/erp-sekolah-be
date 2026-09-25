@@ -251,6 +251,7 @@ export async function generateInvoices(
         const { error: detailError } = await supabase
           .from("invoice_details")
           .insert({
+            school_id: schoolId,
             invoice_id: invoice.id,
             ...detail,
           });
