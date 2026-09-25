@@ -1,10 +1,16 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import {
+  beginAttempt,
+  recordFailure,
+  recordSuccess,
+  clearSession,
+  clientIp,
+} from "@/lib/rate-limit";
 
 export type LoginState = { error?: string } | undefined;
 
@@ -13,48 +19,6 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password wajib diisi"),
   next: z.string().optional(),
 });
-
-// Rate limiting sederhana berbasis in-memory (per instance). Cukup untuk
-// deployment satu instance; untuk multi-instance gunakan penyimpanan bersama
-// (Redis/Upstash) di masa depan.
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000;
-const BLOCK_MS = 15 * 60 * 1000;
-
-type Attempt = { count: number; firstAttemptAt: number; blockedUntil: number };
-
-const attempts = new Map<string, Attempt>();
-
-async function clientIp(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-}
-
-function isBlocked(key: string): boolean {
-  const entry = attempts.get(key);
-  if (!entry) return false;
-  if (entry.blockedUntil > Date.now()) return true;
-  attempts.delete(key);
-  return false;
-}
-
-function recordFailure(key: string): void {
-  const now = Date.now();
-  const entry = attempts.get(key);
-  if (!entry || now - entry.firstAttemptAt > WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAttemptAt: now, blockedUntil: 0 });
-    return;
-  }
-  entry.count += 1;
-  if (entry.count >= MAX_ATTEMPTS) {
-    entry.blockedUntil = now + BLOCK_MS;
-  }
-}
-
-function recordSuccess(key: string): void {
-  attempts.delete(key);
-}
 
 function safeNextPath(next: string | undefined): string {
   if (!next) return "/dashboard";
@@ -88,7 +52,8 @@ export async function signIn(
   const email = parsed.data.email.trim().toLowerCase();
   const ip = await clientIp();
 
-  if (isBlocked(email) || isBlocked(ip)) {
+  const { attemptId, blocked } = await beginAttempt(email, ip);
+  if (blocked) {
     return {
       error:
         "Terlalu banyak percobaan masuk. Silakan coba lagi beberapa menit lagi.",
@@ -103,13 +68,11 @@ export async function signIn(
   });
 
   if (error || !data.user) {
-    recordFailure(email);
-    recordFailure(ip);
+    await recordFailure(attemptId, email, ip);
     return { error: "Email atau password salah." };
   }
 
-  recordSuccess(email);
-  recordSuccess(ip);
+  await recordSuccess(attemptId, email, ip);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -119,6 +82,7 @@ export async function signIn(
 
   if (profile && profile.is_active === false) {
     await supabase.auth.signOut();
+    await clearSession(email, ip);
     return { error: "Akun kamu dinonaktifkan. Hubungi administrator sekolah." };
   }
 
