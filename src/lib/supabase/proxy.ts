@@ -1,8 +1,16 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from "@/lib/env";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
+
+type AuthCookie = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
+
+type AuthHeaders = Record<string, string>;
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
@@ -10,10 +18,25 @@ function isPublicPath(pathname: string): boolean {
   );
 }
 
+function applyAuthResponse(
+  response: NextResponse,
+  cookies: Map<string, AuthCookie>,
+  headers: AuthHeaders
+) {
+  for (const cookie of cookies.values()) {
+    response.cookies.set(cookie.name, cookie.value, cookie.options);
+  }
+
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value);
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const pendingCookies = new Map<string, AuthCookie>();
+  const authHeaders: AuthHeaders = {};
 
-  // Belum dikonfigurasi: biarkan lewat, halaman akan menampilkan panduan setup.
   if (!isSupabaseConfigured()) return response;
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -21,34 +44,25 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         );
+        cookiesToSet.forEach(({ name, value, options }) => {
+          pendingCookies.set(name, { name, value, options });
+        });
+        Object.assign(authHeaders, headers);
+
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
+        applyAuthResponse(response, pendingCookies, authHeaders);
       },
     },
   });
 
-  /*
-   * getSession() dipakai (bukan getUser()) karena:
-   *   - Tidak memanggil jaringan selama token masih berlaku -> hemat ~130ms
-   *     per request, termasuk saat Next.js melakukan prefetch link.
-   *   - Tetap otomatis me-refresh token yang kedaluwarsa dan menulis cookie
-   *     barunya lewat setAll() di atas.
-   *
-   * Ini AMAN karena proxy hanya menentukan arah redirect, bukan memberi izin.
-   * Otorisasi sesungguhnya terjadi di server component: getCurrentUser()
-   * mengirim JWT user ke PostgREST, dan Supabase memverifikasi tanda tangan
-   * serta masa berlaku token sebelum fungsi apa pun dieksekusi. Cookie palsu
-   * akan ditolak di sana dan user diarahkan ke /login.
-   */
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
@@ -62,17 +76,17 @@ export async function updateSession(request: NextRequest) {
       );
     }
     const redirectResponse = NextResponse.redirect(url);
-    response.cookies
-      .getAll()
-      .forEach((cookie) => redirectResponse.cookies.set(cookie));
+    applyAuthResponse(redirectResponse, pendingCookies, authHeaders);
     return redirectResponse;
   };
 
-  if (!session && !isPublicPath(pathname)) {
+  const isAuthenticated = !error && Boolean(user);
+
+  if (!isAuthenticated && !isPublicPath(pathname)) {
     return redirectTo("/login", { next: pathname });
   }
 
-  if (session && (pathname === "/login" || pathname === "/")) {
+  if (isAuthenticated && (pathname === "/login" || pathname === "/")) {
     return redirectTo("/dashboard");
   }
 
