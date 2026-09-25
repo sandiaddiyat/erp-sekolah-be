@@ -112,7 +112,7 @@ export const MAIN_NAV: NavItem[] = [
     title: "Rekonsiliasi",
     href: "/keuangan/rekonsiliasi",
     icon: "keuangan",
-    permission: PERMISSIONS.paymentV2View,
+    permission: PERMISSIONS.billingView,
     group: "tagihan",
   },
   {

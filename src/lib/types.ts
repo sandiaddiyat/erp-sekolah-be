@@ -310,10 +310,12 @@ export type BillWithStudent = Bill & {
 export type Payment = {
   id: string;
   school_id: string;
-  bill_id: string;
+  bill_id: string | null;
+  invoice_id: string | null;
+  payment_method_id: string | null;
   dicatat_oleh: string;
   nominal: number;
-  metode: PaymentMetode;
+  metode: PaymentMetode | null;
   bukti_url: string | null;
   catatan: string | null;
   status: PaymentStatus;
@@ -471,6 +473,7 @@ export type Invoice = {
 
 export type InvoiceDetail = {
   id: string;
+  school_id: string;
   invoice_id: string;
   fee_structure_id: string;
   description: string;

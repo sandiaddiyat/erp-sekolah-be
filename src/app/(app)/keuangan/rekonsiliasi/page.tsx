@@ -11,7 +11,7 @@ export const metadata = { title: "Rekonsiliasi Pembayaran" };
 type InvoiceRow = Invoice & { siswa?: { nama_lengkap: string } | null };
 
 export default async function RekonsiliasiPage() {
-  const current = await requirePermission(PERMISSIONS.paymentV2View);
+  const current = await requirePermission(PERMISSIONS.billingView);
   const supabase = await createClient();
   const schoolId = current.profile.school_id ?? "";
 
@@ -54,7 +54,12 @@ export default async function RekonsiliasiPage() {
   }
 
   const invoices = (invoicesResult.data ?? []) as unknown as InvoiceRow[];
-  const payments = (paymentsResult.data ?? []) as { invoice_id: string; nominal: number; status: string }[];
+  const payments = (
+    (paymentsResult.data ?? []) as { invoice_id: string | null; nominal: number; status: string }[]
+  ).filter(
+    (payment): payment is { invoice_id: string; nominal: number; status: string } =>
+      typeof payment.invoice_id === "string"
+  );
   const methods = (methodsResult.data ?? []) as PaymentMethod[];
   const banks = (banksResult.data ?? []) as BankAccount[];
   const students = (studentsResult.data ?? []) as unknown as Siswa[];
@@ -85,7 +90,7 @@ export default async function RekonsiliasiPage() {
       banks={banks}
       students={students}
       summary={summary}
-      canManage={can(current.permissions, PERMISSIONS.paymentV2Manage, current.isSuperAdmin)}
+      canManage={can(current.permissions, PERMISSIONS.billingManage, current.isSuperAdmin)}
     />
   );
 }

@@ -2,15 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
 import {
-  beginAttempt,
-  recordFailure,
-  recordSuccess,
-  clearSession,
-  clientIp,
-} from "@/lib/rate-limit";
+  createLoginFailureLimiterFromEnv,
+  normalizeLoginEmail,
+  type LoginFailureLimiter,
+} from "@/lib/rate-limit/login-failure-limiter";
+import { getClientIp } from "./request-ip";
+import { signInWithLimiter } from "./login-service";
 
 export type LoginState = { error?: string } | undefined;
 
@@ -20,13 +20,14 @@ const loginSchema = z.object({
   next: z.string().optional(),
 });
 
-function safeNextPath(next: string | undefined): string {
-  if (!next) return "/dashboard";
-  const normalized = next.replace(/\\/g, "/");
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
-    return "/dashboard";
-  }
-  return normalized;
+const LOGIN_SERVICE_ERROR =
+  "Layanan masuk sedang tidak tersedia. Silakan coba lagi sebentar.";
+
+let limiter: LoginFailureLimiter | undefined;
+
+function getLoginLimiter() {
+  limiter ??= createLoginFailureLimiterFromEnv();
+  return limiter;
 }
 
 export async function signIn(
@@ -49,47 +50,27 @@ export async function signIn(
     };
   }
 
-  const email = parsed.data.email.trim().toLowerCase();
-  const ip = await clientIp();
-
-  const { attemptId, blocked } = await beginAttempt(email, ip);
-  if (blocked) {
-    return {
-      error:
-        "Terlalu banyak percobaan masuk. Silakan coba lagi beberapa menit lagi.",
-    };
+  let result;
+  try {
+    const email = normalizeLoginEmail(parsed.data.email);
+    const ip = await getClientIp();
+    result = await signInWithLimiter(
+      {
+        email,
+        password: parsed.data.password,
+        next: parsed.data.next,
+      },
+      { email, ip },
+      {
+        limiter: getLoginLimiter(),
+        createSupabase: createClient,
+      }
+    );
+  } catch (error) {
+    console.error("[login]", error);
+    return { error: LOGIN_SERVICE_ERROR };
   }
 
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password: parsed.data.password,
-  });
-
-  if (error || !data.user) {
-    await recordFailure(attemptId, email, ip);
-    return { error: "Email atau password salah." };
-  }
-
-  await recordSuccess(attemptId, email, ip);
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_active")
-    .eq("id", data.user.id)
-    .maybeSingle();
-
-  if (profile && profile.is_active === false) {
-    await supabase.auth.signOut();
-    await clearSession(email, ip);
-    return { error: "Akun kamu dinonaktifkan. Hubungi administrator sekolah." };
-  }
-
-  await supabase
-    .from("profiles")
-    .update({ last_login_at: new Date().toISOString() })
-    .eq("id", data.user.id);
-
-  redirect(safeNextPath(parsed.data.next));
+  if ("error" in result) return { error: result.error };
+  redirect(result.destination);
 }

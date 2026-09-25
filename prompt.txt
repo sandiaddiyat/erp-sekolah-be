@@ -1,8 +1,6 @@
 buat issue.md yang berisi perencanaan yang nanti akan di implementasikan oleh junior programmer atau ai model yang lebih murah.
 
 planning berisi :
-
-perbaiki form pengelolaan data siswa mengikuti standar tampilan dan fitur yang ada di pengelolaan pegawai.
-tambahkan juga fitur upload dan download
+Rekomendasi Langkah Selanjutnya yang belum dilakukan
 
 jelaskan tahapan-tahapan yang akan dilakukan dan akan di implementasikan oleh junior programmer atau ai model yang lebih murah
