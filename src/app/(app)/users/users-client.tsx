@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import type { Role, UserWithRoles } from "@/lib/types";
 import { deleteUser, setUserActive } from "./actions";
 import { UserDeleteDialog } from "./_components/user-delete-dialog";
+import { UserDetailDialog } from "./_components/user-detail-dialog";
 import { UserFormDialog } from "./_components/user-form-dialog";
 import { UsersTable, type UserColumnKey } from "./_components/users-table";
 
@@ -68,6 +69,7 @@ export function UsersClient({
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<UserWithRoles | null>(null);
+  const [viewing, setViewing] = useState<UserWithRoles | null>(null);
   const [deleting, setDeleting] = useState<UserWithRoles | null>(null);
   const [schoolFilter, setSchoolFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -337,6 +339,7 @@ export function UsersClient({
             onEdit={openEdit}
             onToggleActive={handleToggleActive}
             onDelete={setDeleting}
+            onRowClick={setViewing}
             hasResults={sorted.length > 0}
             hasQuery={Boolean(query.trim()) || hasActiveFilters}
           />
@@ -361,6 +364,14 @@ export function UsersClient({
 
       <UserFormDialog key={editing?.id ?? "new"} open={formOpen} onOpenChange={setFormOpen} user={editing} roles={roles} schools={schools} isSuperAdmin={isSuperAdmin} currentSchoolId={currentSchoolId} permissions={permissions} />
       <UserDeleteDialog user={deleting} open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={handleDelete} isPending={isPending} />
+
+      <UserDetailDialog
+        user={viewing}
+        schoolNames={schoolNames}
+        isSuperAdmin={isSuperAdmin}
+        currentUserId={currentUserId}
+        onClose={() => setViewing(null)}
+      />
     </div>
   );
 }

@@ -15,11 +15,11 @@ export default async function PendaftaranPage() {
   const [enrollmentsResult, yearsResult, classesResult, studentsResult] = await Promise.all([
     supabase
       .from("student_enrollments")
-      .select("*, students(nama_lengkap), classes(name), academic_years(name)")
+      .select("*, students!student_enrollments_student_tenant_fkey(nama_lengkap), classes!student_enrollments_class_tenant_fkey(name), academic_years!student_enrollments_year_tenant_fkey(name)")
       .eq("school_id", schoolId)
       .order("enrollment_date", { ascending: false }),
     supabase.from("academic_years").select("id, name").eq("school_id", schoolId).order("start_date", { ascending: false }),
-    supabase.from("classes").select("id, name, academic_years!inner(name)").eq("school_id", schoolId).order("name"),
+    supabase.from("classes").select("id, name, academic_years!classes_academic_year_tenant_fkey(name)").eq("school_id", schoolId).order("name"),
     supabase.from("students").select("id, nama_lengkap").eq("school_id", schoolId).order("nama_lengkap"),
   ]);
 

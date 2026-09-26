@@ -65,6 +65,7 @@ export function UsersTable({
   onEdit,
   onToggleActive,
   onDelete,
+  onRowClick,
   hasResults,
   hasQuery,
 }: {
@@ -81,6 +82,7 @@ export function UsersTable({
   onEdit: (user: UserWithRoles) => void;
   onToggleActive: (user: UserWithRoles) => void;
   onDelete: (user: UserWithRoles) => void;
+  onRowClick: (user: UserWithRoles) => void;
   hasResults: boolean;
   hasQuery: boolean;
 }) {
@@ -138,7 +140,7 @@ export function UsersTable({
             </TableRow>
           ) : (
             users.map((user) => (
-              <TableRow key={user.id} className="group border-b border-[#f0f5f1] hover:bg-[#f6fbf7]">
+               <TableRow key={user.id} className="group cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]" onClick={() => onRowClick(user)}>
                 {columnList.map((column) => {
                   const sticky = column.key === "name";
                   const base = `px-3.5 py-3 align-middle ${sticky ? "sticky left-0 z-10 bg-white pl-6 shadow-[8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]" : ""}`;
@@ -157,13 +159,13 @@ export function UsersTable({
                 })}
                 <TableCell className="sticky right-0 z-10 bg-white px-3 py-3 pr-6 align-middle shadow-[-8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]">
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" disabled={isPending} className="text-[#537467] hover:bg-[#f4faf5] hover:text-[#2b7254]" />}>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" disabled={isPending} className="text-[#537467] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(e) => e.stopPropagation()} />}>
                       <MoreHorizontalIcon /><span className="sr-only">Aksi untuk {user.full_name}</span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {permissions.update ? <DropdownMenuItem onClick={() => onEdit(user)}><PencilIcon />Ubah</DropdownMenuItem> : null}
-                      {permissions.update && user.id !== currentUserId ? <DropdownMenuItem onClick={() => onToggleActive(user)}><PowerIcon />{user.is_active ? "Nonaktifkan" : "Aktifkan"}</DropdownMenuItem> : null}
-                      {permissions.delete && user.id !== currentUserId ? <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onClick={() => onDelete(user)}><Trash2Icon />Hapus</DropdownMenuItem></> : null}
+                      {permissions.update ? <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(user); }}><PencilIcon />Ubah</DropdownMenuItem> : null}
+                      {permissions.update && user.id !== currentUserId ? <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleActive(user); }}><PowerIcon />{user.is_active ? "Nonaktifkan" : "Aktifkan"}</DropdownMenuItem> : null}
+                      {permissions.delete && user.id !== currentUserId ? <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onClick={(e) => { e.stopPropagation(); onDelete(user); }}><Trash2Icon />Hapus</DropdownMenuItem></> : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
