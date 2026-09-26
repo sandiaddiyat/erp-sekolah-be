@@ -1,0 +1,10 @@
+-- Tambah kolom profil lengkap sekolah (issue #74)
+ALTER TABLE schools
+  ADD COLUMN IF NOT EXISTS nis_nss_nds TEXT,
+  ADD COLUMN IF NOT EXISTS kode_pos TEXT,
+  ADD COLUMN IF NOT EXISTS kelurahan TEXT,
+  ADD COLUMN IF NOT EXISTS kecamatan TEXT,
+  ADD COLUMN IF NOT EXISTS kota TEXT,
+  ADD COLUMN IF NOT EXISTS provinsi TEXT,
+  ADD COLUMN IF NOT EXISTS website TEXT,
+  ADD COLUMN IF NOT EXISTS dinas TEXT;

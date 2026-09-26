@@ -99,6 +99,7 @@ export function SekolahTable({
   schools,
   isPending,
   onEdit,
+  onProfile,
   onChangeStatus,
   onRowClick,
   sortColumn,
@@ -108,6 +109,7 @@ export function SekolahTable({
   schools: SchoolWithCounts[];
   isPending: boolean;
   onEdit: (school: SchoolWithCounts) => void;
+  onProfile: (school: SchoolWithCounts) => void;
   onChangeStatus: (school: SchoolWithCounts, status: SchoolStatus) => void;
   onRowClick: (school: SchoolWithCounts) => void;
   sortColumn: SchoolColumnKey;
@@ -208,6 +210,19 @@ export function SekolahTable({
                     }}
                   >
                     <PencilIcon className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Kelola Profil"
+                    disabled={isPending}
+                    className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onProfile(school);
+                    }}
+                  >
+                    <SchoolIcon className="size-4" />
                   </Button>
                   <Button
                     variant="ghost"

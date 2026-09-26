@@ -17,6 +17,7 @@ import type { SchoolStatus, SchoolWithCounts } from "@/lib/types";
 import { setSchoolStatus } from "./actions";
 import { SchoolFormDialog } from "./_components/school-form-dialog";
 import { SchoolDetailDialog } from "./_components/school-detail-dialog";
+import { SchoolProfileForm } from "./_components/school-profile-form";
 import {
   SekolahTable,
   type SchoolColumnKey,
@@ -27,6 +28,10 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SchoolWithCounts | null>(null);
   const [viewing, setViewing] = useState<SchoolWithCounts | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<SchoolWithCounts | null>(
+    null
+  );
   const [isPending, startTransition] = useTransition();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [sortColumn, setSortColumn] = useState<SchoolColumnKey>("name");
@@ -101,6 +106,11 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
   const openEdit = (school: SchoolWithCounts) => {
     setEditing(school);
     setFormOpen(true);
+  };
+
+  const openProfile = (school: SchoolWithCounts) => {
+    setEditingProfile(school);
+    setProfileOpen(true);
   };
 
   return (
@@ -202,6 +212,7 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
                 schools={paginatedSchools}
                 isPending={isPending}
                 onEdit={openEdit}
+                onProfile={openProfile}
                 onChangeStatus={changeStatus}
                 onRowClick={setViewing}
                 sortColumn={sortColumn}
@@ -265,6 +276,12 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         school={editing}
+      />
+
+      <SchoolProfileForm
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        school={editingProfile}
       />
 
       <SchoolDetailDialog
