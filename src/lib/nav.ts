@@ -60,6 +60,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "profil",
   },
   {
+    title: "Profil Sekolah",
+    href: "/profil-sekolah",
+    icon: "school",
+    permission: PERMISSIONS.schoolsUpdate,
+    group: "profil",
+  },
+  {
     title: "Data Pegawai",
     href: "/pegawai",
     icon: "pegawai",
