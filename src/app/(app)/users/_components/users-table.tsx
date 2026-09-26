@@ -4,20 +4,12 @@ import {
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
-  MoreHorizontalIcon,
   PencilIcon,
   PowerIcon,
   Trash2Icon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -158,16 +150,57 @@ export function UsersTable({
                   }
                 })}
                 <TableCell className="sticky right-0 z-10 bg-white px-3 py-3 pr-6 align-middle shadow-[-8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" disabled={isPending} className="text-[#537467] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(e) => e.stopPropagation()} />}>
-                      <MoreHorizontalIcon /><span className="sr-only">Aksi untuk {user.full_name}</span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {permissions.update ? <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(user); }}><PencilIcon />Ubah</DropdownMenuItem> : null}
-                      {permissions.update && user.id !== currentUserId ? <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleActive(user); }}><PowerIcon />{user.is_active ? "Nonaktifkan" : "Aktifkan"}</DropdownMenuItem> : null}
-                      {permissions.delete && user.id !== currentUserId ? <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onClick={(e) => { e.stopPropagation(); onDelete(user); }}><Trash2Icon />Hapus</DropdownMenuItem></> : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center justify-end gap-1">
+                    {permissions.update ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Ubah"
+                        disabled={isPending}
+                        className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(user);
+                        }}
+                      >
+                        <PencilIcon className="size-4" />
+                      </Button>
+                    ) : null}
+                    {permissions.update && user.id !== currentUserId ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={user.is_active ? "Nonaktifkan" : "Aktifkan"}
+                        disabled={isPending}
+                        className={
+                          user.is_active
+                            ? "border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#fed4d1] hover:bg-[#fdf0ee] hover:text-[#ad685d]"
+                            : "border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleActive(user);
+                        }}
+                      >
+                        <PowerIcon className="size-4" />
+                      </Button>
+                    ) : null}
+                    {permissions.delete && user.id !== currentUserId ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Hapus"
+                        disabled={isPending}
+                        className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#fed4d1] hover:bg-[#fdf0ee] hover:text-[#ad685d]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(user);
+                        }}
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))
