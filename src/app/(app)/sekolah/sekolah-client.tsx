@@ -16,12 +16,14 @@ import { subscriptionProblem } from "@/lib/school";
 import type { SchoolStatus, SchoolWithCounts } from "@/lib/types";
 import { setSchoolStatus } from "./actions";
 import { SchoolFormDialog } from "./_components/school-form-dialog";
+import { SchoolDetailDialog } from "./_components/school-detail-dialog";
 import { SekolahTable } from "./_components/sekolah-table";
 
 export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SchoolWithCounts | null>(null);
+  const [viewing, setViewing] = useState<SchoolWithCounts | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -122,6 +124,7 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
               isPending={isPending}
               onEdit={openEdit}
               onChangeStatus={changeStatus}
+              onRowClick={setViewing}
             />
           )}
         </CardContent>
@@ -132,6 +135,11 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         school={editing}
+      />
+
+      <SchoolDetailDialog
+        school={viewing}
+        onClose={() => setViewing(null)}
       />
     </div>
   );

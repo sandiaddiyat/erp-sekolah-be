@@ -64,11 +64,13 @@ export function SekolahTable({
   isPending,
   onEdit,
   onChangeStatus,
+  onRowClick,
 }: {
   schools: SchoolWithCounts[];
   isPending: boolean;
   onEdit: (school: SchoolWithCounts) => void;
   onChangeStatus: (school: SchoolWithCounts, status: SchoolStatus) => void;
+  onRowClick: (school: SchoolWithCounts) => void;
 }) {
   return (
     <Table>
@@ -93,7 +95,8 @@ export function SekolahTable({
         {schools.map((school) => (
           <TableRow
             key={school.id}
-            className="border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
+            className="group cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
+            onClick={() => onRowClick(school)}
           >
             <TableCell className="px-3.5 py-3 align-middle">
               <div className="flex items-center gap-3">
@@ -135,6 +138,7 @@ export function SekolahTable({
                       size="icon-sm"
                       disabled={isPending}
                       className="text-[#8ca096] hover:bg-[#eef7f0] hover:text-[#2b7254]"
+                      onClick={(e) => e.stopPropagation()}
                     />
                   }
                 >
@@ -142,14 +146,22 @@ export function SekolahTable({
                   <span className="sr-only">Aksi</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={() => onEdit(school)}>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(school);
+                    }}
+                  >
                     <PencilIcon />
                     Ubah
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-[#e3ece6]" />
                   {school.status === "suspended" ? (
                     <DropdownMenuItem
-                      onClick={() => onChangeStatus(school, "active")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChangeStatus(school, "active");
+                      }}
                     >
                       <RotateCcwIcon className="text-[#2b7254]" />
                       Aktifkan kembali
@@ -157,7 +169,10 @@ export function SekolahTable({
                   ) : (
                     <DropdownMenuItem
                       variant="destructive"
-                      onClick={() => onChangeStatus(school, "suspended")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChangeStatus(school, "suspended");
+                      }}
                     >
                       <BanIcon className="text-[#ad685d]" />
                       Suspend
