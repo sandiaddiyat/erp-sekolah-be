@@ -1,32 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, useActionState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
+  CheckIcon,
+  CheckSquareIcon,
   Columns3Icon,
   FilterIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  SquareIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -39,12 +35,22 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
-import { saveEnrollment, deleteEnrollment } from "../actions";
+import { saveEnrollment, deleteEnrollment, saveBulkEnrollment } from "../actions";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -91,12 +97,14 @@ export function PendaftaranClient({
   academicYears,
   classes,
   students,
+  classByStudentId,
   canManage,
 }: {
   enrollments: StudentEnrollment[];
   academicYears: AcademicYear[];
   classes: SchoolClass[];
   students: Siswa[];
+  classByStudentId: Record<string, string>;
   canManage: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -118,6 +126,49 @@ export function PendaftaranClient({
   const [filterStatus, setFilterStatus] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const bulkForm = useForm<{
+    academic_year_id: string;
+    class_id: string;
+    enrollment_date: string;
+    exit_date: string;
+    status: "active" | "keluar" | "pindah" | "lulus";
+    siswa_ids: string[];
+  }>({
+    defaultValues: {
+      academic_year_id: "",
+      class_id: "",
+      enrollment_date: new Date().toISOString().slice(0, 10),
+      exit_date: "",
+      status: "active",
+      siswa_ids: [],
+    },
+  });
+
+  const watchedYear = bulkForm.watch("academic_year_id");
+  const [periodLabel, setPeriodLabel] = useState("");
+
+  const activeYears = useMemo(
+    () => academicYears.filter((y) => y.status === "active"),
+    [academicYears]
+  );
+
+  useEffect(() => {
+    const year = activeYears.find((y) => y.id === watchedYear);
+    if (year) {
+      setPeriodLabel(`Periode: ${formatDateShort(year.start_date)} - ${formatDateShort(year.end_date)}`);
+      bulkForm.setValue("enrollment_date", year.start_date.slice(0, 10));
+    } else {
+      setPeriodLabel("");
+    }
+  }, [watchedYear, activeYears, bulkForm]);
+
+  function formatDateShort(value: string): string {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  }
 
   const studentById = useMemo(
     () => new Map(students.map((s) => [s.id, s.nama_lengkap])),
@@ -196,6 +247,7 @@ export function PendaftaranClient({
     () => academicYears.map((y) => ({ value: y.id, label: y.name })),
     [academicYears]
   );
+
   const classOptions = useMemo(
     () => classes.map((c) => ({ value: c.id, label: c.name })),
     [classes]
@@ -235,6 +287,20 @@ export function PendaftaranClient({
     setFormOpen(true);
   };
 
+  const openBulk = () => {
+    setBanner(null);
+    bulkForm.reset({
+      academic_year_id: "",
+      class_id: "",
+      enrollment_date: new Date().toISOString().slice(0, 10),
+      exit_date: "",
+      status: "active",
+      siswa_ids: [],
+    });
+    setPeriodLabel("");
+    setBulkOpen(true);
+  };
+
   const handleDelete = () => {
     if (!deleting) return;
     const target = deleting;
@@ -259,13 +325,30 @@ export function PendaftaranClient({
           </p>
         </div>
         {canManage ? (
-          <Button
-            onClick={openCreate}
-            className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
-          >
-            <PlusIcon data-icon="inline-start" className="size-4" />
-            Tambah Pendaftaran
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]" />
+              }
+            >
+              <PlusIcon data-icon="inline-start" className="size-4" />
+              Tambah Pendaftaran
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 border-[#e2ece5] bg-white">
+              <DropdownMenuItem
+                className="text-xs text-[#5d7a6e] focus:bg-[#f4faf5]"
+                onClick={() => openCreate()}
+              >
+                Tambah Satuan
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs text-[#5d7a6e] focus:bg-[#f4faf5]"
+                onClick={() => openBulk()}
+              >
+                Pendaftaran Massal
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
 
@@ -698,6 +781,20 @@ export function PendaftaranClient({
             }}
           />
 
+          <BulkEnrollmentDialog
+            open={bulkOpen}
+            onOpenChange={setBulkOpen}
+            academicYears={activeYears}
+            classOptions={classOptions}
+            studentOptions={studentOptions}
+            students={students}
+            classByStudentId={classByStudentId}
+            onSaved={(message) => {
+              setBanner(message);
+              setBulkOpen(false);
+            }}
+          />
+
           <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -972,6 +1069,313 @@ function FormDialog({
                 className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-3.5 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]"
               >
                 {isSubmitting ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Simpan Pendaftaran"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Bulk Enrollment Dialog =====
+
+function BulkEnrollmentDialog({
+  open,
+  onOpenChange,
+  academicYears,
+  classOptions,
+  studentOptions,
+  students,
+  classByStudentId,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  academicYears: AcademicYear[];
+  classOptions: { value: string; label: string }[];
+  studentOptions: { value: string; label: string }[];
+  students: Siswa[];
+  classByStudentId: Record<string, string>;
+  onSaved: (message: string) => void;
+}) {
+  const bulkForm = useForm<{
+    academic_year_id: string;
+    class_id: string;
+    enrollment_date: string;
+    exit_date: string;
+    status: "active" | "keluar" | "pindah" | "lulus";
+    siswa_ids: string[];
+  }>({
+    defaultValues: {
+      academic_year_id: "",
+      class_id: "",
+      enrollment_date: new Date().toISOString().slice(0, 10),
+      exit_date: "",
+      status: "active",
+      siswa_ids: [],
+    },
+  });
+
+  const watchedYear = bulkForm.watch("academic_year_id");
+  const selectedYear = academicYears.find((year) => year.id === watchedYear);
+
+  useEffect(() => {
+    if (selectedYear) {
+      bulkForm.setValue("enrollment_date", selectedYear.start_date.slice(0, 10));
+      bulkForm.setValue("exit_date", selectedYear.end_date.slice(0, 10));
+    }
+  }, [selectedYear, bulkForm]);
+
+  function formatDateShort(value: string): string {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(saveBulkEnrollment, undefined);
+
+  useEffect(() => {
+    if (state?.success) {
+      onSaved(state.success);
+      onOpenChange(false);
+    } else if (state?.error) {
+      toast.error(state.error);
+    }
+  }, [state, onSaved, onOpenChange]);
+
+  const selectedIds = bulkForm.watch("siswa_ids");
+  const allSelected = selectedIds.length === studentOptions.length && studentOptions.length > 0;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < studentOptions.length;
+
+  function handleToggleAll(checked: boolean) {
+    bulkForm.setValue(
+      "siswa_ids",
+      checked ? studentOptions.map((opt) => opt.value) : []
+    );
+  }
+
+  function handleToggleOne(value: string, checked: boolean) {
+    const current = bulkForm.getValues("siswa_ids");
+    bulkForm.setValue(
+      "siswa_ids",
+      checked ? [...current, value] : current.filter((id) => id !== value)
+    );
+  }
+
+  const handleSubmit = bulkForm.handleSubmit((data) => {
+    const formData = new FormData();
+    formData.append("academic_year_id", data.academic_year_id);
+    formData.append("class_id", data.class_id);
+    formData.append("enrollment_date", data.enrollment_date);
+    formData.append("exit_date", data.exit_date);
+    formData.append("status", data.status);
+    data.siswa_ids.forEach((id) => formData.append("siswa_ids", id));
+    formAction(formData);
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(92vh,900px)] gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[680px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+        <form onSubmit={handleSubmit} className="flex h-full max-h-[min(92vh,900px)] flex-col">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">
+              Data akademik
+            </span>
+            <DialogTitle
+              className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Pendaftaran Massal
+            </DialogTitle>
+            <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">
+              Pilih siswa dan tetapkan metadata pendaftaran.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={SCROLLBAR_HIDDEN_STYLE}>
+            {/* Metadata */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="bulk-year" required>
+                  Tahun Ajaran
+                </FieldLabel>
+                <Select
+                  value={bulkForm.watch("academic_year_id")}
+                   onValueChange={(value) => bulkForm.setValue("academic_year_id", value ?? "")}
+                >
+                  <SelectTrigger id="bulk-year" className={SELECT_CLASS}>
+                     <SelectValue placeholder="- pilih tahun ajaran -">
+                       {selectedYear?.name ?? "- pilih tahun ajaran -"}
+                     </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {academicYears.map((y) => (
+                        <SelectItem key={y.id} value={y.id}>
+                          {y.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedYear ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-[9px] border border-[#e2ece5] bg-[#f7fbf8] px-3 py-2">
+                    <p className="text-[10px] font-bold text-[#8b9f95]">Tanggal Mulai</p>
+                    <p className="mt-1 text-[11px] font-semibold text-[#4d9775]">
+                      {formatDateShort(selectedYear.start_date)}
+                    </p>
+                  </div>
+                  <div className="rounded-[9px] border border-[#e2ece5] bg-[#f7fbf8] px-3 py-2">
+                    <p className="text-[10px] font-bold text-[#8b9f95]">Tanggal Akhir</p>
+                    <p className="mt-1 text-[11px] font-semibold text-[#4d9775]">
+                      {formatDateShort(selectedYear.end_date)}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="bulk-class" required>
+                  Kelas
+                </FieldLabel>
+                <select
+                  id="bulk-class"
+                  value={bulkForm.watch("class_id")}
+                  onChange={(e) => bulkForm.setValue("class_id", e.target.value)}
+                  className={SELECT_CLASS}
+                  required
+                >
+                  <option value="">- pilih kelas -</option>
+                  {classOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="bulk-enrollment-date" required>
+                    Tanggal Pendaftaran
+                  </FieldLabel>
+                  <Input
+                    id="bulk-enrollment-date"
+                    type="date"
+                    {...bulkForm.register("enrollment_date")}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-sm text-[#36584a] outline-none focus:border-[#78ad8a]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="bulk-exit-date" optional>
+                    Tanggal Keluar
+                  </FieldLabel>
+                  <Input
+                    id="bulk-exit-date"
+                    type="date"
+                    {...bulkForm.register("exit_date")}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-sm text-[#36584a] outline-none focus:border-[#78ad8a]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="bulk-status" required>
+                  Status
+                </FieldLabel>
+                <select
+                  id="bulk-status"
+                  value={bulkForm.watch("status")}
+                  onChange={(e) => bulkForm.setValue("status", e.target.value as "active" | "keluar" | "pindah" | "lulus")}
+                  className={SELECT_CLASS}
+                >
+                  <option value="active">Aktif</option>
+                  <option value="keluar">Keluar</option>
+                  <option value="pindah">Pindah</option>
+                  <option value="lulus">Lulus</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Student multi-select table */}
+            <div>
+              <p className="mb-2 text-[10px] font-bold tracking-[.06em] uppercase text-[#4c9a77]">
+                Pilih Siswa ({selectedIds.length} terpilih)
+              </p>
+              <div className="overflow-hidden rounded-[10px] border border-[#e2ece5]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
+                      <TableHead className="w-10 px-3 py-2.5">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={(checked) => handleToggleAll(Boolean(checked))}
+                        />
+                      </TableHead>
+                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
+                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
+                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
+                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Kelas Saat Ini</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {studentOptions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 px-3 py-3 text-center text-xs text-[#a0afa8]">
+                          Tidak ada siswa aktif.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      studentOptions.map((opt) => {
+                        const checked = selectedIds.includes(opt.value);
+                         const student = students.find((s) => s.id === opt.value);
+                        return (
+                          <TableRow
+                            key={opt.value}
+                            className="cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
+                            onClick={() => handleToggleOne(opt.value, !checked)}
+                          >
+                            <TableCell className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox checked={checked} onCheckedChange={(next) => handleToggleOne(opt.value, Boolean(next))} />
+                            </TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">{opt.label}</TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.nis ?? "-"}</TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">
+                              {student?.jenis_kelamin === "L" ? "Laki-laki" : student?.jenis_kelamin === "P" ? "Perempuan" : "-"}
+                            </TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">
+                              {classByStudentId[opt.value] ?? "Siswa Baru"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[24px]">
+            <div className="flex w-full justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || selectedIds.length === 0}
+                className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-3.5 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]"
+              >
+                {isSubmitting ? "Menyimpan..." : `Simpan ${selectedIds.length > 0 ? `(${selectedIds.length})` : ""}`}
               </Button>
             </div>
           </DialogFooter>

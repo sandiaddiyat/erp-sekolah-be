@@ -19,6 +19,7 @@ import {
   deleteClassRecord,
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
+  saveBulkEnrollmentRecord,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -28,6 +29,7 @@ import {
   readSaveMajorInput,
   readSaveClassInput,
   readSaveEnrollmentInput,
+  readBulkEnrollmentInput,
 } from "@/features/akademik/schema";
 import type { FormState } from "@/lib/types";
 
@@ -265,6 +267,23 @@ export async function deleteEnrollment(_prevState: FormState, formData: FormData
 
   const supabase = await createClient();
   const result = await deleteEnrollmentRecord({ supabase }, guard.user, id);
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  return { success: result.message };
+}
+
+// ===== Bulk Student Enrollments =====
+
+export async function saveBulkEnrollment(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const command = readBulkEnrollmentInput(formData);
+  if (!command.ok) return { error: command.error };
+
+  const supabase = await createClient();
+  const result = await saveBulkEnrollmentRecord({ supabase }, guard.user, command.command);
   if (!result.ok) return { error: result.error };
 
   revalidateAkademik();
