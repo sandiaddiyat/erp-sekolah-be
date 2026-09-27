@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, useActionState } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
-  CheckIcon,
-  CheckSquareIcon,
+  ChevronDownIcon,
+   ChevronUpIcon,
   Columns3Icon,
   FilterIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
-  SquareIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
@@ -47,10 +46,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
-import { saveEnrollment, deleteEnrollment, saveBulkEnrollment } from "../actions";
+import { fetchAvailableStudents, saveEnrollment, deleteEnrollment, saveBulkEnrollment } from "../actions";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -127,6 +125,7 @@ export function PendaftaranClient({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const bulkForm = useForm<{
     academic_year_id: string;
@@ -147,7 +146,6 @@ export function PendaftaranClient({
   });
 
   const watchedYear = bulkForm.watch("academic_year_id");
-  const [periodLabel, setPeriodLabel] = useState("");
 
   const activeYears = useMemo(
     () => academicYears.filter((y) => y.status === "active"),
@@ -157,18 +155,9 @@ export function PendaftaranClient({
   useEffect(() => {
     const year = activeYears.find((y) => y.id === watchedYear);
     if (year) {
-      setPeriodLabel(`Periode: ${formatDateShort(year.start_date)} - ${formatDateShort(year.end_date)}`);
       bulkForm.setValue("enrollment_date", year.start_date.slice(0, 10));
-    } else {
-      setPeriodLabel("");
     }
   }, [watchedYear, activeYears, bulkForm]);
-
-  function formatDateShort(value: string): string {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-  }
 
   const studentById = useMemo(
     () => new Map(students.map((s) => [s.id, s.nama_lengkap])),
@@ -228,13 +217,65 @@ export function PendaftaranClient({
     });
   }, [filtered, sortColumn, sortDirection, studentName, classById, yearById]);
 
-  const safeTotalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const yearGroups = useMemo(() => {
+    const groups = new Map<string, {
+      key: string;
+      name: string;
+      classes: Map<string, { key: string; name: string; rows: StudentEnrollment[]; enrollment_date: string; exit_date: string | null; status: StudentEnrollment["status"] }>;
+    }>();
+    for (const item of sorted) {
+      let yearGroup = groups.get(item.academic_year_id);
+      if (!yearGroup) {
+        yearGroup = { key: item.academic_year_id, name: yearById.get(item.academic_year_id) ?? "-", classes: new Map() };
+        groups.set(item.academic_year_id, yearGroup);
+      }
+      let classGroup = yearGroup.classes.get(item.class_id);
+      if (!classGroup) {
+        classGroup = {
+          key: `${item.academic_year_id}::${item.class_id}`,
+          name: classById.get(item.class_id) ?? "-",
+          rows: [],
+          enrollment_date: item.enrollment_date,
+          exit_date: item.exit_date ?? null,
+          status: item.status,
+        };
+        yearGroup.classes.set(item.class_id, classGroup);
+      }
+      classGroup.rows.push(item);
+      if (item.enrollment_date < classGroup.enrollment_date) classGroup.enrollment_date = item.enrollment_date;
+      if (item.exit_date && (!classGroup.exit_date || item.exit_date > classGroup.exit_date)) classGroup.exit_date = item.exit_date;
+      if (item.status === "active") classGroup.status = "active";
+      else if (classGroup.status !== "active") classGroup.status = item.status;
+    }
+    return Array.from(groups.values()).map((year) => ({
+      ...year,
+      classes: Array.from(year.classes.values()).sort((a, b) => a.name.localeCompare(b.name, "id", { numeric: true })),
+      studentCount: Array.from(year.classes.values()).reduce((count, group) => count + group.rows.length, 0),
+    }));
+  }, [sorted, yearById, classById]);
+
+  const safeTotalPages = Math.max(1, Math.ceil(yearGroups.length / pageSize));
   const safePage = Math.min(page, safeTotalPages);
-  const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safePage * pageSize, sorted.length);
-  const paginatedRows = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const rangeStart = yearGroups.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, yearGroups.length);
+  const paginatedYearGroups = yearGroups.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const handleToggleGroup = (key: string) => {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const allGroupsExpanded = paginatedYearGroups.length > 0 && paginatedYearGroups.every((g) => expandedGroups[g.key]);
+
+  const toggleAllGroups = () => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev };
+      for (const group of paginatedYearGroups) next[group.key] = !allGroupsExpanded;
+      return next;
+    });
+  };
 
   const visibleColumnList = allColumns.filter((col) => visibleColumns.has(col.key));
+  const visibleChildColumns = visibleColumnList.filter((col) => col.key !== "year" && col.key !== "class");
 
   const activeFilterCount = [filterYear, filterClass, filterStatus].filter(Boolean).length;
   const hasActiveFilters = activeFilterCount > 0;
@@ -297,7 +338,6 @@ export function PendaftaranClient({
       status: "active",
       siswa_ids: [],
     });
-    setPeriodLabel("");
     setBulkOpen(true);
   };
 
@@ -543,170 +583,142 @@ export function PendaftaranClient({
             <Table className="w-full">
               <TableHeader>
                 <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
-                  {visibleColumnList.map((col, index) => {
-                    const isSorted = sortColumn === col.key;
-                    return (
-                      <TableHead
-                        key={col.key}
-                        onClick={() => handleSort(col.key)}
-                        className={`px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] whitespace-nowrap cursor-pointer select-none hover:text-[#2b7254] ${index === 0 ? "pl-6" : ""} ${col.key === "student" ? "sticky left-0 z-20 bg-white shadow-[8px_0_8px_-8px_#1c44331a]" : ""}`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={isSorted ? "text-[#2b7254]" : ""}>{col.label}</span>
-                          {isSorted ? (
-                            sortDirection === "asc" ? (
-                              <ArrowUpIcon className="size-3.5 shrink-0 text-[#2b7254]" />
-                            ) : (
-                              <ArrowDownIcon className="size-3.5 shrink-0 text-[#2b7254]" />
-                            )
-                          ) : (
-                            <ArrowUpDownIcon className="size-3.5 shrink-0 text-[#9aaa9f]" />
-                          )}
-                        </div>
-                      </TableHead>
-                    );
-                  })}
-                  <TableHead className="sticky right-0 z-20 w-10 justify-end bg-white pr-6 text-right text-[10px] font-bold text-[#6c8279] shadow-[-8px_0_8px_-8px_#1c44331a]">
-                    Aksi
-                  </TableHead>
+                  <TableHead className="px-4 py-2.5 text-[10px] font-bold text-[#6c8279]">Tahun Ajaran</TableHead>
+                  <TableHead className="px-4 py-2.5 text-right text-[10px] font-bold text-[#6c8279]">Total Siswa</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedRows.length === 0 ? (
+                {paginatedYearGroups.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={visibleColumnList.length + 1}
-                      className="h-32 border-b border-[#f0f5f1] px-3.5 py-3 text-center text-xs text-[#a0afa8]"
-                    >
-                      {query || hasActiveFilters ? (
-                        <p className="text-sm text-[#a0afa8]">
-                          Tidak ada pendaftaran yang cocok dengan pencarian atau filter.
-                        </p>
-                      ) : (
-                        <div className="py-6">
-                          <p className="text-sm font-medium text-[#3e5c50]">Belum ada pendaftaran</p>
-                          <p className="text-sm text-[#a0afa8]">
-                            {canManage
-                              ? "Tambahkan pendaftaran siswa pertama untuk mulai."
-                              : "Hubungi admin sekolah untuk menambahkan data."}
-                          </p>
-                        </div>
-                      )}
+                    <TableCell colSpan={3} className="h-32 border-b border-[#f0f5f1] px-3.5 py-3 text-center text-xs text-[#a0afa8]">
+                      {query || hasActiveFilters ? "Tidak ada pendaftaran yang cocok dengan pencarian atau filter." : "Belum ada pendaftaran siswa."}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  paginatedRows.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      className="group cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
-                      onClick={() => setViewing(item)}
-                    >
-                      {visibleColumnList.map((col) => {
-                        switch (col.key) {
-                          case "student":
-                            return (
-                              <TableCell
-                                key={col.key}
-                                className="sticky left-0 z-10 bg-white px-3.5 py-3 pl-6 align-middle shadow-[8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]"
-                              >
-                                <span
-                                  className="block max-w-[200px] truncate text-[12px] font-semibold text-[#2b493e]"
-                                  title={studentName(item.student_id)}
-                                >
-                                  {studentName(item.student_id)}
-                                </span>
-                              </TableCell>
-                            );
-                          case "class":
-                            return (
-                              <TableCell
-                                key={col.key}
-                                className="px-3.5 py-3 text-xs whitespace-nowrap text-[#3e5c50] align-middle"
-                              >
-                                {classById.get(item.class_id) || "-"}
-                              </TableCell>
-                            );
-                          case "year":
-                            return (
-                              <TableCell
-                                key={col.key}
-                                className="px-3.5 py-3 text-xs whitespace-nowrap text-[#3e5c50] align-middle"
-                              >
-                                {yearById.get(item.academic_year_id) || "-"}
-                              </TableCell>
-                            );
-                          case "enrollment_date":
-                            return (
-                              <TableCell
-                                key={col.key}
-                                className="px-3.5 py-3 text-xs whitespace-nowrap text-[#3e5c50] align-middle"
-                              >
-                                {formatDate(item.enrollment_date) || "-"}
-                              </TableCell>
-                            );
-                          case "exit_date":
-                            return (
-                              <TableCell
-                                key={col.key}
-                                className="px-3.5 py-3 text-xs whitespace-nowrap text-[#3e5c50] align-middle"
-                              >
-                                {item.exit_date ? formatDate(item.exit_date) : "-"}
-                              </TableCell>
-                            );
-                          case "status":
-                            return (
-                              <TableCell key={col.key} className="px-3.5 py-3 align-middle">
-                                <Badge
-                                  className={`rounded-[5px] border-transparent px-[8px] py-[4px] text-[9px] font-bold ${STATUS_COLORS[item.status]}`}
-                                >
-                                  {STATUS_LABELS[item.status]}
-                                </Badge>
-                              </TableCell>
-                            );
-                          default:
-                            return null;
-                        }
-                      })}
-                      <TableCell className="sticky right-0 z-10 bg-white px-3 py-3 pr-6 align-middle shadow-[-8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]">
-                        {canManage ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Ubah"
-                              className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEdit(item);
-                              }}
+                ) : paginatedYearGroups.map((yearGroup) => {
+                  const yearExpanded = Boolean(expandedGroups[yearGroup.key]);
+                  return (
+                    <Fragment key={yearGroup.key}>
+                      <TableRow className="border-b border-[#e5eee8] bg-[#f7fbf8] hover:bg-[#f0f7f2]">
+                        <TableCell colSpan={3} className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              aria-label={yearExpanded ? "Ciutkan tahun ajaran" : "Luaskan tahun ajaran"}
+                              aria-expanded={yearExpanded}
+                              onClick={() => handleToggleGroup(yearGroup.key)}
+                              className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-[#8eb1c9] bg-white text-[#487a98] transition-colors hover:border-[#4c87ac] hover:bg-[#edf6fb] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c87ac]"
                             >
-                              <PencilIcon className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Hapus"
-                              className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleting(item);
-                              }}
-                            >
-                              <Trash2Icon className="size-4" />
-                            </Button>
+                              {yearExpanded ? <ChevronDownIcon className="size-4" /> : <ChevronUpIcon className="size-4" />}
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-[#294a3e]">{yearGroup.name}</p>
+                              <p className="mt-0.5 text-[10px] text-[#82978e]">{yearGroup.classes.length} kelas</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-semibold text-[#82978e]">Total Siswa</p>
+                              <p className="mt-0.5 text-sm font-bold tabular-nums text-[#315e4b]">{yearGroup.studentCount}</p>
+                            </div>
                           </div>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                        </TableCell>
+                      </TableRow>
+                      {yearExpanded ? (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={3} className="p-0">
+                            <div className="border-y border-[#e7eee9] bg-white px-4 py-3 pl-8">
+                              <div className="overflow-x-auto rounded-[9px] border border-[#e3ebe6]">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="border-b border-[#e5eee8] bg-[#fbfdfb] hover:bg-[#fbfdfb]">
+                                      <TableHead className="w-12 px-3 py-2.5" />
+                                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Kelas</TableHead>
+                                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Tanggal Pendaftaran</TableHead>
+                                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Tanggal Keluar</TableHead>
+                                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Status</TableHead>
+                                      <TableHead className="px-3 py-2.5 text-right text-[10px] font-bold text-[#6c8279]">Aksi</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {yearGroup.classes.map((classGroup) => {
+                                      const classExpanded = Boolean(expandedGroups[classGroup.key]);
+                                      const genderLabel = (value: string | null | undefined) => value === "L" ? "Laki-laki" : value === "P" ? "Perempuan" : "-";
+                                      return (
+                                        <Fragment key={classGroup.key}>
+                                          <TableRow className="border-b border-[#f0f5f1] hover:bg-[#f6fbf7]">
+                                            <TableCell className="px-3 py-2.5">
+                                              <button
+                                                type="button"
+                                                aria-label={classExpanded ? `Ciutkan kelas ${classGroup.name}` : `Luaskan kelas ${classGroup.name}`}
+                                                aria-expanded={classExpanded}
+                                                onClick={() => handleToggleGroup(classGroup.key)}
+                                                className="flex size-8 items-center justify-center rounded-[7px] border border-[#dce8e0] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c87ac]"
+                                              >
+                                                {classExpanded ? <ChevronDownIcon className="size-3.5" /> : <ChevronUpIcon className="size-3.5" />}
+                                              </button>
+                                            </TableCell>
+                                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">{classGroup.name}</TableCell>
+                                            <TableCell className="px-3 py-2.5 text-xs whitespace-nowrap text-[#3e5c50]">{formatDate(classGroup.enrollment_date) || "-"}</TableCell>
+                                            <TableCell className="px-3 py-2.5 text-xs whitespace-nowrap text-[#3e5c50]">{classGroup.exit_date ? formatDate(classGroup.exit_date) : "-"}</TableCell>
+                                            <TableCell className="px-3 py-2.5"><Badge className={`rounded-[5px] border-transparent px-2 py-1 text-[9px] font-bold ${STATUS_COLORS[classGroup.status]}`}>{STATUS_LABELS[classGroup.status]}</Badge></TableCell>
+                                            <TableCell className="px-3 py-2.5">
+                                              {canManage ? (
+                                                <div className="flex justify-end gap-1.5">
+                                                  <Button variant="ghost" size="icon-sm" aria-label={`Ubah pendaftaran kelas ${classGroup.name}`} className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => openEdit(classGroup.rows[0])}><PencilIcon className="size-4" /></Button>
+                                                  <Button variant="ghost" size="icon-sm" aria-label={`Hapus pendaftaran kelas ${classGroup.name}`} className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeleting(classGroup.rows[0])}><Trash2Icon className="size-4" /></Button>
+                                                </div>
+                                              ) : <span className="block text-right text-[10px] text-[#82978e]">{classGroup.rows.length} siswa</span>}
+                                            </TableCell>
+                                          </TableRow>
+                                          {classExpanded ? (
+                                            <TableRow className="hover:bg-transparent">
+                                              <TableCell colSpan={6} className="bg-[#fbfcfb] px-5 py-3 pl-12">
+                                                <div className="overflow-x-auto rounded-[8px] border border-[#dfe7e2] bg-white">
+                                                  <Table>
+                                                    <TableHeader>
+                                                      <TableRow className="border-b border-[#e7eee9] bg-[#f8fbf9] hover:bg-[#f8fbf9]">
+                                                        <TableHead className="w-12 px-3 py-2 text-right text-[10px] font-bold text-[#6c8279]">No</TableHead>
+                                                        <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
+                                                        <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
+                                                        <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
+                                                      </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                      {classGroup.rows.map((item, index) => {
+                                                        const student = students.find((entry) => entry.id === item.student_id);
+                                                        return (
+                                                          <TableRow key={item.id} className="cursor-pointer border-b border-[#f0f5f1] last:border-0 hover:bg-[#f6fbf7]" onClick={() => setViewing(item)}>
+                                                            <TableCell className="px-3 py-2.5 text-right text-xs tabular-nums text-[#82978e]">{index + 1}</TableCell>
+                                                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.nis ?? "-"}</TableCell>
+                                                            <TableCell className="px-3 py-2.5 text-xs font-medium text-[#2b493e]">{studentName(item.student_id)}</TableCell>
+                                                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{genderLabel(student?.jenis_kelamin)}</TableCell>
+                                                          </TableRow>
+                                                        );
+                                                      })}
+                                                    </TableBody>
+                                                  </Table>
+                                                </div>
+                                              </TableCell>
+                                            </TableRow>
+                                          ) : null}
+                                        </Fragment>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f0f5f1] px-6 py-3">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-[#8b9f95]">
-                  Menampilkan {rangeStart}–{rangeEnd} dari {sorted.length} pendaftaran
+                  Menampilkan {rangeStart}–{rangeEnd} dari {yearGroups.length} tahun ajaran ({yearGroups.reduce((total, group) => total + group.studentCount, 0)} siswa)
                 </span>
                 <div className="flex items-center gap-1.5">
                   <label htmlFor="pendaftaran-page-size" className="text-[10px] font-bold text-[#6c8279]">
@@ -786,9 +798,10 @@ export function PendaftaranClient({
             onOpenChange={setBulkOpen}
             academicYears={activeYears}
             classOptions={classOptions}
-            studentOptions={studentOptions}
             students={students}
-            classByStudentId={classByStudentId}
+            onReset={() => {
+              setExpandedGroups({});
+            }}
             onSaved={(message) => {
               setBanner(message);
               setBulkOpen(false);
@@ -1085,18 +1098,16 @@ function BulkEnrollmentDialog({
   onOpenChange,
   academicYears,
   classOptions,
-  studentOptions,
   students,
-  classByStudentId,
+  onReset,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   academicYears: AcademicYear[];
   classOptions: { value: string; label: string }[];
-  studentOptions: { value: string; label: string }[];
   students: Siswa[];
-  classByStudentId: Record<string, string>;
+  onReset: () => void;
   onSaved: (message: string) => void;
 }) {
   const bulkForm = useForm<{
@@ -1119,6 +1130,33 @@ function BulkEnrollmentDialog({
 
   const watchedYear = bulkForm.watch("academic_year_id");
   const selectedYear = academicYears.find((year) => year.id === watchedYear);
+  const [availableStudents, setAvailableStudents] = useState<Siswa[]>([]);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    bulkForm.setValue("siswa_ids", []);
+    if (!watchedYear) {
+      setAvailableStudents([]);
+      return () => {
+        active = false;
+      };
+    }
+    setIsLoadingStudents(true);
+    void fetchAvailableStudents(watchedYear).then((result) => {
+      if (!active) return;
+      if (!result.ok) {
+        toast.error(result.error);
+        setAvailableStudents([]);
+      } else {
+        setAvailableStudents(result.data as Siswa[]);
+      }
+      setIsLoadingStudents(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [watchedYear, bulkForm]);
 
   useEffect(() => {
     if (selectedYear) {
@@ -1126,6 +1164,11 @@ function BulkEnrollmentDialog({
       bulkForm.setValue("exit_date", selectedYear.end_date.slice(0, 10));
     }
   }, [selectedYear, bulkForm]);
+
+  const availableStudentOptions = useMemo(
+    () => availableStudents.map((student) => ({ value: student.id, label: student.nama_lengkap })),
+    [availableStudents]
+  );
 
   function formatDateShort(value: string): string {
     const d = new Date(value);
@@ -1135,23 +1178,26 @@ function BulkEnrollmentDialog({
 
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(saveBulkEnrollment, undefined);
 
-  useEffect(() => {
+   useEffect(() => {
     if (state?.success) {
       onSaved(state.success);
+      onReset();
+      bulkForm.reset();
       onOpenChange(false);
     } else if (state?.error) {
       toast.error(state.error);
     }
-  }, [state, onSaved, onOpenChange]);
+  }, [state, onSaved, onReset, onOpenChange, bulkForm]);
 
   const selectedIds = bulkForm.watch("siswa_ids");
-  const allSelected = selectedIds.length === studentOptions.length && studentOptions.length > 0;
-  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < studentOptions.length;
+  const allSelected = selectedIds.length === availableStudentOptions.length && availableStudentOptions.length > 0;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < availableStudentOptions.length;
+  void isIndeterminate;
 
   function handleToggleAll(checked: boolean) {
     bulkForm.setValue(
       "siswa_ids",
-      checked ? studentOptions.map((opt) => opt.value) : []
+      checked ? availableStudentOptions.map((opt) => opt.value) : []
     );
   }
 
@@ -1302,62 +1348,45 @@ function BulkEnrollmentDialog({
             </div>
 
             {/* Student multi-select table */}
-            <div>
-              <p className="mb-2 text-[10px] font-bold tracking-[.06em] uppercase text-[#4c9a77]">
-                Pilih Siswa ({selectedIds.length} terpilih)
-              </p>
-              <div className="overflow-hidden rounded-[10px] border border-[#e2ece5]">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
-                      <TableHead className="w-10 px-3 py-2.5">
-                        <Checkbox
-                          checked={allSelected}
-                          onCheckedChange={(checked) => handleToggleAll(Boolean(checked))}
-                        />
-                      </TableHead>
-                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
-                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
-                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
-                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Kelas Saat Ini</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {studentOptions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="h-24 px-3 py-3 text-center text-xs text-[#a0afa8]">
-                          Tidak ada siswa aktif.
-                        </TableCell>
+            {selectedYear ? (
+              <div>
+                <p className="mb-2 text-[10px] font-bold tracking-[.06em] uppercase text-[#4c9a77]">
+                  Pilih Siswa ({selectedIds.length} terpilih)
+                </p>
+                <div className="overflow-hidden rounded-[10px] border border-[#e2ece5]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
+                        <TableHead className="w-10 px-3 py-2.5"><Checkbox checked={allSelected} onCheckedChange={(checked) => handleToggleAll(Boolean(checked))} /></TableHead>
+                        <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
+                        <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
+                        <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
                       </TableRow>
-                    ) : (
-                      studentOptions.map((opt) => {
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingStudents ? (
+                        <TableRow><TableCell colSpan={4} className="h-24 text-center text-xs text-[#a0afa8]">Memuat siswa yang belum terdaftar...</TableCell></TableRow>
+                      ) : availableStudentOptions.length === 0 ? (
+                        <TableRow><TableCell colSpan={4} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang tersedia pada tahun ajaran ini.</TableCell></TableRow>
+                      ) : availableStudentOptions.map((opt) => {
                         const checked = selectedIds.includes(opt.value);
-                         const student = students.find((s) => s.id === opt.value);
+                        const student = availableStudents.find((entry) => entry.id === opt.value);
                         return (
-                          <TableRow
-                            key={opt.value}
-                            className="cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
-                            onClick={() => handleToggleOne(opt.value, !checked)}
-                          >
-                            <TableCell className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                              <Checkbox checked={checked} onCheckedChange={(next) => handleToggleOne(opt.value, Boolean(next))} />
-                            </TableCell>
+                          <TableRow key={opt.value} className="cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]" onClick={() => handleToggleOne(opt.value, !checked)}>
+                            <TableCell className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onCheckedChange={(next) => handleToggleOne(opt.value, Boolean(next))} /></TableCell>
                             <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">{opt.label}</TableCell>
                             <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.nis ?? "-"}</TableCell>
-                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">
-                              {student?.jenis_kelamin === "L" ? "Laki-laki" : student?.jenis_kelamin === "P" ? "Perempuan" : "-"}
-                            </TableCell>
-                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">
-                              {classByStudentId[opt.value] ?? "Siswa Baru"}
-                            </TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.jenis_kelamin === "L" ? "Laki-laki" : student?.jenis_kelamin === "P" ? "Perempuan" : "-"}</TableCell>
                           </TableRow>
                         );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-[10px] border border-dashed border-[#dce8e0] bg-[#f8fbf9] px-4 py-5 text-center text-xs text-[#82978e]">Pilih tahun ajaran untuk menampilkan siswa yang tersedia.</div>
+            )}
           </div>
 
           <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[24px]">

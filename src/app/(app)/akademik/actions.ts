@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { guardAction } from "@/lib/action-guard";
 import { PERMISSIONS } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
@@ -20,6 +21,7 @@ import {
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
   saveBulkEnrollmentRecord,
+  fetchAvailableStudentsForAcademicYear,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -274,6 +276,19 @@ export async function deleteEnrollment(_prevState: FormState, formData: FormData
 }
 
 // ===== Bulk Student Enrollments =====
+
+export async function fetchAvailableStudents(academicYearId: string) {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { ok: false as const, error: guard.error };
+  if (!z.uuid().safeParse(academicYearId).success) {
+    return { ok: false as const, error: "Tahun ajaran tidak valid." };
+  }
+
+  const schoolId = guard.user.profile.school_id;
+  if (!schoolId) return { ok: false as const, error: "Sekolah tidak ditemukan." };
+  const supabase = await createClient();
+  return fetchAvailableStudentsForAcademicYear({ supabase }, schoolId, academicYearId);
+}
 
 export async function saveBulkEnrollment(_prevState: FormState, formData: FormData): Promise<FormState> {
   const guard = await requireAkademikManage();
