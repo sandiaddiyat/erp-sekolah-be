@@ -549,45 +549,33 @@ export async function fetchActiveAcademicYears(
   return { ok: true, data: data ?? [] };
 }
 
-export async function fetchActiveStudents(
+export async function fetchAvailableStudentsForAcademicYear(
   deps: AkademikMutationsDeps,
-  schoolId: string
-): Promise<{ ok: true; data: { id: string; nama_lengkap: string; nis: string | null; jenis_kelamin: string | null; kelas_saat_ini: string | null }[] } | { ok: false; error: string }> {
-  const { data, error } = await deps.supabase
+  schoolId: string,
+  academicYearId: string
+): Promise<{ ok: true; data: { id: string; nama_lengkap: string; nis: string | null; jenis_kelamin: string | null }[] } | { ok: false; error: string }> {
+  const { data: enrolledRows, error: enrollmentError } = await deps.supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId);
+
+  if (enrollmentError) return { ok: false, error: enrollmentError.message };
+  const enrolledIds = new Set((enrolledRows ?? []).map((row) => row.student_id));
+  let query = deps.supabase
     .from("students")
     .select("id, nama_lengkap, nis, jenis_kelamin")
     .eq("school_id", schoolId)
     .eq("status", "aktif")
     .order("nama_lengkap", { ascending: true });
 
-  if (error) return { ok: false, error: error.message };
-  const students = data ?? [];
-
-  // Resolve "kelas_saat_ini" via student_enrollments (active status).
-  const studentIds = students.map((s) => s.id);
-  const { data: enrollments } = await deps.supabase
-    .from("student_enrollments")
-    .select("student_id, class_id")
-    .in("student_id", studentIds)
-    .eq("status", "active")
-    .eq("school_id", schoolId);
-
-  const classById = new Map<string, string>();
-  for (const e of enrollments ?? []) {
-    if (!classById.has(e.student_id)) {
-      classById.set(e.student_id, e.class_id);
-    }
+  if (enrolledIds.size > 0) {
+    query = query.not("id", "in", `(${Array.from(enrolledIds).join(",")})`);
   }
 
-  const resolved = students.map((s) => ({
-    id: s.id,
-    nama_lengkap: s.nama_lengkap,
-    nis: s.nis,
-    jenis_kelamin: s.jenis_kelamin,
-    kelas_saat_ini: classById.get(s.id) ?? null,
-  }));
-
-  return { ok: true, data: resolved };
+  const { data, error } = await query;
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: data ?? [] };
 }
 
 // ===== Bulk Enrollment =====
