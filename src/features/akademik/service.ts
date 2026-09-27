@@ -11,6 +11,7 @@ import type {
   SaveGradeInput,
   SaveMajorInput,
   SaveRoomInput,
+  BulkEnrollmentInput,
 } from "./schema";
 
 /**
@@ -528,4 +529,105 @@ export async function deleteEnrollmentRecord(
     .eq("school_id", schoolId);
   if (error) return handleInsertError(error, "Gagal menghapus pendaftaran.");
   return okResult("Pendaftaran berhasil dihapus.");
+}
+
+// ===== Bulk Enrollment Queries =====
+
+export async function fetchActiveAcademicYears(
+  deps: AkademikMutationsDeps,
+  schoolId: string
+): Promise<{ ok: true; data: Database["public"]["Tables"]["academic_years"]["Row"][] } | { ok: false; error: string }> {
+  const { data, error } = await deps.supabase
+    .from("academic_years")
+    .select("id, school_id, name, start_date, end_date, status, is_active, created_at, updated_at")
+    .eq("school_id", schoolId)
+    .eq("status", "active")
+    .or(`end_date.gte.${new Date().toISOString().slice(0, 10)},start_date.gt.${new Date().toISOString().slice(0, 10)}`)
+    .order("start_date", { ascending: true });
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: data ?? [] };
+}
+
+export async function fetchActiveStudents(
+  deps: AkademikMutationsDeps,
+  schoolId: string
+): Promise<{ ok: true; data: { id: string; nama_lengkap: string; nis: string | null; jenis_kelamin: string | null; kelas_saat_ini: string | null }[] } | { ok: false; error: string }> {
+  const { data, error } = await deps.supabase
+    .from("students")
+    .select("id, nama_lengkap, nis, jenis_kelamin")
+    .eq("school_id", schoolId)
+    .eq("status", "aktif")
+    .order("nama_lengkap", { ascending: true });
+
+  if (error) return { ok: false, error: error.message };
+  const students = data ?? [];
+
+  // Resolve "kelas_saat_ini" via student_enrollments (active status).
+  const studentIds = students.map((s) => s.id);
+  const { data: enrollments } = await deps.supabase
+    .from("student_enrollments")
+    .select("student_id, class_id")
+    .in("student_id", studentIds)
+    .eq("status", "active")
+    .eq("school_id", schoolId);
+
+  const classById = new Map<string, string>();
+  for (const e of enrollments ?? []) {
+    if (!classById.has(e.student_id)) {
+      classById.set(e.student_id, e.class_id);
+    }
+  }
+
+  const resolved = students.map((s) => ({
+    id: s.id,
+    nama_lengkap: s.nama_lengkap,
+    nis: s.nis,
+    jenis_kelamin: s.jenis_kelamin,
+    kelas_saat_ini: classById.get(s.id) ?? null,
+  }));
+
+  return { ok: true, data: resolved };
+}
+
+// ===== Bulk Enrollment =====
+
+export async function saveBulkEnrollmentRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  payload: BulkEnrollmentInput
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  const { supabase } = deps;
+  const { academic_year_id, class_id, enrollment_date, exit_date, status, siswa_ids } = payload;
+
+  const values = {
+    school_id: schoolId,
+    academic_year_id,
+    class_id,
+    enrollment_date,
+    exit_date: exit_date ?? null,
+    status,
+  };
+
+  const rows = siswa_ids.map((student_id) => ({ ...values, student_id }));
+
+  const { error } = await supabase.from("student_enrollments").insert(rows);
+  if (error) {
+    const code = (error as { code?: string } | null)?.code;
+    const message = (error as { message?: string } | null)?.message ?? "";
+    if (code === "23505" || /duplicate key/i.test(message)) {
+      return errResult("Beberapa siswa sudah terdaftar di tahun ajaran ini.");
+    }
+    if (code === "23503" || /foreign key/i.test(message)) {
+      return errResult("Data yang dipilih tidak valid atau sudah tidak tersedia.");
+    }
+    return errResult(serverError(error, "Gagal mendaftarkan siswa."));
+  }
+
+  return okResult(`${siswa_ids.length} siswa berhasil didaftarkan.`);
 }
