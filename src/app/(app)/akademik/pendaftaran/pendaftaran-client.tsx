@@ -49,6 +49,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
 import { fetchAvailableStudents, saveEnrollment, deleteEnrollment, saveBulkEnrollment } from "../actions";
+import type { AvailableStudent } from "@/features/akademik/service";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -1129,12 +1130,18 @@ function BulkEnrollmentDialog({
 
   const watchedYear = bulkForm.watch("academic_year_id");
   const selectedYear = academicYears.find((year) => year.id === watchedYear);
-  const [availableStudents, setAvailableStudents] = useState<Siswa[]>([]);
+  const [availableStudents, setAvailableStudents] = useState<AvailableStudent[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [priorYearFilter, setPriorYearFilter] = useState("");
+  const [priorClassFilter, setPriorClassFilter] = useState("");
 
   useEffect(() => {
     let active = true;
     bulkForm.setValue("siswa_ids", []);
+    setStudentSearch("");
+    setPriorYearFilter("");
+    setPriorClassFilter("");
     if (!watchedYear) {
       setAvailableStudents([]);
       return () => {
@@ -1148,7 +1155,7 @@ function BulkEnrollmentDialog({
         toast.error(result.error);
         setAvailableStudents([]);
       } else {
-        setAvailableStudents(result.data as Siswa[]);
+        setAvailableStudents(result.data);
       }
       setIsLoadingStudents(false);
     });
@@ -1164,9 +1171,25 @@ function BulkEnrollmentDialog({
     }
   }, [selectedYear, bulkForm]);
 
-  const availableStudentOptions = useMemo(
-    () => availableStudents.map((student) => ({ value: student.id, label: student.nama_lengkap })),
+  const priorYearOptions = useMemo(
+    () => Array.from(new Set(availableStudents.flatMap((student) => student.latest_prior_academic_year ? [student.latest_prior_academic_year] : []))).sort((a, b) => a.localeCompare(b, "id", { numeric: true })),
     [availableStudents]
+  );
+  const priorClassOptions = useMemo(
+    () => Array.from(new Set(availableStudents.flatMap((student) => student.latest_prior_class ? [student.latest_prior_class] : []))).sort((a, b) => a.localeCompare(b, "id", { numeric: true })),
+    [availableStudents]
+  );
+  const filteredStudents = useMemo(() => {
+    const search = studentSearch.trim().toLocaleLowerCase("id");
+    return availableStudents.filter((student) =>
+      (!search || student.nama_lengkap.toLocaleLowerCase("id").includes(search)) &&
+      (!priorYearFilter || student.latest_prior_academic_year === priorYearFilter) &&
+      (!priorClassFilter || student.latest_prior_class === priorClassFilter)
+    );
+  }, [availableStudents, studentSearch, priorYearFilter, priorClassFilter]);
+  const filteredStudentOptions = useMemo(
+    () => filteredStudents.map((student) => ({ value: student.id, label: student.nama_lengkap })),
+    [filteredStudents]
   );
 
   function formatDateShort(value: string): string {
@@ -1193,14 +1216,14 @@ function BulkEnrollmentDialog({
   }, [state, onSaved, onReset, onOpenChange, bulkForm]);
 
   const selectedIds = bulkForm.watch("siswa_ids");
-  const allSelected = selectedIds.length === availableStudentOptions.length && availableStudentOptions.length > 0;
-  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < availableStudentOptions.length;
-  void isIndeterminate;
-
+  const allSelected = filteredStudentOptions.length > 0 && filteredStudentOptions.every((option) => selectedIds.includes(option.value));
   function handleToggleAll(checked: boolean) {
+    const current = bulkForm.getValues("siswa_ids");
     bulkForm.setValue(
       "siswa_ids",
-      checked ? availableStudentOptions.map((opt) => opt.value) : []
+      checked
+        ? Array.from(new Set([...current, ...filteredStudentOptions.map((option) => option.value)]))
+        : current.filter((id) => !filteredStudentOptions.some((option) => option.value === id))
     );
   }
 
@@ -1225,7 +1248,7 @@ function BulkEnrollmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(92vh,900px)] gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[680px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+      <DialogContent className="max-h-[min(92vh,900px)] gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[960px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
         <form onSubmit={handleSubmit} className="flex h-full max-h-[min(92vh,900px)] flex-col">
           <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
             <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">
@@ -1353,33 +1376,64 @@ function BulkEnrollmentDialog({
             {/* Student multi-select table */}
             {selectedYear ? (
               <div>
-                <p className="mb-2 text-[10px] font-bold tracking-[.06em] uppercase text-[#4c9a77]">
-                  Pilih Siswa ({selectedIds.length} terpilih)
-                </p>
-                <div className="overflow-hidden rounded-[10px] border border-[#e2ece5]">
+                <div className="mb-3 flex flex-wrap items-end gap-3">
+                  <p className="mr-auto text-[10px] font-bold tracking-[.06em] uppercase text-[#4c9a77]">
+                    Pilih Siswa ({selectedIds.length} terpilih)
+                  </p>
+                  <div className="min-w-[180px] flex-1 space-y-1.5 sm:max-w-[260px]">
+                    <label htmlFor="bulk-student-search" className="text-[10px] font-bold text-[#6c8279]">Nama Siswa</label>
+                    <Input
+                      id="bulk-student-search"
+                      value={studentSearch}
+                      onChange={(event) => setStudentSearch(event.target.value)}
+                      placeholder="Cari nama siswa..."
+                      className="h-9 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-sm text-[#36584a] placeholder:text-[#9aac9f] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                    />
+                  </div>
+                  <div className="min-w-[160px] flex-1 space-y-1.5 sm:max-w-[220px]">
+                    <label htmlFor="bulk-prior-year-filter" className="text-[10px] font-bold text-[#6c8279]">Tahun Ajaran Terakhir</label>
+                    <select id="bulk-prior-year-filter" value={priorYearFilter} onChange={(event) => setPriorYearFilter(event.target.value)} className={SELECT_CLASS}>
+                      <option value="">Semua tahun ajaran</option>
+                      {priorYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </div>
+                  <div className="min-w-[150px] flex-1 space-y-1.5 sm:max-w-[200px]">
+                    <label htmlFor="bulk-prior-class-filter" className="text-[10px] font-bold text-[#6c8279]">Kelas Terakhir</label>
+                    <select id="bulk-prior-class-filter" value={priorClassFilter} onChange={(event) => setPriorClassFilter(event.target.value)} className={SELECT_CLASS}>
+                      <option value="">Semua kelas</option>
+                      {priorClassOptions.map((schoolClass) => <option key={schoolClass} value={schoolClass}>{schoolClass}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="overflow-x-auto rounded-[10px] border border-[#e2ece5]">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
                         <TableHead className="w-10 px-3 py-2.5"><Checkbox checked={allSelected} onCheckedChange={(checked) => handleToggleAll(Boolean(checked))} /></TableHead>
                         <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
                         <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
+                        <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Tahun Ajaran Terakhir</TableHead>
+                        <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Kelas Terakhir</TableHead>
                         <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoadingStudents ? (
-                        <TableRow><TableCell colSpan={4} className="h-24 text-center text-xs text-[#a0afa8]">Memuat siswa yang belum terdaftar...</TableCell></TableRow>
-                      ) : availableStudentOptions.length === 0 ? (
-                        <TableRow><TableCell colSpan={4} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang tersedia pada tahun ajaran ini.</TableCell></TableRow>
-                      ) : availableStudentOptions.map((opt) => {
-                        const checked = selectedIds.includes(opt.value);
-                        const student = availableStudents.find((entry) => entry.id === opt.value);
+                        <TableRow><TableCell colSpan={6} className="h-24 text-center text-xs text-[#a0afa8]">Memuat siswa yang belum terdaftar...</TableCell></TableRow>
+                      ) : availableStudents.length === 0 ? (
+                        <TableRow><TableCell colSpan={6} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang tersedia pada tahun ajaran ini.</TableCell></TableRow>
+                      ) : filteredStudents.length === 0 ? (
+                        <TableRow><TableCell colSpan={6} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang cocok dengan pencarian atau filter.</TableCell></TableRow>
+                      ) : filteredStudents.map((student) => {
+                        const checked = selectedIds.includes(student.id);
                         return (
-                          <TableRow key={opt.value} className="cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]" onClick={() => handleToggleOne(opt.value, !checked)}>
-                            <TableCell className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onCheckedChange={(next) => handleToggleOne(opt.value, Boolean(next))} /></TableCell>
-                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">{opt.label}</TableCell>
-                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.nis ?? "-"}</TableCell>
-                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.jenis_kelamin === "L" ? "Laki-laki" : student?.jenis_kelamin === "P" ? "Perempuan" : "-"}</TableCell>
+                          <TableRow key={student.id} className="cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]" onClick={() => handleToggleOne(student.id, !checked)}>
+                            <TableCell className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}><Checkbox checked={checked} onCheckedChange={(next) => handleToggleOne(student.id, Boolean(next))} /></TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">{student.nama_lengkap}</TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.nis ?? "-"}</TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.latest_prior_academic_year ?? "-"}</TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.latest_prior_class ?? "-"}</TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.jenis_kelamin === "L" ? "Laki-laki" : student.jenis_kelamin === "P" ? "Perempuan" : "-"}</TableCell>
                           </TableRow>
                         );
                       })}
