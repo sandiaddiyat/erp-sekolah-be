@@ -12,9 +12,18 @@ export type School = {
   logo_url: string | null;
   status: SchoolStatus;
   active_until: string | null;
+  notes: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  nis_nss_nds: string | null;
+  kode_pos: string | null;
+  kelurahan: string | null;
+  kecamatan: string | null;
+  kota: string | null;
+  provinsi: string | null;
+  website: string | null;
+  dinas: string | null;
 };
 
 export type SchoolWithCounts = School & {

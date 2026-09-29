@@ -1,15 +1,9 @@
 import { z } from "zod";
 import { validatePassword } from "@/lib/password";
-import type { SchoolStatus } from "@/lib/types";
 
-/**
- * Kontrak input untuk simpan sekolah (buat & ubah).
- * Dipakai ulang oleh Server Action hari ini dan API backend/mobile nanti,
- * jadi jangan mengandung hal spesifik web seperti FormData di tipe ini.
- */
 export const saveSchoolSchema = z
   .object({
-    id: z.uuid().optional(),
+    id: z.string().uuid().optional(),
     name: z.string().trim().min(3, "Nama sekolah minimal 3 karakter"),
     slug: z.string().trim().optional(),
     npsn: z.string().trim().optional(),
@@ -33,12 +27,13 @@ export const saveSchoolSchema = z
     admin_password: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // Email sekolah wajib valid bila diisi.
     if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      ctx.addIssue({ code: "custom", path: ["email"], message: "Format email tidak valid." });
+      ctx.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: "Format email tidak valid.",
+      });
     }
-
-    // Jika memilih buat admin, semua field admin wajib valid.
     if (data.create_admin) {
       if ((data.admin_name ?? "").length < 2) {
         ctx.addIssue({
@@ -71,7 +66,6 @@ export const saveSchoolSchema = z
 
 export type SaveSchoolInput = z.infer<typeof saveSchoolSchema>;
 
-/** Perintah siap eksekusi yang diterima service (bebas dari FormData). */
 export type SaveSchoolCommand = Omit<SaveSchoolInput, "active_until" | "email"> & {
   email: string | null;
   active_until: string | null;
@@ -81,10 +75,6 @@ export type SaveSchoolParseResult =
   | { ok: true; command: SaveSchoolCommand }
   | { ok: false; error: string };
 
-/**
- * Baca + validasi FormData form sekolah, lalu susun menjadi command.
- * Satu-satunya tempat yang tahu nama-nama field form sekolah.
- */
 export function readSaveSchoolInput(formData: FormData): SaveSchoolParseResult {
   const parsed = saveSchoolSchema.safeParse({
     id: formData.get("id") || undefined,
@@ -123,4 +113,109 @@ export function readSaveSchoolInput(formData: FormData): SaveSchoolParseResult {
   };
 }
 
-export type { SchoolStatus };
+// ============================
+// School profile form schema
+// ============================
+
+export const sekolahProfileSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    npsn: z.string().trim().min(1, "NPSN wajib diisi").max(20),
+    name: z.string().trim().min(1, "Nama sekolah wajib diisi").min(3, "Nama sekolah minimal 3 karakter"),
+    nis_nss_nds: z.string().trim().optional().or(z.literal("")),
+    alamat: z.string().trim().min(1, "Alamat wajib diisi"),
+    kode_pos: z.string().trim().max(10).optional().or(z.literal("")),
+    telepon: z.string().trim().max(20).optional().or(z.literal("")),
+    kelurahan: z.string().trim().max(100).optional().or(z.literal("")),
+    kecamatan: z.string().trim().max(100).optional().or(z.literal("")),
+    kota: z.string().trim().max(100).optional().or(z.literal("")),
+    provinsi: z.string().trim().max(100).optional().or(z.literal("")),
+    website: z.string().trim().url("URL website tidak valid").optional().or(z.literal("")),
+    email: z.string().trim().email("Format email tidak valid").optional().or(z.literal("")),
+    dinas: z.string().trim().max(100).optional().or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    const hasKota = (data.kota ?? "").trim().length > 0;
+    const hasKec = (data.kecamatan ?? "").trim().length > 0;
+    const hasKel = (data.kelurahan ?? "").trim().length > 0;
+    const filled = [hasKota, hasKec, hasKel].filter(Boolean).length;
+
+    if (filled === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["kota"],
+        message: "Minimal diisi salah satu: Kota/Kabupaten, Kecamatan, atau Kelurahan/Desa.",
+      });
+    } else if (filled > 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["kota"],
+        message: "Hanya boleh diisi salah satu: Kota/Kabupaten, Kecamatan, atau Kelurahan/Desa.",
+      });
+    }
+  });
+
+export type SekolahProfileInput = z.infer<typeof sekolahProfileSchema>;
+
+export type SaveSchoolProfileCommand = {
+  id?: string;
+  npsn: string;
+  name: string;
+  nis_nss_nds: string;
+  alamat: string;
+  kode_pos: string;
+  telepon: string;
+  kelurahan: string;
+  kecamatan: string;
+  kota: string;
+  provinsi: string;
+  website: string;
+  email: string;
+  dinas: string;
+};
+
+export type SaveSchoolProfileParseResult =
+  | { ok: true; command: SaveSchoolProfileCommand }
+  | { ok: false; error: string };
+
+export function readSaveSchoolProfileInput(
+  input: SekolahProfileInput
+): SaveSchoolProfileParseResult {
+  const hasKota = (input.kota ?? "").trim().length > 0;
+  const hasKec = (input.kecamatan ?? "").trim().length > 0;
+  const hasKel = (input.kelurahan ?? "").trim().length > 0;
+  const filled = [hasKota, hasKec, hasKel].filter(Boolean).length;
+
+  if (filled === 0) {
+    return {
+      ok: false,
+      error: "Minimal diisi salah satu: Kota/Kabupaten, Kecamatan, atau Kelurahan/Desa.",
+    };
+  }
+  if (filled > 1) {
+    return {
+      ok: false,
+      error: "Hanya boleh diisi salah satu: Kota/Kabupaten, Kecamatan, atau Kelurahan/Desa.",
+    };
+  }
+
+  return {
+    ok: true,
+    command: {
+      id: input.id,
+      npsn: input.npsn || "",
+      name: input.name,
+      nis_nss_nds: input.nis_nss_nds || "",
+      alamat: input.alamat,
+      kode_pos: input.kode_pos || "",
+      telepon: input.telepon || "",
+      kelurahan: input.kelurahan || "",
+      kecamatan: input.kecamatan || "",
+      kota: input.kota || "",
+      provinsi: input.provinsi || "",
+      website: input.website || "",
+      email: input.email || "",
+      dinas: input.dinas || "",
+    },
+  };
+}

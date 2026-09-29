@@ -45,9 +45,12 @@ export function SchoolFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-[#dbe8df] bg-[#fbfdfb] sm:max-w-4xl">
-        <form action={formAction} className="space-y-6">
-          <DialogHeader>
+      <DialogContent className="max-h-[min(92vh,900px)] gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-4xl rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+        <form action={formAction} className="flex h-full max-h-[min(92vh,900px)] flex-col">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] uppercase text-[#4d9775]">
+              Profil Sekolah
+            </span>
             <DialogTitle className="font-heading text-[#183d32]">
               {isEdit ? "Ubah Sekolah" : "Daftarkan Sekolah"}
             </DialogTitle>
@@ -65,250 +68,254 @@ export function SchoolFormDialog({
             value={withAdmin ? "true" : "false"}
           />
 
-          {/* Identitas */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2 sm:col-span-3">
-              <Label htmlFor="name" className="text-xs font-bold text-[#4c6a5e]">
-                Nama Sekolah
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                defaultValue={school?.name ?? ""}
-                placeholder="Contoh: SMP Nurul Huda"
-                required
-                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="slug" className="text-xs font-bold text-[#4c6a5e]">
-                Slug
-              </Label>
-              <Input
-                id="slug"
-                name="slug"
-                defaultValue={school?.slug ?? ""}
-                placeholder="otomatis dari nama"
-                disabled={isEdit}
-                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="level" className="text-xs font-bold text-[#4c6a5e]">
-                Jenjang
-              </Label>
-              <Input
-                id="level"
-                name="level"
-                defaultValue={school?.level ?? ""}
-                placeholder="SMP / SMA / MI"
-                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="npsn" className="text-xs font-bold text-[#4c6a5e]">
-                NPSN
-              </Label>
-              <Input
-                id="npsn"
-                name="npsn"
-                defaultValue={school?.npsn ?? ""}
-                placeholder="8 digit"
-                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-xs font-bold text-[#4c6a5e]">
-                Telepon
-              </Label>
-              <Input
-                id="phone"
-                name="phone"
-                defaultValue={school?.phone ?? ""}
-                placeholder="021xxxxxxx"
-                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-3">
-              <Label htmlFor="email" className="text-xs font-bold text-[#4c6a5e]">
-                Email Sekolah
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                defaultValue={school?.email ?? ""}
-                placeholder="info@sekolah.sch.id"
-                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-            </div>
-          </div>
-
-          <Separator className="border-[#e3ece6]" />
-
-          {/* Alamat */}
-          <div className="space-y-2">
-            <Label htmlFor="address" className="text-xs font-bold text-[#4c6a5e]">
-              Alamat
-            </Label>
-            <Input
-              id="address"
-              name="address"
-              defaultValue={school?.address ?? ""}
-              placeholder="Jalan, nomor, kota"
-              className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-            />
-          </div>
-
-          <Separator className="border-[#e3ece6]" />
-
-          {/* Status & Masa Aktif */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-xs font-bold text-[#4c6a5e]">
-                Status
-              </Label>
-              <select
-                id="status"
-                name="status"
-                defaultValue={school?.status ?? "trial"}
-                className="h-8 w-full rounded-lg border border-[#dfeae3] bg-transparent px-2.5 text-sm text-[#284a3d] outline-none focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10"
-              >
-                <option value="trial">Uji Coba</option>
-                <option value="active">Aktif</option>
-                <option value="suspended">Suspend</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="active_until"
-                className="text-xs font-bold text-[#4c6a5e]"
-              >
-                Masa Aktif Sampai
-              </Label>
-              <Input
-                id="active_until"
-                name="active_until"
-                type="date"
-                defaultValue={school?.active_until ?? ""}
-                className="border-[#dfeae3] text-[#284a3d] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-              />
-              <p className="text-xs text-[#9aaa9f]">
-                Kosongkan bila tanpa batas waktu.
-              </p>
-            </div>
-          </div>
-
-          <Separator className="border-[#e3ece6]" />
-
-          {/* Catatan */}
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-xs font-bold text-[#4c6a5e]">
-              Catatan
-            </Label>
-            <Input
-              id="notes"
-              name="notes"
-              defaultValue={school?.notes ?? ""}
-              placeholder="Catatan internal, mis. tanggal penagihan"
-              className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-            />
-          </div>
-
-          {!isEdit ? (
-            <>
-              <Separator className="border-[#e3ece6]" />
-
-              <div className="flex items-center gap-2.5">
-                <Checkbox
-                  id="with_admin"
-                  checked={withAdmin}
-                  onCheckedChange={(checked) => setWithAdmin(Boolean(checked))}
-                  className="border-[#c1d6c8] text-[#2e7a58] focus:ring-[#4f9970]/10 data-[state=checked]:bg-[#2e7a58] data-[state=checked]:text-white"
-                />
-                <Label
-                  htmlFor="with_admin"
-                  className="text-xs font-bold text-[#4c6a5e] cursor-pointer"
-                >
-                  Buatkan akun admin sekolah sekarang
+          <div className="flex-1 overflow-y-auto px-7 pt-[22px] pb-[25px] space-y-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {/* Identitas */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2 sm:col-span-3">
+                <Label htmlFor="name" className="text-xs font-bold text-[#4c6a5e]">
+                  Nama Sekolah
                 </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={school?.name ?? ""}
+                  placeholder="Contoh: SMP Nurul Huda"
+                  required
+                  className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug" className="text-xs font-bold text-[#4c6a5e]">
+                  Slug
+                </Label>
+                <Input
+                  id="slug"
+                  name="slug"
+                  defaultValue={school?.slug ?? ""}
+                  placeholder="otomatis dari nama"
+                  disabled={isEdit}
+                  className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="level" className="text-xs font-bold text-[#4c6a5e]">
+                  Jenjang
+                </Label>
+                <Input
+                  id="level"
+                  name="level"
+                  defaultValue={school?.level ?? ""}
+                  placeholder="SMP / SMA / MI"
+                  className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npsn" className="text-xs font-bold text-[#4c6a5e]">
+                  NPSN
+                </Label>
+                <Input
+                  id="npsn"
+                  name="npsn"
+                  defaultValue={school?.npsn ?? ""}
+                  placeholder="8 digit"
+                  className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-xs font-bold text-[#4c6a5e]">
+                  Telepon
+                </Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  defaultValue={school?.phone ?? ""}
+                  placeholder="021xxxxxxx"
+                  className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-3">
+                <Label htmlFor="email" className="text-xs font-bold text-[#4c6a5e]">
+                  Email Sekolah
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={school?.email ?? ""}
+                  placeholder="info@sekolah.sch.id"
+                  className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
+              </div>
+            </div>
 
-              {withAdmin ? (
-                <div className="grid gap-4 rounded-lg border border-[#e2ece5] p-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="admin_name"
-                      className="text-xs font-bold text-[#4c6a5e]"
-                    >
-                      Nama Admin
-                    </Label>
-                    <Input
-                      id="admin_name"
-                      name="admin_name"
-                      placeholder="Contoh: Siti Aminah"
-                      className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="admin_email"
-                      className="text-xs font-bold text-[#4c6a5e]"
-                    >
-                      Email Admin
-                    </Label>
-                    <Input
-                      id="admin_email"
-                      name="admin_email"
-                      type="email"
-                      placeholder="admin@sekolah.sch.id"
-                      className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-                    />
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label
-                      htmlFor="admin_password"
-                      className="text-xs font-bold text-[#4c6a5e]"
-                    >
-                      Password Awal
-                    </Label>
-                    <Input
-                      id="admin_password"
-                      name="admin_password"
-                      type="password"
-                      placeholder="Minimal 8 karakter"
-                      className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
-                    />
-                    <p className="text-xs text-[#9aaa9f]">
-                      Berikan password ini ke admin sekolah, dan minta segera
-                      diganti.
-                    </p>
-                  </div>
+            <Separator className="border-[#e3ece6]" />
+
+            {/* Alamat */}
+            <div className="space-y-2">
+              <Label htmlFor="address" className="text-xs font-bold text-[#4c6a5e]">
+                Alamat
+              </Label>
+              <Input
+                id="address"
+                name="address"
+                defaultValue={school?.address ?? ""}
+                placeholder="Jalan, nomor, kota"
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+              />
+            </div>
+
+            <Separator className="border-[#e3ece6]" />
+
+            {/* Status & Masa Aktif */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-xs font-bold text-[#4c6a5e]">
+                  Status
+                </Label>
+                <select
+                  id="status"
+                  name="status"
+                  defaultValue={school?.status ?? "trial"}
+                  className="h-8 w-full rounded-[9px] border border-[#dfeae3] bg-transparent px-2.5 text-sm text-[#284a3d] outline-none focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10"
+                >
+                  <option value="trial">Uji Coba</option>
+                  <option value="active">Aktif</option>
+                  <option value="suspended">Suspend</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="active_until"
+                  className="text-xs font-bold text-[#4c6a5e]"
+                >
+                  Masa Aktif Sampai
+                </Label>
+                <Input
+                  id="active_until"
+                  name="active_until"
+                  type="date"
+                  defaultValue={school?.active_until ?? ""}
+                  className="border-[#dfeae3] text-[#284a3d] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                />
+                <p className="text-xs text-[#9aaa9f]">
+                  Kosongkan bila tanpa batas waktu.
+                </p>
+              </div>
+            </div>
+
+            <Separator className="border-[#e3ece6]" />
+
+            {/* Catatan */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-xs font-bold text-[#4c6a5e]">
+                Catatan
+              </Label>
+              <Input
+                id="notes"
+                name="notes"
+                defaultValue={school?.notes ?? ""}
+                placeholder="Catatan internal, mis. tanggal penagihan"
+                className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+              />
+            </div>
+
+            {!isEdit ? (
+              <>
+                <Separator className="border-[#e3ece6]" />
+
+                <div className="flex items-center gap-2.5">
+                  <Checkbox
+                    id="with_admin"
+                    checked={withAdmin}
+                    onCheckedChange={(checked) => setWithAdmin(Boolean(checked))}
+                    className="border-[#c1d6c8] text-[#2e7a58] focus:ring-[#4f9970]/10 data-[state=checked]:bg-[#2e7a58] data-[state=checked]:text-white"
+                  />
+                  <Label
+                    htmlFor="with_admin"
+                    className="text-xs font-bold text-[#4c6a5e] cursor-pointer"
+                  >
+                    Buatkan akun admin sekolah sekarang
+                  </Label>
                 </div>
-              ) : null}
-            </>
-          ) : null}
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="border-[#d7e6dc] text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5]"
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="border-[#185743] bg-[#185743] text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
-            >
-              {isSubmitting
-                ? "Menyimpan..."
-                : isEdit
+                {withAdmin ? (
+                  <div className="grid gap-4 rounded-lg border border-[#e2ece5] p-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="admin_name"
+                        className="text-xs font-bold text-[#4c6a5e]"
+                      >
+                        Nama Admin
+                      </Label>
+                      <Input
+                        id="admin_name"
+                        name="admin_name"
+                        placeholder="Contoh: Siti Aminah"
+                        className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="admin_email"
+                        className="text-xs font-bold text-[#4c6a5e]"
+                      >
+                        Email Admin
+                      </Label>
+                      <Input
+                        id="admin_email"
+                        name="admin_email"
+                        type="email"
+                        placeholder="admin@sekolah.sch.id"
+                        className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label
+                        htmlFor="admin_password"
+                        className="text-xs font-bold text-[#4c6a5e]"
+                      >
+                        Password Awal
+                      </Label>
+                      <Input
+                        id="admin_password"
+                        name="admin_password"
+                        type="password"
+                        placeholder="Minimal 8 karakter"
+                        className="border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10"
+                      />
+                      <p className="text-xs text-[#9aaa9f]">
+                        Berikan password ini ke admin sekolah, dan minta segera
+                        diganti.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 pb-[25px]">
+            <div className="flex w-full justify-end gap-2 pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-3.5 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
+              >
+                {isSubmitting
+                  ? "Menyimpan..."
+                  : isEdit
                   ? "Simpan Perubahan"
                   : "Daftarkan Sekolah"}
-            </Button>
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

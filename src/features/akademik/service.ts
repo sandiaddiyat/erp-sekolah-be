@@ -531,6 +531,53 @@ export async function deleteEnrollmentRecord(
   return okResult("Pendaftaran berhasil dihapus.");
 }
 
+// ===== Bulk Enrollment Queries =====
+
+export async function fetchActiveAcademicYears(
+  deps: AkademikMutationsDeps,
+  schoolId: string
+): Promise<{ ok: true; data: Database["public"]["Tables"]["academic_years"]["Row"][] } | { ok: false; error: string }> {
+  const { data, error } = await deps.supabase
+    .from("academic_years")
+    .select("id, school_id, name, start_date, end_date, status, is_active, created_at, updated_at")
+    .eq("school_id", schoolId)
+    .eq("status", "active")
+    .or(`end_date.gte.${new Date().toISOString().slice(0, 10)},start_date.gt.${new Date().toISOString().slice(0, 10)}`)
+    .order("start_date", { ascending: true });
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: data ?? [] };
+}
+
+export async function fetchAvailableStudentsForAcademicYear(
+  deps: AkademikMutationsDeps,
+  schoolId: string,
+  academicYearId: string
+): Promise<{ ok: true; data: { id: string; nama_lengkap: string; nis: string | null; jenis_kelamin: string | null }[] } | { ok: false; error: string }> {
+  const { data: enrolledRows, error: enrollmentError } = await deps.supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId);
+
+  if (enrollmentError) return { ok: false, error: enrollmentError.message };
+  const enrolledIds = new Set((enrolledRows ?? []).map((row) => row.student_id));
+  let query = deps.supabase
+    .from("students")
+    .select("id, nama_lengkap, nis, jenis_kelamin")
+    .eq("school_id", schoolId)
+    .eq("status", "aktif")
+    .order("nama_lengkap", { ascending: true });
+
+  if (enrolledIds.size > 0) {
+    query = query.not("id", "in", `(${Array.from(enrolledIds).join(",")})`);
+  }
+
+  const { data, error } = await query;
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: data ?? [] };
+}
+
 // ===== Bulk Enrollment =====
 
 export async function saveBulkEnrollmentRecord(

@@ -307,7 +307,7 @@ export function readCopyClassesInput(formData: FormData): CopyClassesParseResult
   return { ok: true, command: parsed.data };
 }
 
-// ===== Student Enrollments =====
+// ===== Student Enrollments (single) =====
 
 export const saveEnrollmentSchema = z
   .object({

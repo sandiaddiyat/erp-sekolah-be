@@ -3,22 +3,14 @@ import type { Database } from "@/lib/database.types";
 import { serverError } from "@/lib/errors";
 import { errResult, okResult, type MutationResult } from "@/lib/result";
 import { slugify } from "@/lib/slug";
-import type { CurrentUser, SchoolStatus } from "@/lib/types";
-import type { SaveSchoolCommand } from "./schema";
+import type { SchoolStatus } from "@/lib/types";
+import type { SaveSchoolCommand, SaveSchoolProfileCommand } from "./schema";
 
-/**
- * Service layer fitur schools: berisi ATURAN MAINNYA SAJA — tanpa FormData,
- * tanpa revalidatePath, tanpa Next.js. Dibutuhkan dependency (client
- * Supabase) lewat parameter sehingga bisa di-mock saat testing.
- */
 export type SchoolMutationsDeps = {
-  /** Client RLS (membawa identitas user yang sedang login). */
   supabase: SupabaseClient<Database>;
-  /** Factory service-role client; melempar bila env belum diisi. */
   createAdmin: () => SupabaseClient<Database>;
 };
 
-/** Simpan atau ganti catatan internal sekolah. */
 async function saveSchoolNote(
   supabase: SupabaseClient<Database>,
   schoolId: string,
@@ -45,7 +37,6 @@ async function saveSchoolNote(
   return null;
 }
 
-/** Buat akun auth + profile admin pertama untuk sekolah yang baru dibuat. */
 async function createSchoolAdmin(
   deps: SchoolMutationsDeps,
   schoolId: string,
@@ -116,7 +107,6 @@ async function createSchoolAdmin(
   return null;
 }
 
-/** Ubah data sekolah yang sudah ada. */
 async function updateSchoolRecord(
   deps: SchoolMutationsDeps,
   command: SaveSchoolCommand
@@ -155,7 +145,6 @@ async function updateSchoolRecord(
   return okResult(`Data ${command.name} berhasil diperbarui.`);
 }
 
-/** Daftarkan sekolah baru via RPC create_school. */
 async function createSchoolRecord(
   deps: SchoolMutationsDeps,
   command: SaveSchoolCommand
@@ -197,7 +186,6 @@ async function createSchoolRecord(
   return okResult(`Sekolah ${command.name} berhasil didaftarkan.`);
 }
 
-/** Ubah status sekolah (aktif / non-aktif / suspend). */
 async function changeSchoolStatus(
   deps: Pick<SchoolMutationsDeps, "supabase">,
   schoolId: string,
@@ -225,7 +213,6 @@ async function changeSchoolStatus(
   );
 }
 
-/** Titik masuk utama: simpan sekolah (buat bila tanpa `id`, ubah bila dengan `id`). */
 export async function saveSchoolRecord(
   deps: SchoolMutationsDeps,
   command: SaveSchoolCommand
@@ -241,4 +228,53 @@ export async function setSchoolStatusRecord(
   status: SchoolStatus
 ): Promise<MutationResult> {
   return changeSchoolStatus(deps, schoolId, status);
+}
+
+// ============================
+// School profile save
+// ============================
+
+export async function saveSchoolProfileRecord(
+  deps: SchoolMutationsDeps,
+  command: SaveSchoolProfileCommand
+): Promise<MutationResult> {
+  const { supabase } = deps;
+  const schoolId = command.id;
+
+  if (!schoolId) {
+    return errResult("ID sekolah wajib diisi untuk memperbarui profil.");
+  }
+
+  const { data: target } = await supabase
+    .from("schools")
+    .select("id, name")
+    .eq("id", schoolId)
+    .maybeSingle();
+
+  if (!target) return errResult("Sekolah tidak ditemukan.");
+
+  const updatePayload = {
+      npsn: command.npsn || null,
+      name: command.name,
+      nis_nss_nds: command.nis_nss_nds || null,
+      address: command.alamat || null,
+      kode_pos: command.kode_pos || null,
+      phone: command.telepon || null,
+      kelurahan: command.kelurahan || null,
+      kecamatan: command.kecamatan || null,
+      kota: command.kota || null,
+      provinsi: command.provinsi || null,
+      website: command.website || null,
+      email: command.email || null,
+      dinas: command.dinas || null,
+    } as Database["public"]["Tables"]["schools"]["Update"];
+
+  const { error } = await supabase
+    .from("schools")
+    .update(updatePayload)
+    .eq("id", schoolId);
+
+  if (error) return errResult(serverError(error, "Gagal memperbarui profil sekolah."));
+
+  return okResult(`Profil ${command.name} berhasil diperbarui.`);
 }
