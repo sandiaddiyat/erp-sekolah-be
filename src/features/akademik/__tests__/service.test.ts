@@ -17,6 +17,7 @@ import {
   copyClassesFromPreviousYear,
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
+  fetchAvailableStudentsForAcademicYear,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -59,6 +60,14 @@ class QueryMock implements PromiseLike<Row> {
   }
   neq(column: string, value: unknown) {
     this.calls.push(`neq:${column}=${String(value)}`);
+    return this;
+  }
+  in(column: string, values: unknown[]) {
+    this.calls.push(`in:${column}=${values.join(",")}`);
+    return this;
+  }
+  not(column: string, operator: string, value: string) {
+    this.calls.push(`not:${column}:${operator}:${value}`);
     return this;
   }
   order() {
@@ -1048,6 +1057,80 @@ describe("saveEnrollmentRecord (service)", () => {
     if (!result.ok) {
       expect(result.error).toContain("sudah ada");
     }
+  });
+});
+
+describe("fetchAvailableStudentsForAcademicYear (service)", () => {
+  it("menggabungkan riwayat terbaru hanya dari tahun sebelumnya dan mengecualikan siswa yang sudah terdaftar", async () => {
+    const selectedYear = new QueryMock({ id: UUID, start_date: "2025-07-01" });
+    const priorYears = new QueryMock([{ id: UUID_2 }, { id: "33333333-3333-4333-8333-333333333333" }]);
+    const history = new QueryMock([
+      {
+        student_id: "student-1",
+        enrollment_date: "2024-07-01",
+        created_at: "2024-07-01T00:00:00Z",
+        academic_years: { name: "2024/2025", start_date: "2024-07-01" },
+        classes: { name: "8A" },
+      },
+      {
+        student_id: "student-1",
+        enrollment_date: "2023-07-01",
+        created_at: "2023-07-01T00:00:00Z",
+        academic_years: { name: "2023/2024", start_date: "2023-07-01" },
+        classes: { name: "7A" },
+      },
+    ]);
+    const currentEnrollments = new QueryMock([{ student_id: "already-enrolled" }]);
+    const students = new QueryMock([
+      { id: "student-1", nama_lengkap: "Siswa Lama", nis: "001", jenis_kelamin: "L" },
+      { id: "student-2", nama_lengkap: "Siswa Baru", nis: null, jenis_kelamin: null },
+    ]);
+    const queues = {
+      academic_years: [selectedYear, priorYears],
+      student_enrollments: [history, currentEnrollments],
+      students: [students],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchAvailableStudentsForAcademicYear({ supabase }, "school-1", UUID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([
+        {
+          id: "student-1",
+          nama_lengkap: "Siswa Lama",
+          nis: "001",
+          jenis_kelamin: "L",
+          latest_prior_academic_year: "2024/2025",
+          latest_prior_class: "8A",
+        },
+        {
+          id: "student-2",
+          nama_lengkap: "Siswa Baru",
+          nis: null,
+          jenis_kelamin: null,
+          latest_prior_academic_year: null,
+          latest_prior_class: null,
+        },
+      ]);
+    }
+    expect(selectedYear.calls).toContain("eq:school_id=school-1");
+    expect(history.calls).toContain(`in:academic_year_id=${UUID_2},33333333-3333-4333-8333-333333333333`);
+    expect(history.calls.some((call) => call.includes("student_enrollments_class_tenant_fkey"))).toBe(true);
+    expect(students.calls).toContain("not:id:in:(already-enrolled)");
+  });
+
+  it("menolak tahun ajaran yang tidak ditemukan untuk sekolah", async () => {
+    const selectedYear = new QueryMock(null, { message: "not found" });
+    const supabase = makeSupabase({ academic_years: () => selectedYear });
+
+    const result = await fetchAvailableStudentsForAcademicYear({ supabase }, "school-1", UUID);
+
+    expect(result).toEqual({ ok: false, error: "Tahun ajaran tidak ditemukan." });
+    expect(selectedYear.calls).toContain("eq:school_id=school-1");
   });
 });
 

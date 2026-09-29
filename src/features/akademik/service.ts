@@ -533,6 +533,15 @@ export async function deleteEnrollmentRecord(
 
 // ===== Bulk Enrollment Queries =====
 
+export type AvailableStudent = {
+  id: string;
+  nama_lengkap: string;
+  nis: string | null;
+  jenis_kelamin: string | null;
+  latest_prior_academic_year: string | null;
+  latest_prior_class: string | null;
+};
+
 export async function fetchActiveAcademicYears(
   deps: AkademikMutationsDeps,
   schoolId: string
@@ -553,29 +562,95 @@ export async function fetchAvailableStudentsForAcademicYear(
   deps: AkademikMutationsDeps,
   schoolId: string,
   academicYearId: string
-): Promise<{ ok: true; data: { id: string; nama_lengkap: string; nis: string | null; jenis_kelamin: string | null }[] } | { ok: false; error: string }> {
+): Promise<{ ok: true; data: AvailableStudent[] } | { ok: false; error: string }> {
+  if (!schoolId) return { ok: false, error: "Sekolah tidak ditemukan." };
+
+  const { data: selectedYear, error: selectedYearError } = await deps.supabase
+    .from("academic_years")
+    .select("id, start_date")
+    .eq("id", academicYearId)
+    .eq("school_id", schoolId)
+    .single();
+  if (selectedYearError || !selectedYear) {
+    return { ok: false, error: "Tahun ajaran tidak ditemukan." };
+  }
+
+  const { data: priorYears, error: priorYearsError } = await deps.supabase
+    .from("academic_years")
+    .select("id")
+    .eq("school_id", schoolId)
+    .lt("start_date", selectedYear.start_date);
+  if (priorYearsError) return { ok: false, error: priorYearsError.message };
+
+  const priorYearIds = (priorYears ?? []).map((year) => year.id);
+  const latestHistoryByStudent = new Map<string, {
+    yearName: string;
+    yearStartDate: string;
+    className: string | null;
+    enrollmentDate: string;
+    createdAt: string;
+  }>();
+
+  if (priorYearIds.length > 0) {
+    const { data: historyRows, error: historyError } = await deps.supabase
+      .from("student_enrollments")
+      .select("student_id, enrollment_date, created_at, classes!student_enrollments_class_tenant_fkey(name), academic_years!student_enrollments_year_tenant_fkey(name, start_date)")
+      .eq("school_id", schoolId)
+      .in("academic_year_id", priorYearIds);
+    if (historyError) return { ok: false, error: historyError.message };
+
+    for (const row of historyRows ?? []) {
+      const year = row.academic_years as unknown as { name: string; start_date: string } | null;
+      const schoolClass = row.classes as unknown as { name: string | null } | null;
+      if (!year) continue;
+      const current = latestHistoryByStudent.get(row.student_id);
+      const isLater = !current ||
+        year.start_date > current.yearStartDate ||
+        (year.start_date === current.yearStartDate && row.enrollment_date > current.enrollmentDate) ||
+        (year.start_date === current.yearStartDate && row.enrollment_date === current.enrollmentDate && row.created_at > current.createdAt);
+      if (isLater) {
+        latestHistoryByStudent.set(row.student_id, {
+          yearName: year.name,
+          yearStartDate: year.start_date,
+          className: schoolClass?.name ?? null,
+          enrollmentDate: row.enrollment_date,
+          createdAt: row.created_at,
+        });
+      }
+    }
+  }
+
   const { data: enrolledRows, error: enrollmentError } = await deps.supabase
     .from("student_enrollments")
     .select("student_id")
     .eq("school_id", schoolId)
     .eq("academic_year_id", academicYearId);
-
   if (enrollmentError) return { ok: false, error: enrollmentError.message };
   const enrolledIds = new Set((enrolledRows ?? []).map((row) => row.student_id));
+
   let query = deps.supabase
     .from("students")
     .select("id, nama_lengkap, nis, jenis_kelamin")
     .eq("school_id", schoolId)
     .eq("status", "aktif")
     .order("nama_lengkap", { ascending: true });
-
   if (enrolledIds.size > 0) {
     query = query.not("id", "in", `(${Array.from(enrolledIds).join(",")})`);
   }
 
   const { data, error } = await query;
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: data ?? [] };
+  return {
+    ok: true,
+    data: (data ?? []).map((student) => {
+      const history = latestHistoryByStudent.get(student.id);
+      return {
+        ...student,
+        latest_prior_academic_year: history?.yearName ?? null,
+        latest_prior_class: history?.className ?? null,
+      };
+    }),
+  };
 }
 
 // ===== Bulk Enrollment =====
