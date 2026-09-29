@@ -172,7 +172,7 @@ export const MAIN_NAV: NavItem[] = [
     group: "referensi",
   },
   {
-    title: "Pendaftaran Siswa",
+    title: "Penempatan Kelas",
     href: "/akademik/pendaftaran",
     icon: "siswa",
     permission: PERMISSIONS.academicsView,

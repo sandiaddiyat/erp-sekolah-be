@@ -18,6 +18,8 @@ import {
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
   fetchAvailableStudentsForAcademicYear,
+  saveBulkEnrollmentDiffRecord,
+  fetchClassRoster,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -1057,6 +1059,106 @@ describe("saveEnrollmentRecord (service)", () => {
     if (!result.ok) {
       expect(result.error).toContain("sudah ada");
     }
+  });
+});
+
+describe("saveBulkEnrollmentDiffRecord (service)", () => {
+  const BULK_INPUT = {
+    academic_year_id: UUID,
+    class_id: UUID_2,
+    enrollment_date: "2025-07-01",
+    exit_date: undefined,
+    status: "active" as const,
+  };
+
+  it("hapus siswa yang tidak dicentang dan menambah siswa baru", async () => {
+    const existing = new QueryMock([
+      { id: "enr-1", student_id: "student-1" },
+      { id: "enr-2", student_id: "student-2" },
+    ]);
+    const deleted = new QueryMock();
+    const inserted = new QueryMock();
+    const queues = { student_enrollments: [existing, deleted, inserted] };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await saveBulkEnrollmentDiffRecord(
+      { supabase },
+      makeUser(),
+      { ...BULK_INPUT, siswa_ids: ["student-2", "student-3"] }
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toBe("1 siswa ditambahkan, 1 siswa dikeluarkan dari kelas.");
+    }
+    expect(existing.calls).toContain("eq:school_id=school-1");
+    expect(deleted.calls).toContain("in:id=enr-1");
+    const payload = JSON.parse(inserted.calls.find((c) => c.startsWith("insert:"))!.slice("insert:".length));
+    expect(payload).toHaveLength(1);
+    expect(payload[0]).toMatchObject({ student_id: "student-3", class_id: UUID_2, school_id: "school-1" });
+  });
+
+  it("tidak melakukan query tulis jika tidak ada perubahan", async () => {
+    const existing = new QueryMock([{ id: "enr-1", student_id: "student-1" }]);
+    const supabase = makeSupabase({ student_enrollments: () => existing });
+
+    const result = await saveBulkEnrollmentDiffRecord(
+      { supabase },
+      makeUser(),
+      { ...BULK_INPUT, siswa_ids: ["student-1"] }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(existing.calls.some((c) => c.startsWith("insert:") || c === "delete")).toBe(false);
+  });
+});
+
+describe("fetchClassRoster (service)", () => {
+  it("mengembalikan anggota kelas dengan tahun ajaran dan nama kelas", async () => {
+    const classRow = new QueryMock({
+      name: "8A",
+      academic_years: { name: "2025/2026" },
+    });
+    const members = new QueryMock([{ student_id: "student-1" }]);
+    const students = new QueryMock([
+      { id: "student-1", nama_lengkap: "Siswa Satu", nis: "001", jenis_kelamin: "P" },
+    ]);
+    const queues = { classes: [classRow], student_enrollments: [members], students: [students] };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchClassRoster({ supabase }, "school-1", UUID, UUID_2);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([
+        {
+          id: "student-1",
+          nama_lengkap: "Siswa Satu",
+          nis: "001",
+          jenis_kelamin: "P",
+          latest_prior_academic_year: "2025/2026",
+          latest_prior_class: "8A",
+        },
+      ]);
+    }
+    expect(classRow.calls).toContain("eq:school_id=school-1");
+  });
+
+  it("mengembalikan daftar kosong bila kelas tidak punya anggota", async () => {
+    const classRow = new QueryMock({ name: "8A", academic_years: { name: "2025/2026" } });
+    const members = new QueryMock([]);
+    const queues = { classes: [classRow], student_enrollments: [members] };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchClassRoster({ supabase }, "school-1", UUID, UUID_2);
+
+    expect(result).toEqual({ ok: true, data: [] });
   });
 });
 

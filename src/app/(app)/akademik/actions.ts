@@ -21,7 +21,9 @@ import {
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
   saveBulkEnrollmentRecord,
+  saveBulkEnrollmentDiffRecord,
   fetchAvailableStudentsForAcademicYear,
+  fetchClassRoster,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -303,4 +305,32 @@ export async function saveBulkEnrollment(_prevState: FormState, formData: FormDa
 
   revalidateAkademik();
   return { success: result.message };
+}
+
+export async function saveBulkEnrollmentEdit(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const command = readBulkEnrollmentInput(formData);
+  if (!command.ok) return { error: command.error };
+
+  const supabase = await createClient();
+  const result = await saveBulkEnrollmentDiffRecord({ supabase }, guard.user, command.command);
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  return { success: result.message };
+}
+
+export async function fetchClassMembers(academicYearId: string, classId: string) {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { ok: false as const, error: guard.error };
+  if (!z.uuid().safeParse(academicYearId).success || !z.uuid().safeParse(classId).success) {
+    return { ok: false as const, error: "Data kelas tidak valid." };
+  }
+
+  const schoolId = guard.user.profile.school_id;
+  if (!schoolId) return { ok: false as const, error: "Sekolah tidak ditemukan." };
+  const supabase = await createClient();
+  return fetchClassRoster({ supabase }, schoolId, academicYearId, classId);
 }

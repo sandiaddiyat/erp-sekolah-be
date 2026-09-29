@@ -694,3 +694,114 @@ export async function saveBulkEnrollmentRecord(
 
   return okResult(`${siswa_ids.length} siswa berhasil didaftarkan.`);
 }
+
+export async function fetchClassRoster(
+  deps: AkademikMutationsDeps,
+  schoolId: string,
+  academicYearId: string,
+  classId: string
+): Promise<{ ok: true; data: AvailableStudent[] } | { ok: false; error: string }> {
+  if (!schoolId) return { ok: false, error: "Sekolah tidak ditemukan." };
+
+  const { data: classRow, error: classError } = await deps.supabase
+    .from("classes")
+    .select("name, academic_years!classes_academic_year_tenant_fkey(name)")
+    .eq("id", classId)
+    .eq("school_id", schoolId)
+    .single();
+  if (classError || !classRow) return { ok: false, error: "Kelas tidak ditemukan." };
+
+  const year = classRow.academic_years as unknown as { name: string } | null;
+
+  const { data: members, error: memberError } = await deps.supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId)
+    .eq("class_id", classId);
+  if (memberError) return { ok: false, error: memberError.message };
+
+  const memberIds = (members ?? []).map((row) => row.student_id);
+  if (memberIds.length === 0) return { ok: true, data: [] };
+
+  const { data: students, error: studentError } = await deps.supabase
+    .from("students")
+    .select("id, nama_lengkap, nis, jenis_kelamin")
+    .in("id", memberIds)
+    .eq("school_id", schoolId)
+    .order("nama_lengkap", { ascending: true });
+  if (studentError) return { ok: false, error: studentError.message };
+
+  return {
+    ok: true,
+    data: (students ?? []).map((student) => ({
+      ...student,
+      latest_prior_academic_year: year?.name ?? null,
+      latest_prior_class: classRow.name,
+    })),
+  };
+}
+
+export async function saveBulkEnrollmentDiffRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  payload: BulkEnrollmentInput
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  const { supabase } = deps;
+  const { academic_year_id, class_id, enrollment_date, exit_date, status, siswa_ids } = payload;
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("student_enrollments")
+    .select("id, student_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academic_year_id)
+    .eq("class_id", class_id);
+  if (existingError) return errResult(serverError(existingError, "Gagal membaca pendaftaran kelas."));
+
+  const existingIds = new Set((existingRows ?? []).map((row) => row.student_id));
+  const toRemove = (existingRows ?? [])
+    .filter((row) => !siswa_ids.includes(row.student_id))
+    .map((row) => row.id);
+  const toAdd = siswa_ids.filter((id) => !existingIds.has(id));
+
+  if (toRemove.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("student_enrollments")
+      .delete()
+      .in("id", toRemove)
+      .eq("school_id", schoolId);
+    if (deleteError) return errResult(serverError(deleteError, "Gagal mengeluarkan siswa dari kelas."));
+  }
+
+  if (toAdd.length > 0) {
+    const values = {
+      school_id: schoolId,
+      academic_year_id,
+      class_id,
+      enrollment_date,
+      exit_date: exit_date ?? null,
+      status,
+    };
+    const { error: insertError } = await supabase
+      .from("student_enrollments")
+      .insert(toAdd.map((student_id) => ({ ...values, student_id })));
+    if (insertError) {
+      const code = (insertError as { code?: string } | null)?.code;
+      const message = (insertError as { message?: string } | null)?.message ?? "";
+      if (code === "23505" || /duplicate key/i.test(message)) {
+        return errResult("Beberapa siswa sudah terdaftar di tahun ajaran ini.");
+      }
+      if (code === "23503" || /foreign key/i.test(message)) {
+        return errResult("Data yang dipilih tidak valid atau sudah tidak tersedia.");
+      }
+      return errResult(serverError(insertError, "Gagal menambahkan siswa ke kelas."));
+    }
+  }
+
+  return okResult(`${toAdd.length} siswa ditambahkan, ${toRemove.length} siswa dikeluarkan dari kelas.`);
+}
