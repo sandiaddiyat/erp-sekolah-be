@@ -12,6 +12,7 @@ import {
   PlusIcon,
   SearchIcon,
   Trash2Icon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +46,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
-import { saveEnrollment, deleteEnrollment } from "../actions";
+import { saveEnrollment, deleteEnrollment, saveBulkEnrollment } from "../actions";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -118,6 +120,7 @@ export function PendaftaranClient({
   const [filterStatus, setFilterStatus] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const studentById = useMemo(
     () => new Map(students.map((s) => [s.id, s.nama_lengkap])),
@@ -259,13 +262,23 @@ export function PendaftaranClient({
           </p>
         </div>
         {canManage ? (
-          <Button
-            onClick={openCreate}
-            className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
-          >
-            <PlusIcon data-icon="inline-start" className="size-4" />
-            Tambah Pendaftaran
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBulkOpen(true)}
+              className="h-9 rounded-[9px] border-[#e2ece5] bg-white px-4 text-[11px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+            >
+              <UsersIcon data-icon="inline-start" className="size-4" />
+              Tambah Massal
+            </Button>
+            <Button
+              onClick={openCreate}
+              className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
+            >
+              <PlusIcon data-icon="inline-start" className="size-4" />
+              Tambah Pendaftaran
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -698,6 +711,19 @@ export function PendaftaranClient({
             }}
           />
 
+          <BulkEnrollmentDialog
+            key={bulkOpen ? "bulk-open" : "bulk-closed"}
+            open={bulkOpen}
+            onOpenChange={setBulkOpen}
+            academicYears={academicYears}
+            classOptions={classOptions}
+            students={students}
+            onSaved={(message) => {
+              setBanner(message);
+              setBulkOpen(false);
+            }}
+          />
+
           <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -848,7 +874,7 @@ function FormDialog({
           {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
 
           <div
-            className="flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex-1 space-y-5 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={SCROLLBAR_HIDDEN_STYLE}
           >
             <div className="space-y-2">
@@ -972,6 +998,251 @@ function FormDialog({
                 className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-3.5 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]"
               >
                 {isSubmitting ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Simpan Pendaftaran"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Bulk Enrollment Dialog =====
+
+function BulkEnrollmentDialog({
+  open,
+  onOpenChange,
+  academicYears,
+  classOptions,
+  students,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  academicYears: AcademicYear[];
+  classOptions: { value: string; label: string }[];
+  students: Siswa[];
+  onSaved: (message: string) => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(saveBulkEnrollment, undefined);
+
+  useEffect(() => {
+    if (state?.success) {
+      onSaved(state.success);
+      onOpenChange(false);
+    } else if (state?.error) {
+      toast.error(state.error);
+    }
+  }, [state, onSaved, onOpenChange]);
+
+  const allSelected = selectedIds.size === students.length && students.length > 0;
+
+  const handleToggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(students.map((s) => s.id)));
+    }
+  };
+
+  const handleToggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    formData.delete("bulk-form");
+    for (const id of selectedIds) {
+      formData.append("siswa_ids", id);
+    }
+    formAction(formData);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(92vh,900px)] gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[680px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+        <form onSubmit={handleSubmit} className="flex h-full max-h-[min(92vh,900px)] flex-col">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">
+              Data akademik
+            </span>
+            <DialogTitle
+              className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Pendaftaran Massal
+            </DialogTitle>
+            <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">
+              Pilih siswa dan tetapkan metadata pendaftaran.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            className="flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={SCROLLBAR_HIDDEN_STYLE}
+          >
+            <div className="space-y-2">
+              <FieldLabel htmlFor="bulk-year" required>
+                Tahun Ajaran
+              </FieldLabel>
+              <select
+                id="bulk-year"
+                name="academic_year_id"
+                className={SELECT_CLASS}
+                required
+              >
+                <option value="">- pilih tahun ajaran -</option>
+                {academicYears.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel htmlFor="bulk-class" required>
+                Kelas
+              </FieldLabel>
+              <select
+                id="bulk-class"
+                name="class_id"
+                className={SELECT_CLASS}
+                required
+              >
+                <option value="">- pilih kelas -</option>
+                {classOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="bulk-enrollment-date" required>
+                  Tanggal Pendaftaran
+                </FieldLabel>
+                <Input
+                  id="bulk-enrollment-date"
+                  name="enrollment_date"
+                  type="date"
+                  defaultValue={new Date().toISOString().slice(0, 10)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="bulk-exit-date" optional>
+                  Tanggal Keluar
+                </FieldLabel>
+                <Input
+                  id="bulk-exit-date"
+                  name="exit_date"
+                  type="date"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel htmlFor="bulk-status" required>
+                Status
+              </FieldLabel>
+              <select
+                id="bulk-status"
+                name="status"
+                defaultValue="active"
+                className={SELECT_CLASS}
+                required
+              >
+                <option value="active">Aktif</option>
+                <option value="keluar">Keluar</option>
+                <option value="pindah">Pindah</option>
+                <option value="lulus">Lulus</option>
+              </select>
+            </div>
+
+            {/* Student multi-select table */}
+            <div>
+              <p className="mb-2 text-[10px] font-bold tracking-[.06em] uppercase text-[#4c9a77]">
+                Pilih Siswa ({selectedIds.size} terpilih)
+              </p>
+              <div className="overflow-hidden rounded-[10px] border border-[#e2ece5]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
+                      <TableHead className="w-10 px-3 py-2.5">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={handleToggleAll}
+                        />
+                      </TableHead>
+                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
+                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {students.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="h-24 px-3 py-3 text-center text-xs text-[#a0afa8]">
+                          Tidak ada data siswa.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      students.map((student) => {
+                        const checked = selectedIds.has(student.id);
+                        return (
+                          <TableRow
+                            key={student.id}
+                            className="cursor-pointer border-b border-[#f0f5f1] hover:bg-[#f6fbf7]"
+                            onClick={() => handleToggleOne(student.id)}
+                          >
+                            <TableCell className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() => handleToggleOne(student.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">
+                              {student.nama_lengkap}
+                            </TableCell>
+                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">
+                              {(student as Siswa & { nis?: string }).nis ?? "-"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[24px]">
+            <div className="flex w-full justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || selectedIds.size === 0}
+                className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-3.5 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]"
+              >
+                {isSubmitting ? "Menyimpan..." : `Simpan Pendaftaran (${selectedIds.size})`}
               </Button>
             </div>
           </DialogFooter>

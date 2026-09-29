@@ -11,6 +11,7 @@ import type {
   SaveGradeInput,
   SaveMajorInput,
   SaveRoomInput,
+  BulkEnrollmentInput,
 } from "./schema";
 
 /**
@@ -528,4 +529,46 @@ export async function deleteEnrollmentRecord(
     .eq("school_id", schoolId);
   if (error) return handleInsertError(error, "Gagal menghapus pendaftaran.");
   return okResult("Pendaftaran berhasil dihapus.");
+}
+
+// ===== Bulk Enrollment =====
+
+export async function saveBulkEnrollmentRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  payload: BulkEnrollmentInput
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  const { supabase } = deps;
+  const { academic_year_id, class_id, enrollment_date, exit_date, status, siswa_ids } = payload;
+
+  const values = {
+    school_id: schoolId,
+    academic_year_id,
+    class_id,
+    enrollment_date,
+    exit_date: exit_date ?? null,
+    status,
+  };
+
+  const rows = siswa_ids.map((student_id) => ({ ...values, student_id }));
+
+  const { error } = await supabase.from("student_enrollments").insert(rows);
+  if (error) {
+    const code = (error as { code?: string } | null)?.code;
+    const message = (error as { message?: string } | null)?.message ?? "";
+    if (code === "23505" || /duplicate key/i.test(message)) {
+      return errResult("Beberapa siswa sudah terdaftar di tahun ajaran ini.");
+    }
+    if (code === "23503" || /foreign key/i.test(message)) {
+      return errResult("Data yang dipilih tidak valid atau sudah tidak tersedia.");
+    }
+    return errResult(serverError(error, "Gagal mendaftarkan siswa."));
+  }
+
+  return okResult(`${siswa_ids.length} siswa berhasil didaftarkan.`);
 }

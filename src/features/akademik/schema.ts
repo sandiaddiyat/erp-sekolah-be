@@ -373,3 +373,69 @@ export function readSaveEnrollmentInput(
 
   return { ok: true, command: parsed.data };
 }
+
+// ===== Bulk Student Enrollments =====
+
+export const bulkEnrollmentSchema = z
+  .object({
+    academic_year_id: z
+      .string()
+      .trim()
+      .min(1, "Tahun ajaran wajib dipilih")
+      .refine((v) => z.uuid().safeParse(v).success, "Tahun ajaran tidak valid."),
+    class_id: z
+      .string()
+      .trim()
+      .min(1, "Kelas wajib dipilih")
+      .refine((v) => z.uuid().safeParse(v).success, "Kelas tidak valid."),
+    enrollment_date: z
+      .string()
+      .trim()
+      .min(1, "Tanggal pendaftaran wajib diisi")
+      .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v), "Format tanggal tidak valid."),
+    exit_date: optionalDate,
+    status: z
+      .enum(["active", "keluar", "pindah", "lulus"])
+      .default("active"),
+    siswa_ids: z
+      .array(z.string().refine((v) => z.uuid().safeParse(v).success, "Siswa tidak valid."))
+      .min(1, "Pilih minimal 1 siswa."),
+  })
+  .refine(
+    (data) =>
+      !data.exit_date ||
+      !data.enrollment_date ||
+      data.exit_date >= data.enrollment_date,
+    { message: "Tanggal keluar tidak boleh sebelum tanggal pendaftaran." }
+  );
+
+export type BulkEnrollmentInput = z.infer<typeof bulkEnrollmentSchema>;
+
+export type BulkEnrollmentParseResult =
+  | { ok: true; command: BulkEnrollmentInput }
+  | { ok: false; error: string };
+
+export function readBulkEnrollmentInput(
+  formData: FormData
+): BulkEnrollmentParseResult {
+  const rawIds = formData.getAll("siswa_ids");
+  const siswa_ids = rawIds.map(String);
+
+  const parsed = bulkEnrollmentSchema.safeParse({
+    academic_year_id: formData.get("academic_year_id") ?? "",
+    class_id: formData.get("class_id") ?? "",
+    enrollment_date: formData.get("enrollment_date") ?? "",
+    exit_date: formData.get("exit_date") ?? "",
+    status: formData.get("status") ?? "active",
+    siswa_ids,
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
+    };
+  }
+
+  return { ok: true, command: parsed.data };
+}
