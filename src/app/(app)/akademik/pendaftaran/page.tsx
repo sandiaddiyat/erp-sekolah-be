@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
 import { PendaftaranClient } from "./pendaftaran-client";
 
-export const metadata = { title: "Pendaftaran Siswa" };
+export const metadata = { title: "Penempatan Kelas" };
 
 export default async function PendaftaranPage() {
   const current = await requirePermission(PERMISSIONS.academicsView);
