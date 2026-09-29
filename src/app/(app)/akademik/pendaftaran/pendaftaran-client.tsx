@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, useTransition, useActionState } from "react";
+import { Fragment, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -615,8 +615,7 @@ export function PendaftaranClient({
                               <p className="mt-0.5 text-[10px] text-[#82978e]">{yearGroup.classes.length} kelas</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] font-semibold text-[#82978e]">Total Siswa</p>
-                              <p className="mt-0.5 text-sm font-bold tabular-nums text-[#315e4b]">{yearGroup.studentCount}</p>
+                              <p className="text-sm font-bold tabular-nums text-[#315e4b]">{yearGroup.studentCount}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -1177,14 +1176,18 @@ function BulkEnrollmentDialog({
   }
 
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(saveBulkEnrollment, undefined);
+  const handledState = useRef<FormState>(undefined);
 
-   useEffect(() => {
-    if (state?.success) {
+  useEffect(() => {
+    if (!state || state === handledState.current) return;
+    handledState.current = state;
+    if (state.success) {
+      toast.success(state.success);
       onSaved(state.success);
       onReset();
       bulkForm.reset();
       onOpenChange(false);
-    } else if (state?.error) {
+    } else if (state.error) {
       toast.error(state.error);
     }
   }, [state, onSaved, onReset, onOpenChange, bulkForm]);
