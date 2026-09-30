@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useActionState, useEffect, useMemo, useRef, useState, useTransition, startTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -44,8 +44,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
-import { fetchAvailableStudents, fetchClassMembers, deleteEnrollment, saveBulkEnrollment, saveBulkEnrollmentEdit } from "../actions";
-import type { AvailableStudent } from "@/features/akademik/service";
+import { fetchAvailableStudents, fetchEditModalStudents, deleteEnrollment, saveBulkEnrollment, saveBulkEnrollmentEdit } from "../actions";
+import type { EditModalStudent } from "@/features/akademik/service";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -876,7 +876,7 @@ function BulkEnrollmentDialog({
 
   const watchedYear = bulkForm.watch("academic_year_id");
   const selectedYear = academicYears.find((year) => year.id === watchedYear);
-  const [availableStudents, setAvailableStudents] = useState<AvailableStudent[]>([]);
+  const [availableStudents, setAvailableStudents] = useState<EditModalStudent[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
   const [priorYearFilter, setPriorYearFilter] = useState("");
@@ -902,7 +902,7 @@ function BulkEnrollmentDialog({
         toast.error(result.error);
         setAvailableStudents([]);
       } else {
-        setAvailableStudents(result.data);
+        setAvailableStudents(result.data.map((s) => ({ ...s, registered: false })));
       }
       setIsLoadingStudents(false);
     });
@@ -973,14 +973,17 @@ function BulkEnrollmentDialog({
     if (!initialData || !watchedYear || !watchedClassId) return;
     let active = true;
     setIsLoadingStudents(true);
-    void fetchClassMembers(watchedYear, watchedClassId).then((result) => {
+    void fetchEditModalStudents(watchedYear, watchedClassId).then((result) => {
       if (!active) return;
       if (!result.ok) {
         toast.error(result.error);
         setAvailableStudents([]);
       } else {
         setAvailableStudents(result.data);
-        bulkForm.setValue("siswa_ids", result.data.map((student) => student.id));
+        bulkForm.setValue(
+          "siswa_ids",
+          result.data.filter((s) => s.registered).map((s) => s.id)
+        );
       }
       setIsLoadingStudents(false);
     });
@@ -1031,7 +1034,9 @@ function BulkEnrollmentDialog({
     formData.append("exit_date", data.exit_date);
     formData.append("status", data.status);
     data.siswa_ids.forEach((id) => formData.append("siswa_ids", id));
-    formAction(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   });
 
   return (
@@ -1205,15 +1210,16 @@ function BulkEnrollmentDialog({
                         <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Tahun Ajaran Terakhir</TableHead>
                         <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Kelas Terakhir</TableHead>
                         <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
+                        <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoadingStudents ? (
-                        <TableRow><TableCell colSpan={6} className="h-24 text-center text-xs text-[#a0afa8]">Memuat siswa yang belum terdaftar...</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="h-24 text-center text-xs text-[#a0afa8]">Memuat siswa yang belum terdaftar...</TableCell></TableRow>
                       ) : availableStudents.length === 0 ? (
-                        <TableRow><TableCell colSpan={6} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang tersedia pada tahun ajaran ini.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang tersedia pada tahun ajaran ini.</TableCell></TableRow>
                       ) : filteredStudents.length === 0 ? (
-                        <TableRow><TableCell colSpan={6} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang cocok dengan pencarian atau filter.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="h-24 text-center text-xs text-[#a0afa8]">Tidak ada siswa yang cocok dengan pencarian atau filter.</TableCell></TableRow>
                       ) : filteredStudents.map((student) => {
                         const checked = selectedIds.includes(student.id);
                         return (
@@ -1224,6 +1230,13 @@ function BulkEnrollmentDialog({
                             <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.latest_prior_academic_year ?? "-"}</TableCell>
                             <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.latest_prior_class ?? "-"}</TableCell>
                             <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student.jenis_kelamin === "L" ? "Laki-laki" : student.jenis_kelamin === "P" ? "Perempuan" : "-"}</TableCell>
+                            <TableCell className="px-3 py-2.5">
+                              {student.registered ? (
+                                <Badge variant="secondary">Sudah Terdaftar</Badge>
+                              ) : (
+                                <Badge className="bg-[#e6f4ee] text-[#185743]">Belum Terdaftar</Badge>
+                              )}
+                            </TableCell>
                           </TableRow>
                         );
                       })}
