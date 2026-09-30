@@ -284,13 +284,7 @@ export function AcademicYearClient({
             ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 shrink-0 border-[#e2ece5] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
-                  />
-                }
+                className="inline-flex h-8 gap-1.5 shrink-0 items-center justify-center rounded-[12px] border border-[#e2ece5] bg-white px-2.5 text-[0.8rem] font-medium text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254] transition-all outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <Columns3Icon className="size-4 text-[#4d8669]" />
                 <span className="text-[#537467]">Kolom</span>

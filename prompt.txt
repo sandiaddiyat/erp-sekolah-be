@@ -1,6 +1,8 @@
-buat issue.md yang berisi perencanaan yang nanti akan di implementasikan oleh junior programmer atau ai model yang lebih murah.
+buat file issue.md yang berisi perencanaan yang nanti akan di implementasikan oleh junior programmer atau ai model yang lebih murah.
 
 planning berisi :
-Rekomendasi Langkah Selanjutnya yang belum dilakukan
+di form Pendaftaran Siswa (http://192.168.1.120:3000/akademik/pendaftaran)
+jika saat user melakukan perubahan, ingin menambahkan siswa kedalam kelas tersebut
 
+desain tampilan mengikuti standar fitur seperti form lain.
 jelaskan tahapan-tahapan yang akan dilakukan dan akan di implementasikan oleh junior programmer atau ai model yang lebih murah
