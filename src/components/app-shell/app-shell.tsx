@@ -232,10 +232,11 @@ export function AppShell({
       <div className="flex min-h-svh min-w-0 flex-col">
         <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-2 border-b border-[#e5eee8] bg-white/82 px-4.5 backdrop-blur lg:px-8 dark:border-[#22332c] dark:bg-[#0f1f1a]/80">
           <Sheet>
-            <SheetTrigger className="lg:hidden">
-              <Button variant="ghost" size="icon" aria-label="Buka menu">
-                <Menu />
-              </Button>
+            <SheetTrigger
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden"
+              aria-label="Buka menu"
+            >
+              <Menu className="size-4" />
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
               <div className="flex h-full flex-col">

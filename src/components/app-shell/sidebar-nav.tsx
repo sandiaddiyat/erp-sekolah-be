@@ -180,9 +180,9 @@ export function MobileNav(props: SidebarNavProps) {
   return (
     <Sheet>
       <SheetTrigger
-        render={<Button variant="ghost" size="icon" className="lg:hidden" />}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden"
       >
-        <MenuIcon />
+        <MenuIcon className="size-4" />
         <span className="sr-only">Buka menu</span>
       </SheetTrigger>
       <SheetContent side="left" className="w-[258px] p-0">
