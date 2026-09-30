@@ -52,6 +52,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -176,7 +182,7 @@ export function SiswaClient({
 
     if (needle) {
       result = result.filter((item) =>
-        [item.nama_lengkap, item.nis ?? "", item.nisn ?? "", item.nama_ayah ?? "", item.nama_ibu ?? "", item.nama_wali ?? "", item.alamat ?? "", item.telepon_wali ?? ""]
+        [item.nama_lengkap, item.nis ?? "", item.nisn ?? "", item.nama_ayah ?? "", item.nama_ibu ?? "", item.nama_wali ?? "", item.alamat ?? "", item.no_telp_wali ?? ""]
           .join(" ")
           .toLowerCase()
           .includes(needle)
@@ -250,8 +256,8 @@ export function SiswaClient({
           valB = b.nama_wali ?? "";
           break;
         case "phone":
-          valA = a.telepon_wali ?? "";
-          valB = b.telepon_wali ?? "";
+          valA = a.no_telp_wali ?? "";
+          valB = b.no_telp_wali ?? "";
           break;
         case "status":
           valA = a.status ?? "";
@@ -875,7 +881,7 @@ export function SiswaClient({
                               key={col.key}
                               className="px-3.5 py-3 font-mono text-[10px] text-[#7d9389] align-middle whitespace-nowrap"
                             >
-                              {item.telepon_wali || "-"}
+                              {item.no_telp_wali || "-"}
                             </TableCell>
                           );
                         case "status":
@@ -1198,168 +1204,410 @@ function SiswaFormDialog({
             </div>
           </div>
 
-          {/* ===== Identitas ===== */}
-          <h3 className="mb-1 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Identitas</h3>
-          <p className="mb-4 text-[10px] text-[#93a49c]">Data pribadi siswa.</p>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <FieldLabel htmlFor="nama_lengkap" required>Nama Lengkap</FieldLabel>
-              <Input
-                id="nama_lengkap"
-                name="nama_lengkap"
-                defaultValue={editing?.nama_lengkap ?? ""}
-                placeholder="Contoh: Budi Santoso"
-                required
-                autoFocus
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
+          <Tabs defaultValue="identitas" className="w-full">
+            <TabsList className="mb-4 grid w-full grid-cols-4">
+              <TabsTrigger value="identitas">Data Diri</TabsTrigger>
+              <TabsTrigger value="alamat">Alamat</TabsTrigger>
+              <TabsTrigger value="orangtua">Orang Tua</TabsTrigger>
+              <TabsTrigger value="wali">Wali</TabsTrigger>
+            </TabsList>
+
+            {/* ===== Tab 1: Data Diri ===== */}
+            <TabsContent value="identitas" className="space-y-0">
+              <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <FieldLabel htmlFor="nama_lengkap" required>Nama Lengkap</FieldLabel>
+                  <Input
+                    id="nama_lengkap"
+                    name="nama_lengkap"
+                    defaultValue={editing?.nama_lengkap ?? ""}
+                    placeholder="Contoh: Budi Santoso"
+                    required
+                    autoFocus
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="nama_panggilan">Nama Panggilan</FieldLabel>
+                  <Input
+                    id="nama_panggilan"
+                    name="nama_panggilan"
+                    defaultValue={editing?.nama_panggilan ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="nis" required>NIS</FieldLabel>
+                  <Input
+                    id="nis"
+                    name="nis"
+                    defaultValue={editing?.nis ?? ""}
+                    placeholder="Nomor Induk Siswa"
+                    required
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="nisn">NISN</FieldLabel>
+                  <Input
+                    id="nisn"
+                    name="nisn"
+                    defaultValue={editing?.nisn ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="jenis_kelamin" required>Jenis Kelamin</FieldLabel>
+                  <select
+                    id="jenis_kelamin"
+                    name="jenis_kelamin"
+                    defaultValue={editing?.jenis_kelamin ?? ""}
+                    required
+                    className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  >
+                    <option value="">- tidak diisi -</option>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="tempat_lahir" required>Tempat Lahir</FieldLabel>
+                  <Input
+                    id="tempat_lahir"
+                    name="tempat_lahir"
+                    defaultValue={editing?.tempat_lahir ?? ""}
+                    required
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="tanggal_lahir" required>Tanggal Lahir</FieldLabel>
+                  <Input
+                    id="tanggal_lahir"
+                    name="tanggal_lahir"
+                    type="date"
+                    defaultValue={editing?.tanggal_lahir ?? ""}
+                    required
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="agama_id">Agama <span className="text-[#93a49c]">(opsional)</span></FieldLabel>
+                  <select
+                    id="agama_id"
+                    name="agama_id"
+                    defaultValue={editing?.agama_id ?? ""}
+                    className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  >
+                    <option value="">- tidak diisi -</option>
+                    {selectOptions(options.agama, "nama_agama").map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="status_dalam_keluarga">Status dalam Keluarga</FieldLabel>
+                  <Input
+                    id="status_dalam_keluarga"
+                    name="status_dalam_keluarga"
+                    defaultValue={editing?.status_dalam_keluarga ?? ""}
+                    placeholder="Contoh: Kandung"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="anak_ke">Anak ke-</FieldLabel>
+                  <Input
+                    id="anak_ke"
+                    name="anak_ke"
+                    type="number"
+                    min={1}
+                    defaultValue={editing?.anak_ke ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ===== Tab 2: Alamat ===== */}
+            <TabsContent value="alamat" className="space-y-0">
+              <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <FieldLabel htmlFor="alamat">Alamat</FieldLabel>
+                  <Input
+                    id="alamat"
+                    name="alamat"
+                    defaultValue={editing?.alamat ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_dusun">Dusun</FieldLabel>
+                  <Input
+                    id="alamat_dusun"
+                    name="alamat_dusun"
+                    defaultValue={editing?.alamat_dusun ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_rt">RT</FieldLabel>
+                  <Input
+                    id="alamat_rt"
+                    name="alamat_rt"
+                    defaultValue={editing?.alamat_rt ?? ""}
+                    placeholder="01"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_rw">RW</FieldLabel>
+                  <Input
+                    id="alamat_rw"
+                    name="alamat_rw"
+                    defaultValue={editing?.alamat_rw ?? ""}
+                    placeholder="01"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_desa">Desa / Kelurahan</FieldLabel>
+                  <Input
+                    id="alamat_desa"
+                    name="alamat_desa"
+                    defaultValue={editing?.alamat_desa ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_kecamatan">Kecamatan</FieldLabel>
+                  <Input
+                    id="alamat_kecamatan"
+                    name="alamat_kecamatan"
+                    defaultValue={editing?.alamat_kecamatan ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <FieldLabel htmlFor="alamat_kabupaten_kota">Kabupaten / Kota</FieldLabel>
+                  <Input
+                    id="alamat_kabupaten_kota"
+                    name="alamat_kabupaten_kota"
+                    defaultValue={editing?.alamat_kabupaten_kota ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ===== Tab 3: Orang Tua ===== */}
+            <TabsContent value="orangtua" className="space-y-0">
+              <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="nama_ayah">Nama Ayah</FieldLabel>
+                  <Input
+                    id="nama_ayah"
+                    name="nama_ayah"
+                    defaultValue={editing?.nama_ayah ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="pekerjaan_ayah">Pekerjaan Ayah</FieldLabel>
+                  <Input
+                    id="pekerjaan_ayah"
+                    name="pekerjaan_ayah"
+                    defaultValue={editing?.pekerjaan_ayah ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="nama_ibu">Nama Ibu</FieldLabel>
+                  <Input
+                    id="nama_ibu"
+                    name="nama_ibu"
+                    defaultValue={editing?.nama_ibu ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="pekerjaan_ibu">Pekerjaan Ibu</FieldLabel>
+                  <Input
+                    id="pekerjaan_ibu"
+                    name="pekerjaan_ibu"
+                    defaultValue={editing?.pekerjaan_ibu ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="no_telp_rumah">Telepon Rumah</FieldLabel>
+                  <Input
+                    id="no_telp_rumah"
+                    name="no_telp_rumah"
+                    defaultValue={editing?.no_telp_rumah ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+              </div>
+              <h3 className="mb-1 mt-4 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat Orang Tua</h3>
+              <p className="mb-4 text-[10px] text-[#93a49c]">Alamat lengkap orang tua siswa.</p>
+              <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_ortu_dusun">Dusun</FieldLabel>
+                  <Input
+                    id="alamat_ortu_dusun"
+                    name="alamat_ortu_dusun"
+                    defaultValue={editing?.alamat_ortu_dusun ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_ortu_rt">RT</FieldLabel>
+                  <Input
+                    id="alamat_ortu_rt"
+                    name="alamat_ortu_rt"
+                    defaultValue={editing?.alamat_ortu_rt ?? ""}
+                    placeholder="01"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_ortu_rw">RW</FieldLabel>
+                  <Input
+                    id="alamat_ortu_rw"
+                    name="alamat_ortu_rw"
+                    defaultValue={editing?.alamat_ortu_rw ?? ""}
+                    placeholder="01"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_ortu_desa">Desa / Kelurahan</FieldLabel>
+                  <Input
+                    id="alamat_ortu_desa"
+                    name="alamat_ortu_desa"
+                    defaultValue={editing?.alamat_ortu_desa ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_ortu_kecamatan">Kecamatan</FieldLabel>
+                  <Input
+                    id="alamat_ortu_kecamatan"
+                    name="alamat_ortu_kecamatan"
+                    defaultValue={editing?.alamat_ortu_kecamatan ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <FieldLabel htmlFor="alamat_ortu_kabupaten_kota">Kabupaten / Kota</FieldLabel>
+                  <Input
+                    id="alamat_ortu_kabupaten_kota"
+                    name="alamat_ortu_kabupaten_kota"
+                    defaultValue={editing?.alamat_ortu_kabupaten_kota ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ===== Tab 4: Wali ===== */}
+            <TabsContent value="wali" className="space-y-0">
+              <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="nama_wali">Nama Wali</FieldLabel>
+                  <Input
+                    id="nama_wali"
+                    name="nama_wali"
+                    defaultValue={editing?.nama_wali ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="pekerjaan_wali">Pekerjaan Wali</FieldLabel>
+                  <Input
+                    id="pekerjaan_wali"
+                    name="pekerjaan_wali"
+                    defaultValue={editing?.pekerjaan_wali ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="no_telp_wali">Telepon Wali</FieldLabel>
+                  <Input
+                    id="no_telp_wali"
+                    name="no_telp_wali"
+                    defaultValue={editing?.no_telp_wali ?? ""}
+                    placeholder="08xx"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+              </div>
+              <h3 className="mb-1 mt-4 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat Wali</h3>
+              <p className="mb-4 text-[10px] text-[#93a49c]">Alamat lengkap wali siswa.</p>
+              <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_wali_dusun">Dusun</FieldLabel>
+                  <Input
+                    id="alamat_wali_dusun"
+                    name="alamat_wali_dusun"
+                    defaultValue={editing?.alamat_wali_dusun ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_wali_rt">RT</FieldLabel>
+                  <Input
+                    id="alamat_wali_rt"
+                    name="alamat_wali_rt"
+                    defaultValue={editing?.alamat_wali_rt ?? ""}
+                    placeholder="01"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_wali_rw">RW</FieldLabel>
+                  <Input
+                    id="alamat_wali_rw"
+                    name="alamat_wali_rw"
+                    defaultValue={editing?.alamat_wali_rw ?? ""}
+                    placeholder="01"
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="alamat_wali_desa">Desa / Kelurahan</FieldLabel>
+                  <Input
+                    id="alamat_wali_desa"
+                    name="alamat_wali_desa"
+                    defaultValue={editing?.alamat_wali_desa ?? ""}
+                    className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ===== Status ===== */}
+            <h3 className="mb-1 mt-4 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Status</h3>
+            <p className="mb-4 text-[10px] text-[#93a49c]">Status kehadiran siswa.</p>
             <div className="space-y-2">
-              <FieldLabel htmlFor="nis" required>NIS</FieldLabel>
-              <Input
-                id="nis"
-                name="nis"
-                defaultValue={editing?.nis ?? ""}
-                placeholder="Nomor Induk Siswa"
-                required
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel htmlFor="nisn">NISN</FieldLabel>
-              <Input
-                id="nisn"
-                name="nisn"
-                defaultValue={editing?.nisn ?? ""}
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel htmlFor="jenis_kelamin" required>Jenis Kelamin</FieldLabel>
+              <FieldLabel htmlFor="status_select">Status</FieldLabel>
               <select
-                id="jenis_kelamin"
-                name="jenis_kelamin"
-                defaultValue={editing?.jenis_kelamin ?? ""}
-                required
+                id="status_select"
+                name="status"
+                defaultValue={editing?.status ?? "aktif"}
                 className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
               >
-                <option value="">- tidak diisi -</option>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
+                <option value="aktif">Aktif</option>
+                <option value="lulus">Lulus</option>
+                <option value="pindah">Pindah</option>
+                <option value="keluar">Keluar</option>
               </select>
             </div>
-            <div className="space-y-2">
-              <FieldLabel htmlFor="tempat_lahir" required>Tempat Lahir</FieldLabel>
-              <Input
-                id="tempat_lahir"
-                name="tempat_lahir"
-                defaultValue={editing?.tempat_lahir ?? ""}
-                required
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel htmlFor="tanggal_lahir" required>Tanggal Lahir</FieldLabel>
-              <Input
-                id="tanggal_lahir"
-                name="tanggal_lahir"
-                type="date"
-                defaultValue={editing?.tanggal_lahir ?? ""}
-                required
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <FieldLabel htmlFor="agama_id">Agama <span className="text-[#93a49c]">(opsional)</span></FieldLabel>
-              <select
-                id="agama_id"
-                name="agama_id"
-                defaultValue={editing?.agama_id ?? ""}
-                className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              >
-                <option value="">- tidak diisi -</option>
-                {selectOptions(options.agama, "nama_agama").map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          </Tabs>
 
-          {/* ===== Wali ===== */}
-          <h3 className="mb-1 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Wali</h3>
-          <p className="mb-4 text-[10px] text-[#93a49c]">Data kontak wali siswa.</p>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <FieldLabel htmlFor="nama_ayah">Nama Ayah</FieldLabel>
-              <Input
-                id="nama_ayah"
-                name="nama_ayah"
-                defaultValue={editing?.nama_ayah ?? ""}
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel htmlFor="nama_ibu">Nama Ibu</FieldLabel>
-              <Input
-                id="nama_ibu"
-                name="nama_ibu"
-                defaultValue={editing?.nama_ibu ?? ""}
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <FieldLabel htmlFor="nama_wali">Nama Wali</FieldLabel>
-              <Input
-                id="nama_wali"
-                name="nama_wali"
-                defaultValue={editing?.nama_wali ?? ""}
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <FieldLabel htmlFor="telepon_wali">Telepon Wali</FieldLabel>
-              <Input
-                id="telepon_wali"
-                name="telepon_wali"
-                defaultValue={editing?.telepon_wali ?? ""}
-                placeholder="08xx"
-                className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              />
-            </div>
-          </div>
-
-          {/* ===== Alamat ===== */}
-          <h3 className="mb-1 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat</h3>
-          <p className="mb-4 text-[10px] text-[#93a49c]">Alamat tempat tinggal siswa.</p>
-          <div className="mb-6 space-y-2">
-            <FieldLabel htmlFor="alamat">Alamat</FieldLabel>
-            <Input
-              id="alamat"
-              name="alamat"
-              defaultValue={editing?.alamat ?? ""}
-              className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-            />
-          </div>
-
-          {/* ===== Status ===== */}
-          <h3 className="mb-1 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Status</h3>
-          <p className="mb-4 text-[10px] text-[#93a49c]">Status kehadiran siswa.</p>
-          <div className="space-y-2">
-            <FieldLabel htmlFor="status_select">Status</FieldLabel>
-            <select
-              id="status_select"
-              name="status"
-              defaultValue={editing?.status ?? "aktif"}
-              className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-            >
-              <option value="aktif">Aktif</option>
-              <option value="lulus">Lulus</option>
-              <option value="pindah">Pindah</option>
-              <option value="keluar">Keluar</option>
-            </select>
-           </div>
           </div>
 
           <DialogFooter>
@@ -1455,6 +1703,7 @@ function SiswaDetailDialog({
             <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
               <DetailRow label="NIS" value={siswa.nis} />
               <DetailRow label="NISN" value={siswa.nisn} />
+              <DetailRow label="Nama Panggilan" value={siswa.nama_panggilan} />
               <DetailRow
                 label="Jenis Kelamin"
                 value={
@@ -1468,19 +1717,50 @@ function SiswaDetailDialog({
               <DetailRow label="Tempat Lahir" value={siswa.tempat_lahir} />
               <DetailRow label="Tanggal Lahir" value={siswa.tanggal_lahir} />
               <DetailRow label="Agama" value={agamaName} />
+              <DetailRow label="Status dalam Keluarga" value={siswa.status_dalam_keluarga} />
+              <DetailRow label="Anak ke-" value={siswa.anak_ke != null ? String(siswa.anak_ke) : null} />
+            </dl>
+
+            <h3 className="mt-6 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
+              <DetailRow label="Alamat" value={siswa.alamat} />
+              <DetailRow label="Dusun" value={siswa.alamat_dusun} />
+              <DetailRow label="RT / RW" value={siswa.alamat_rt && siswa.alamat_rw ? `${siswa.alamat_rt} / ${siswa.alamat_rw}` : null} />
+              <DetailRow label="Desa / Kelurahan" value={siswa.alamat_desa} />
+              <DetailRow label="Kecamatan" value={siswa.alamat_kecamatan} />
+              <DetailRow label="Kabupaten / Kota" value={siswa.alamat_kabupaten_kota} />
+            </dl>
+
+            <h3 className="mt-6 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Orang Tua</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
+              <DetailRow label="Nama Ayah" value={siswa.nama_ayah} />
+              <DetailRow label="Pekerjaan Ayah" value={siswa.pekerjaan_ayah} />
+              <DetailRow label="Nama Ibu" value={siswa.nama_ibu} />
+              <DetailRow label="Pekerjaan Ibu" value={siswa.pekerjaan_ibu} />
+              <DetailRow label="Telepon Rumah" value={siswa.no_telp_rumah} />
+            </dl>
+
+            <h3 className="mt-6 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat Orang Tua</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
+              <DetailRow label="Dusun" value={siswa.alamat_ortu_dusun} />
+              <DetailRow label="RT / RW" value={siswa.alamat_ortu_rt && siswa.alamat_ortu_rw ? `${siswa.alamat_ortu_rt} / ${siswa.alamat_ortu_rw}` : null} />
+              <DetailRow label="Desa / Kelurahan" value={siswa.alamat_ortu_desa} />
+              <DetailRow label="Kecamatan" value={siswa.alamat_ortu_kecamatan} />
+              <DetailRow label="Kabupaten / Kota" value={siswa.alamat_ortu_kabupaten_kota} />
             </dl>
 
             <h3 className="mt-6 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Wali</h3>
             <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
-              <DetailRow label="Nama Ayah" value={siswa.nama_ayah} />
-              <DetailRow label="Nama Ibu" value={siswa.nama_ibu} />
               <DetailRow label="Nama Wali" value={siswa.nama_wali} />
-              <DetailRow label="Telepon Wali" value={siswa.telepon_wali} />
+              <DetailRow label="Pekerjaan Wali" value={siswa.pekerjaan_wali} />
+              <DetailRow label="Telepon Wali" value={siswa.no_telp_wali} />
             </dl>
 
-            <h3 className="mt-6 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat</h3>
-            <dl className="mt-3 grid grid-cols-1 gap-x-5 gap-y-4">
-              <DetailRow label="Alamat" value={siswa.alamat} />
+            <h3 className="mt-6 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat Wali</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
+              <DetailRow label="Dusun" value={siswa.alamat_wali_dusun} />
+              <DetailRow label="RT / RW" value={siswa.alamat_wali_rt && siswa.alamat_wali_rw ? `${siswa.alamat_wali_rt} / ${siswa.alamat_wali_rw}` : null} />
+              <DetailRow label="Desa / Kelurahan" value={siswa.alamat_wali_desa} />
             </dl>
           </div>
         ) : null}
