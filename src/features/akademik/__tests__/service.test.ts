@@ -20,6 +20,7 @@ import {
   fetchAvailableStudentsForAcademicYear,
   saveBulkEnrollmentDiffRecord,
   fetchClassRoster,
+  fetchClassRosterWithAvailable,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -1159,6 +1160,138 @@ describe("fetchClassRoster (service)", () => {
     const result = await fetchClassRoster({ supabase }, "school-1", UUID, UUID_2);
 
     expect(result).toEqual({ ok: true, data: [] });
+  });
+});
+
+describe("fetchClassRosterWithAvailable (service)", () => {
+  it("menggabungkan siswa terdaftar dan bebas dengan flag registered", async () => {
+    const classRow = new QueryMock({
+      name: "8A",
+      academic_years: { name: "2025/2026" },
+    });
+    const members = new QueryMock([{ student_id: "student-1" }]);
+    const rosterStudents = new QueryMock([
+      { id: "student-1", nama_lengkap: "Siswa Satu", nis: "001", jenis_kelamin: "P" },
+    ]);
+    const selectedYear = new QueryMock({ id: UUID, start_date: "2025-07-01" });
+    const priorYears = new QueryMock([{ id: UUID_2 }]);
+    const history = new QueryMock([]);
+    const currentEnrollments = new QueryMock([{ student_id: "student-1" }]);
+    const freeStudents = new QueryMock([
+      { id: "student-2", nama_lengkap: "Siswa Dua", nis: null, jenis_kelamin: null },
+    ]);
+
+    const queues = {
+      classes: [classRow],
+      student_enrollments: [members, history, currentEnrollments],
+      students: [rosterStudents, freeStudents],
+      academic_years: [selectedYear, priorYears],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchClassRosterWithAvailable({ supabase }, "school-1", UUID, UUID_2);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toHaveLength(2);
+      expect(result.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "student-1", registered: true, latest_prior_class: "8A" }),
+          expect.objectContaining({ id: "student-2", registered: false }),
+        ])
+      );
+      // sorted by nama_lengkap: "Siswa Dua" < "Siswa Satu"
+      expect(result.data[0].id).toBe("student-2");
+      expect(result.data[1].id).toBe("student-1");
+    }
+  });
+
+  it("mengembalikan hanya yang terdaftar bila tidak ada siswa bebas", async () => {
+    const classRow = new QueryMock({
+      name: "8A",
+      academic_years: { name: "2025/2026" },
+    });
+    const members = new QueryMock([{ student_id: "student-1" }]);
+    const rosterStudents = new QueryMock([
+      { id: "student-1", nama_lengkap: "Siswa Satu", nis: "001", jenis_kelamin: "P" },
+    ]);
+    const selectedYear = new QueryMock({ id: UUID, start_date: "2025-07-01" });
+    const priorYears = new QueryMock([{ id: UUID_2 }]);
+    const history = new QueryMock([]);
+    const currentEnrollments = new QueryMock([{ student_id: "student-1" }]);
+    const freeStudents = new QueryMock([]);
+
+    const queues = {
+      classes: [classRow],
+      student_enrollments: [members, history, currentEnrollments],
+      students: [rosterStudents, freeStudents],
+      academic_years: [selectedYear, priorYears],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchClassRosterWithAvailable({ supabase }, "school-1", UUID, UUID_2);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([
+        {
+          id: "student-1",
+          nama_lengkap: "Siswa Satu",
+          nis: "001",
+          jenis_kelamin: "P",
+          latest_prior_academic_year: "2025/2026",
+          latest_prior_class: "8A",
+          registered: true,
+        },
+      ]);
+    }
+  });
+
+  it("mengembalikan hanya yang bebas bila kelas kosong", async () => {
+    const classRow = new QueryMock({
+      name: "9B",
+      academic_years: { name: "2025/2026" },
+    });
+    // fetchClassRoster: members empty → returns [] early (no students query from roster)
+    const members = new QueryMock([]);
+    const selectedYear = new QueryMock({ id: UUID, start_date: "2025-07-01" });
+    // No prior years → history query skipped
+    const priorYears = new QueryMock([]);
+    const currentEnrollments = new QueryMock([]);
+    const freeStudents = new QueryMock([
+      { id: "student-2", nama_lengkap: "Siswa Bebas", nis: null, jenis_kelamin: null },
+    ]);
+
+    const queues = {
+      classes: [classRow],
+      student_enrollments: [members, currentEnrollments],
+      students: [freeStudents],
+      academic_years: [selectedYear, priorYears],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchClassRosterWithAvailable({ supabase }, "school-1", UUID, UUID_2);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([
+        {
+          id: "student-2",
+          nama_lengkap: "Siswa Bebas",
+          nis: null,
+          jenis_kelamin: null,
+          latest_prior_academic_year: null,
+          latest_prior_class: null,
+          registered: false,
+        },
+      ]);
+    }
   });
 });
 

@@ -542,6 +542,10 @@ export type AvailableStudent = {
   latest_prior_class: string | null;
 };
 
+export type EditModalStudent = AvailableStudent & {
+  registered: boolean;
+};
+
 export async function fetchActiveAcademicYears(
   deps: AkademikMutationsDeps,
   schoolId: string
@@ -740,6 +744,26 @@ export async function fetchClassRoster(
       latest_prior_class: classRow.name,
     })),
   };
+}
+
+export async function fetchClassRosterWithAvailable(
+  deps: AkademikMutationsDeps,
+  schoolId: string,
+  academicYearId: string,
+  classId: string
+): Promise<{ ok: true; data: EditModalStudent[] } | { ok: false; error: string }> {
+  const rosterResult = await fetchClassRoster(deps, schoolId, academicYearId, classId);
+  if (!rosterResult.ok) return { ok: false, error: rosterResult.error };
+
+  const availableResult = await fetchAvailableStudentsForAcademicYear(deps, schoolId, academicYearId);
+  if (!availableResult.ok) return { ok: false, error: availableResult.error };
+
+  const merged: EditModalStudent[] = [
+    ...rosterResult.data.map((s) => ({ ...s, registered: true })),
+    ...availableResult.data.map((s) => ({ ...s, registered: false })),
+  ].sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap, "id"));
+
+  return { ok: true, data: merged };
 }
 
 export async function saveBulkEnrollmentDiffRecord(
