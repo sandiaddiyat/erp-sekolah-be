@@ -60,7 +60,7 @@ export async function exportSiswa(
         item.nisn ?? "",
         item.nama_ayah ?? "",
         item.nama_ibu ?? "",
-        item.telepon_wali ?? "",
+        item.no_telp_wali ?? "",
       ]
         .join(" ")
         .toLowerCase()
@@ -124,7 +124,7 @@ export async function exportSiswa(
     "Nama Ayah": item.nama_ayah ?? "",
     "Nama Ibu": item.nama_ibu ?? "",
     "Nama Wali": item.nama_wali ?? "",
-    "Telepon Wali": item.telepon_wali ?? "",
+    "Telepon Wali": item.no_telp_wali ?? "",
     Alamat: item.alamat ?? "",
     Status: item.status ?? "",
   }));

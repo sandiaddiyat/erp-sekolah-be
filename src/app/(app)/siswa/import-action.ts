@@ -85,7 +85,7 @@ export async function importSiswa(
     nama_ayah: findCol("nama ayah"),
     nama_ibu: findCol("nama ibu"),
     nama_wali: findCol("nama wali"),
-    telepon_wali: findCol("telepon"),
+    no_telp_wali: findCol("telepon"),
     alamat: findCol("alamat"),
     status: findCol("status"),
   };
@@ -160,7 +160,7 @@ export async function importSiswa(
       nama_ayah: cell(row, "nama_ayah").slice(0, 150) || null,
       nama_ibu: cell(row, "nama_ibu").slice(0, 150) || null,
       nama_wali: cell(row, "nama_wali").slice(0, 150) || null,
-      telepon_wali: cell(row, "telepon_wali").slice(0, 30) || null,
+      no_telp_wali: cell(row, "no_telp_wali").slice(0, 30) || null,
       alamat: cell(row, "alamat").slice(0, 500) || null,
       status: statusValid,
     });

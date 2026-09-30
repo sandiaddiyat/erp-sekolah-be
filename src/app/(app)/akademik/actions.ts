@@ -24,6 +24,7 @@ import {
   saveBulkEnrollmentDiffRecord,
   fetchAvailableStudentsForAcademicYear,
   fetchClassRoster,
+  fetchClassRosterWithAvailable,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -333,4 +334,17 @@ export async function fetchClassMembers(academicYearId: string, classId: string)
   if (!schoolId) return { ok: false as const, error: "Sekolah tidak ditemukan." };
   const supabase = await createClient();
   return fetchClassRoster({ supabase }, schoolId, academicYearId, classId);
+}
+
+export async function fetchEditModalStudents(academicYearId: string, classId: string) {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { ok: false as const, error: guard.error };
+  if (!z.uuid().safeParse(academicYearId).success || !z.uuid().safeParse(classId).success) {
+    return { ok: false as const, error: "Data kelas tidak valid." };
+  }
+
+  const schoolId = guard.user.profile.school_id;
+  if (!schoolId) return { ok: false as const, error: "Sekolah tidak ditemukan." };
+  const supabase = await createClient();
+  return fetchClassRosterWithAvailable({ supabase }, schoolId, academicYearId, classId);
 }
