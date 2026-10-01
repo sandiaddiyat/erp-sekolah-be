@@ -59,7 +59,9 @@ from (
     ('billing',     'view',          'Lihat Billing',                'Melihat job dan laporan billing otomatis'),
     ('billing',     'manage',        'Kelola Billing',               'Menjalankan job billing'),
     ('discount',    'view',          'Lihat Diskon',                 'Melihat daftar diskon & beasiswa'),
-    ('discount',    'manage',        'Kelola Diskon',                'Mengatur diskon & alur approval'),
+     ('discount',    'manage',        'Kelola Diskon',                'Mengatur diskon & alur approval'),
+     ('finance',   'invoice_view',    'Lihat Invoice',                'Melihat daftar invoice'),
+     ('finance',   'invoice_manage',  'Kelola Invoice',               'Mengubah status invoice'),
     ('reports',   'view',              'Lihat Laporan',              'Melihat laporan umum'),
     ('settings',  'view',              'Lihat Pengaturan',           'Melihat pengaturan aplikasi'),
     ('settings',  'update',            'Ubah Pengaturan',            'Mengubah pengaturan aplikasi')

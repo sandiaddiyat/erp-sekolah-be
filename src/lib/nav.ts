@@ -130,6 +130,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "diskon",
   },
   {
+    title: "Invoice",
+    href: "/keuangan/invoice",
+    icon: "keuangan",
+    permission: PERMISSIONS.financeInvoiceView,
+    group: "keuangan",
+  },
+  {
     title: "Akademik",
     href: "/akademik/tahun-ajaran",
     icon: "siswa",

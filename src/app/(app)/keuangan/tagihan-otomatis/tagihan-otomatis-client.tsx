@@ -2,16 +2,17 @@
 
 import { useEffect, useState, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, SearchIcon, RefreshCw, FileText } from "lucide-react";
+import { PlusIcon, FileText, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/lib/utils";
-import type { AcademicYear, Invoice, BillingRunLog, InvoiceDetail, FeeStructure, FeeCategory } from "@/lib/types";
+import type { AcademicYear, Invoice, BillingRunLog } from "@/lib/types";
 import { runGenerateInvoices } from "./actions";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -43,14 +44,6 @@ export function TagihanOtomatisClient({
 }) {
   const [query, setQuery] = useState("");
   const [runOpen, setRunOpen] = useState(false);
-  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(runGenerateInvoices, undefined);
-
-  useEffect(() => {
-    if (state?.success) {
-      toast.success(state.success);
-      setRunOpen(false);
-    } else if (state?.error) toast.error(state.error);
-  }, [state]);
 
   const activeYears = academicYears.filter((y) => y.status === "active");
   const yearOptions = activeYears.length > 0 ? activeYears : academicYears;
@@ -61,75 +54,34 @@ export function TagihanOtomatisClient({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-[1190px] space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-semibold">Tagihan Otomatis</h1>
-          <p className="text-sm text-muted-foreground">
-            Generate tagihan secara otomatis berdasarkan skema biaya dan data akademik.
-          </p>
+          <span className="mb-2.5 block text-[10px] font-bold tracking-[0.1em] text-[#4c9a77] uppercase">Keuangan</span>
+          <h1 className="font-heading text-2xl font-semibold tracking-[-0.05em] text-[#183d32]">Tagihan Otomatis</h1>
+          <p className="mt-2 text-xs text-[#82978d]">Generate tagihan berdasarkan skema biaya dan data akademik.</p>
         </div>
         {canManage ? (
-          <Button onClick={() => setRunOpen(true)}>
-            <PlusIcon className="mr-2 h-4 w-4" />
+          <Button className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]" onClick={() => setRunOpen(true)}>
+            <PlusIcon data-icon="inline-start" className="size-4" />
             Generate Tagihan
           </Button>
         ) : null}
       </div>
 
       {/* Generate Dialog */}
-      <Dialog open={runOpen} onOpenChange={setRunOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <form action={formAction} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Generate Tagihan Otomatis</DialogTitle>
-              <DialogDescription>
-                Buat tagihan untuk semua siswa yang terdaftar pada tahun ajaran ini.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-2">
-              <FieldLabel htmlFor="academic_year_id" required>Tahun Ajaran</FieldLabel>
-              <Select name="academic_year_id" required>
-                <SelectTrigger id="academic_year_id"><SelectValue placeholder="Pilih tahun ajaran" /></SelectTrigger>
-                <SelectContent>
-                  {yearOptions.map((y) => (
-                    <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <FieldLabel htmlFor="period_label" required>Periode Tagihan</FieldLabel>
-              <Input id="period_label" name="period_label" placeholder="Sep 2025 / Bulanan" required />
-            </div>
-
-            <div className="space-y-2">
-              <FieldLabel htmlFor="due_date" required>Tanggal Jatuh Tempo</FieldLabel>
-              <Input id="due_date" name="due_date" type="date" required />
-            </div>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="only_without_invoice" value="on" className="rounded border-gray-300" />
-              <span className="text-sm">Hanya siswa yang belum punya tagihan (idempotent)</span>
-            </label>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRunOpen(false)} disabled={isSubmitting}>Batal</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Memproses..." : "Generate"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <GenerateInvoicesDialog
+        open={runOpen}
+        onOpenChange={setRunOpen}
+        yearOptions={yearOptions}
+        onSaved={() => setRunOpen(false)}
+      />
 
       {/* Billing Run Logs */}
-      <Card>
+      <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
         <CardHeader>
-          <CardTitle>Riwayat Job Billing</CardTitle>
-          <CardDescription>{billingRuns.length} job pernah dijalankan</CardDescription>
+          <CardTitle className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">Riwayat Job Billing</CardTitle>
+          <CardDescription className="text-[11px] text-[#8b9f95]">{billingRuns.length} job pernah dijalankan</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           {billingRuns.length === 0 ? (
@@ -139,7 +91,7 @@ export function TagihanOtomatisClient({
           ) : (
             <div className="divide-y">
               {billingRuns.map((log) => (
-                <div key={log.id} className="flex items-center justify-between gap-3 px-6 py-3">
+                <div key={log.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
                   <div>
                     <p className="text-sm font-medium">{log.period_label}</p>
                     <p className="text-xs text-muted-foreground">
@@ -166,10 +118,14 @@ export function TagihanOtomatisClient({
       </Card>
 
       {/* Invoice List */}
-      <Card>
+      <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
         <CardHeader>
-          <CardTitle>Daftar Tagihan</CardTitle>
-          <CardDescription>{filtered.length} tagihan ditemukan</CardDescription>
+          <CardTitle className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">Daftar Tagihan</CardTitle>
+          <CardDescription className="text-[11px] text-[#8b9f95]">{filtered.length} tagihan ditemukan</CardDescription>
+          <div className="relative mt-3 w-full sm:w-64">
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-[#91a49a]" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari periode atau siswa..." className="h-[35px] w-full rounded-[9px] border border-[#e2ece5] bg-[#fcfdfc] pl-8 text-sm text-[#284a3d] placeholder:text-[#a8b7b0] focus:border-[#9dc7a8] focus:ring-[#4d986f]/10" />
+          </div>
         </CardHeader>
         <CardContent className="px-0">
           {filtered.length === 0 ? (
@@ -183,7 +139,7 @@ export function TagihanOtomatisClient({
           ) : (
             <div className="divide-y">
               {filtered.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between gap-3 px-6 py-3">
+                <div key={inv.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{inv.period_label}</p>
                     <p className="text-xs text-muted-foreground">
@@ -203,5 +159,77 @@ export function TagihanOtomatisClient({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GenerateInvoicesDialog({
+  open,
+  onOpenChange,
+  yearOptions,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  yearOptions: AcademicYear[];
+  onSaved: () => void;
+}) {
+  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(runGenerateInvoices, undefined);
+
+  useEffect(() => {
+    if (state?.success) {
+      toast.success(state.success);
+      onSaved();
+    } else if (state?.error) {
+      toast.error(state.error);
+    }
+  }, [state, onSaved]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[650px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+        <form action={formAction} className="space-y-4">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <DialogTitle className="text-[21px] font-semibold tracking-[-.05em] text-[#183d32]">Generate Tagihan Otomatis</DialogTitle>
+            <DialogDescription>
+              Buat tagihan untuk semua siswa yang terdaftar pada tahun ajaran ini.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <FieldLabel htmlFor="academic_year_id" required>Tahun Ajaran</FieldLabel>
+            <Select name="academic_year_id" required>
+              <SelectTrigger id="academic_year_id"><SelectValue placeholder="Pilih tahun ajaran" /></SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel htmlFor="period_label" required>Periode Tagihan</FieldLabel>
+            <Input id="period_label" name="period_label" placeholder="Sep 2025 / Bulanan" required />
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel htmlFor="due_date" required>Tanggal Jatuh Tempo</FieldLabel>
+            <Input id="due_date" name="due_date" type="date" required />
+          </div>
+
+          <FieldLabel htmlFor="only_without_invoice" optional>
+            <Checkbox id="only_without_invoice" name="only_without_invoice" value="on" className="rounded border-gray-300" />
+            Hanya siswa yang belum punya tagihan (idempotent)
+          </FieldLabel>
+
+          <DialogFooter className="mx-0 mb-0 shrink-0 justify-end gap-2 rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px] sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Batal</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Memproses..." : "Generate"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
