@@ -1,50 +1,93 @@
-# Perencanaan Tugas: Penambahan Siswa Baru ke Dalam Kelas (Mode Edit Massal)
+# Rencana Implementasi: Modifikasi Struktur Data Siswa Sesuai Standar CSV
 
-Dokumen ini berisi pedoman teknis untuk mengembangkan fitur pada Modal Edit Pendaftaran. Fokus tugas ini adalah bagaimana sistem memungkinkan Admin untuk menambahkan siswa baru (yang belum mendapatkan kelas) ke dalam rombongan kelas yang sedang di-edit.
+## Konteks & Tujuan
+Saat ini struktur data Siswa pada aplikasi perlu disesuaikan agar sama persis dengan format data dari file CSV standar sekolah yang terlampir. Pembaruan ini mencakup penambahan berbagai kolom mulai dari data diri yang lebih lengkap, detail alamat terpisah (Dusun, RT, RW, dll.), hingga data rinci untuk Orang Tua dan Wali Siswa. 
+
+Tugas ini bertujuan untuk merancang ulang form Data Siswa (baik tambah maupun edit) beserta modifikasi skema database agar dapat mengakomodasi semua *field* (kolom) baru tersebut dengan tampilan antarmuka yang tetap rapi dan terstandarisasi.
+
+## Analisis Struktur Data Baru (Berdasarkan CSV)
+
+Modifikasi database dan form harus mencakup kelompok data berikut:
+
+### 1. Data Diri Siswa
+- `nis` (Nomor Induk Siswa)
+- `nisn` (Nomor Induk Siswa Nasional)
+- `nama_lengkap` (Nama Siswa)
+- `nama_panggilan` (Nama Panggilan)
+- `tempat_lahir` (Tempat Lahir)
+- `tanggal_lahir` (Tanggal Lahir)
+- `jenis_kelamin` (L / P)
+- `agama` (Agama)
+- `status_dalam_keluarga` (Status dalam Keluarga, cth: Kandung)
+- `anak_ke` (Anak ke-)
+
+### 2. Alamat Siswa
+- `alamat_dusun`
+- `alamat_rt`
+- `alamat_rw`
+- `alamat_desa`
+- `alamat_kecamatan`
+- `alamat_kabupaten_kota`
+
+### 3. Data Orang Tua
+- `nama_ayah`
+- `nama_ibu`
+- `pekerjaan_ayah`
+- `pekerjaan_ibu`
+- `no_telp_rumah` (Nomor Telepon Rumah)
+- *Grup Alamat Orang Tua:*
+  - `alamat_ortu_dusun`
+  - `alamat_ortu_rt`
+  - `alamat_ortu_rw`
+  - `alamat_ortu_desa`
+  - `alamat_ortu_kecamatan`
+  - `alamat_ortu_kabupaten_kota`
+
+### 4. Data Wali Siswa (Opsional)
+- `nama_wali`
+- `pekerjaan_wali`
+- `no_telp_wali`
+- *Grup Alamat Wali:*
+  - `alamat_wali_dusun`
+  - `alamat_wali_rt`
+  - `alamat_wali_rw`
+  - `alamat_wali_desa`
 
 ---
 
-## 1. Modifikasi Query Database & UI Tabel (Modal Edit)
-**Konteks:** Pada saat modal Edit dibuka, tabel tidak boleh hanya menampilkan anak yang sudah ada di kelas tersebut, tetapi juga harus memunculkan calon anak baru agar bisa dipilih.
+## Tahapan Implementasi (Untuk Programmer / AI Assistant)
 
-**Tahapan Implementasi:**
-1. **Penggabungan Data (Backend Fetch):** 
-   - Ubah *query fetch* siswa khusus untuk Modal Edit. 
-   - *Query* harus menarik dua jenis data sekaligus: **(A) Siswa yang sudah terdaftar di kelas tersebut**, digabung dengan **(B) Siswa yang berstatus bebas (belum masuk kelas manapun di tahun ajaran ini)**.
-2. **Pembeda Visual (UI Frontend):**
-   - Di dalam tabel modal, tambahkan kolom penanda atau *Badge*.
-   - Beri *Badge* abu-abu bertuliskan `"Sudah Terdaftar"` untuk siswa kelompok (A).
-   - Beri *Badge* hijau bertuliskan `"Belum Terdaftar"` untuk siswa kelompok (B).
+### Tahap 1: Modifikasi Skema Database & Tipe Data
+1. Buka file skema database (misal: file `schema.ts`, `schema.prisma`, atau file *migration* SQL terkait tabel `students`).
+2. Tambahkan kolom-kolom baru di atas. Gunakan tipe data `VARCHAR` / `String` untuk sebagian besar input, dan `DATE` untuk `tanggal_lahir`, serta `INTEGER` untuk `anak_ke`.
+3. Perbarui tipe data TypeScript/Zod *schema* (`Student`, `StudentFormData`, atau sejenisnya) agar mencerminkan kolom-kolom baru ini.
+4. Terapkan perubahan database (*migration / db push*).
 
----
+### Tahap 2: Modifikasi Form UI (`Siswa Form Dialog`)
+1. Buka komponen yang mengelola form modal siswa (biasanya di `src/app/(app)/siswa/_components/student-form-dialog.tsx` atau file serupa).
+2. Karena input *field* menjadi sangat banyak, **jangan** menumpuk semua input dalam satu halaman yang panjang. Gunakan komponen `Tabs` atau `Accordion` dari perpustakaan UI (Shadcn UI / Base UI) untuk membagi form menjadi 4 kategori (seperti di atas):
+   - Tab 1: **Data Diri**
+   - Tab 2: **Alamat**
+   - Tab 3: **Orang Tua**
+   - Tab 4: **Wali**
+3. **Komponen Standar:**
+   - Gunakan `Input` standar untuk teks biasa.
+   - Gunakan `Select` untuk field yang pilihannya terbatas seperti `jenis_kelamin` (L/P) dan `agama` (Islam, Kristen, Katolik, Hindu, Budha, Konghucu).
+   - Pastikan setiap input memiliki label yang menggunakan `FieldLabel` agar desain tetap konsisten dengan form lainnya.
 
-## 2. Logika Pemilihan Siswa (State Management)
-**Konteks:** Mekanisme centang (*checkbox*) harus pintar untuk mendeteksi penambahan dan pengurangan siswa secara beriringan.
+### Tahap 3: Pembaruan Form Action (Backend Logic)
+1. Modifikasi *Server Action* penyimpan data (misal `saveStudent` di `siswa-actions.ts`).
+2. Ambil dan validasi semua data input baru yang dikirimkan via `FormData`.
+3. Sisipkan (*insert* / *update*) field-field baru tersebut ke query database.
+4. Tangani kemungkinan jika data Wali atau Orang Tua dikosongkan (jadikan opsional / *nullable*).
 
-**Tahapan Implementasi:**
-1. **Auto-Check (Pre-fill Data):** 
-   - Saat modal terbuka, secara otomatis centang (*checked*) seluruh kotak untuk kelompok siswa (A).
-   - Biarkan siswa kelompok (B) dalam keadaan kotak kosong (*unchecked*).
-2. **Perilaku Checkbox:** 
-   - Jika admin **mencentang** kotak pada siswa (B), itu artinya aksi penambahan (Insert).
-   - Jika admin **menghilangkan centang** kotak pada siswa (A), itu artinya aksi pengeluaran/pencabutan dari kelas (Delete).
-
----
-
-## 3. Logika Sinkronisasi Database (Server Action)
-**Konteks:** Menghindari *error* duplikasi ID (Primary Key constraint) jika sistem hanya melakukan insert buta.
-
-**Tahapan Implementasi:**
-Pada fungsi penyimpan `onSubmit` di *backend*:
-1. **Ambil Data Terbaru:** Terima *array ID Siswa* (Kumpulan kotak yang tercentang dari *form frontend*).
-2. **Lakukan Diffing (Perbandingan):** 
-   - Bandingkan *array* ID terbaru dengan data ID siswa di database untuk kelas tersebut.
-3. **Eksekusi Hapus (Delete):** Hapus catatan pendaftaran pada *database* khusus untuk siswa yang ID-nya hilang dari *array* baru (siswa yang un-check).
-4. **Eksekusi Tambah (Insert):** Masukkan catatan pendaftaran baru HANYA untuk siswa yang ID-nya baru muncul di *array* baru, dan lewati (*skip*) siswa yang memang dari awal sudah terdaftar.
+### Tahap 4: (Opsional namun Direkomendasikan) Tombol "Samakan Alamat"
+Untuk mempermudah pengguna, tambahkan *Checkbox* kecil di Tab Orang Tua yang berbunyi **"Alamat sama dengan siswa"**. Jika dicentang, secara otomatis nilai dusun, rt, rw, desa, dst milik siswa akan disalin ke alamat orang tua.
 
 ---
-
 ## Kriteria Penerimaan (Acceptance Criteria)
-1. Tabel pada mode edit sukses menampilkan gabungan siswa lama dan siswa bebas.
-2. Centang otomatis berfungsi akurat (anak lama tercentang, anak bebas tidak).
-3. Saat diklik Simpan, sistem berhasil menyimpan perubahan secara presisi: siswa baru sukses masuk kelas, dan siswa yang centangnya dicabut sukses terhapus dari kelas tersebut, tanpa menyebabkan error duplikasi di database.
+- [ ] Tabel database `students` berhasil diperbarui tanpa menghapus data esensial yang lama.
+- [ ] Dialog form tambah/edit siswa memuat semua kolom yang ada di CSV.
+- [ ] UI terbagi rapi menggunakan Tab/Accordion sehingga mudah dibaca dan tidak sesak.
+- [ ] Menyimpan form akan memasukkan data lengkap ke database.
+- [ ] Form edit mampu menampilkan kembali semua data detail siswa, orang tua, wali, dan alamat yang sudah tersimpan sebelumnya.
