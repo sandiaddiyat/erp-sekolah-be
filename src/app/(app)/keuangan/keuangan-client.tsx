@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import type { BillItem, Payment } from "@/lib/types";
 import type { BillWithStudent, PaymentMetode } from "@/lib/types";
 import type { FormState } from "@/lib/types";
@@ -84,7 +84,6 @@ const INPUT_CLASS =
   "h-10 rounded-[9px] border-[#dfeae3] text-[11px] text-[#36584a] focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10";
 const SELECT_CLASS =
   "h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10 dark:bg-input/30";
-const LABEL_CLASS = "text-[10px] font-bold text-[#4c6a5e]";
 
 function statusPillClass(status: string): string {
   return STATUS_PILL[status] ?? "bg-[#eef1ef] text-[#6b7a72]";
@@ -453,9 +452,7 @@ function BillFormDialog({
 
           <div className={MODAL_BODY}>
             <div className="space-y-2">
-              <Label htmlFor="student_id" className={LABEL_CLASS}>
-                Siswa
-              </Label>
+              <FieldLabel htmlFor="student_id" required>Siswa</FieldLabel>
               <select id="student_id" name="student_id" required className={SELECT_CLASS}>
                 <option value="">- pilih siswa -</option>
                 {students.map((s) => (
@@ -467,9 +464,7 @@ function BillFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bill_item_id" className={LABEL_CLASS}>
-                Jenis Tagihan (opsional)
-              </Label>
+              <FieldLabel htmlFor="bill_item_id" optional>Jenis Tagihan</FieldLabel>
               <select
                 id="bill_item_id"
                 name="bill_item_id"
@@ -493,9 +488,7 @@ function BillFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="deskripsi" className={LABEL_CLASS}>
-                Deskripsi
-              </Label>
+              <FieldLabel htmlFor="deskripsi" required>Deskripsi</FieldLabel>
               <Input
                 id="deskripsi"
                 name="deskripsi"
@@ -507,9 +500,7 @@ function BillFormDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="nominal" className={LABEL_CLASS}>
-                  Nominal (Rp)
-                </Label>
+                <FieldLabel htmlFor="nominal" required>Nominal (Rp)</FieldLabel>
                 <Input
                   id="nominal"
                   name="nominal"
@@ -521,9 +512,7 @@ function BillFormDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="diskon" className={LABEL_CLASS}>
-                  Diskon (Rp, opsional)
-                </Label>
+                <FieldLabel htmlFor="diskon" optional>Diskon (Rp)</FieldLabel>
                 <Input
                   id="diskon"
                   name="diskon"
@@ -535,9 +524,7 @@ function BillFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="diskon_keterangan" className={LABEL_CLASS}>
-                Keterangan Diskon / Beasiswa (opsional)
-              </Label>
+              <FieldLabel htmlFor="diskon_keterangan" optional>Keterangan Diskon / Beasiswa</FieldLabel>
               <Input
                 id="diskon_keterangan"
                 name="diskon_keterangan"
@@ -547,9 +534,7 @@ function BillFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="jatuh_tempo" className={LABEL_CLASS}>
-                Jatuh Tempo
-              </Label>
+              <FieldLabel htmlFor="jatuh_tempo" required>Jatuh Tempo</FieldLabel>
               <Input
                 id="jatuh_tempo"
                 name="jatuh_tempo"
@@ -639,9 +624,7 @@ function PaymentFormDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="pay_nominal" className={LABEL_CLASS}>
-                  Nominal Bayar (Rp)
-                </Label>
+                <FieldLabel htmlFor="pay_nominal" required>Nominal Bayar (Rp)</FieldLabel>
                 <Input
                   id="pay_nominal"
                   name="nominal"
@@ -651,9 +634,7 @@ function PaymentFormDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="metode" className={LABEL_CLASS}>
-                  Metode
-                </Label>
+                <FieldLabel htmlFor="metode" required>Metode</FieldLabel>
                 <select
                   id="metode"
                   name="metode"
@@ -669,9 +650,7 @@ function PaymentFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bukti_url" className={LABEL_CLASS}>
-                URL Bukti (opsional)
-              </Label>
+              <FieldLabel htmlFor="bukti_url" optional>URL Bukti</FieldLabel>
               <Input
                 id="bukti_url"
                 name="bukti_url"
@@ -681,9 +660,7 @@ function PaymentFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="catatan" className={LABEL_CLASS}>
-                Catatan (opsional)
-              </Label>
+              <FieldLabel htmlFor="catatan" optional>Catatan</FieldLabel>
               <Input
                 id="catatan"
                 name="catatan"

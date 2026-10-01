@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { DiscountType, StudentDiscount, Siswa, FeeCategory } from "@/lib/types";
@@ -185,10 +185,10 @@ export function DiskonClient({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          item.status === "disetujui" ? "bg-emerald-500/10 text-emerald-700" :
-                          item.status === "ditolak" ? "bg-red-500/10 text-red-700" :
-                          item.status === "berakhir" ? "bg-gray-500/10 text-gray-700" :
-                          "bg-blue-500/10 text-blue-700"
+                          item.status === "disetujui" ? "bg-[#e7f5e9] text-[#2b7254]" :
+                          item.status === "ditolak" ? "bg-[#fdf0ee] text-[#ad685d]" :
+                          item.status === "berakhir" ? "bg-[#eef1ef] text-[#6b7a72]" :
+                          "bg-[#e8f2f5] text-[#3a7591]"
                         }`}>
                           {STATUS_LABELS[item.status]}
                         </span>
@@ -221,17 +221,17 @@ export function DiskonClient({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="code">Kode</Label>
+                <FieldLabel htmlFor="code" required>Kode</FieldLabel>
                 <Input id="code" name="code" defaultValue={editingType?.code ?? ""} placeholder="DISC10" required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name">Nama</Label>
+                <FieldLabel htmlFor="name" required>Nama</FieldLabel>
                 <Input id="name" name="name" defaultValue={editingType?.name ?? ""} placeholder="Diskon 10%" required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="calc_type">Perhitungan</Label>
+              <FieldLabel htmlFor="calc_type" required>Perhitungan</FieldLabel>
               <Select name="calc_type" defaultValue={editingType?.calc_type ?? "percent"}>
                 <SelectTrigger id="calc_type"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -243,7 +243,7 @@ export function DiskonClient({
 
             <div className="flex items-center gap-2.5">
               <Checkbox id="is_system" name="is_system" defaultChecked={Boolean(editingType?.is_system)} disabled />
-              <Label htmlFor="is_system" className="cursor-pointer text-muted-foreground">Jenis sistem (hanya bisa diedit admin)</Label>
+              <FieldLabel htmlFor="is_system" required>Jenis sistem (hanya bisa diedit admin)</FieldLabel>
             </div>
 
             <DialogFooter>
@@ -266,7 +266,7 @@ export function DiskonClient({
             {editingDisc ? <input type="hidden" name="id" value={editingDisc.id} /> : null}
 
             <div className="space-y-2">
-              <Label htmlFor="student_id">Siswa</Label>
+              <FieldLabel htmlFor="student_id" required>Siswa</FieldLabel>
               <Select name="student_id" defaultValue={editingDisc?.student_id ?? ""}>
                 <SelectTrigger id="student_id"><SelectValue placeholder="Pilih siswa" /></SelectTrigger>
                 <SelectContent>
@@ -278,7 +278,7 @@ export function DiskonClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discount_type_id">Jenis Diskon</Label>
+              <FieldLabel htmlFor="discount_type_id" required>Jenis Diskon</FieldLabel>
               <Select name="discount_type_id" defaultValue={editingDisc?.discount_type_id ?? ""}>
                 <SelectTrigger id="discount_type_id"><SelectValue placeholder="Pilih jenis diskon" /></SelectTrigger>
                 <SelectContent>
@@ -290,23 +290,23 @@ export function DiskonClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="value">Nilai Diskon</Label>
+              <FieldLabel htmlFor="value" required>Nilai Diskon</FieldLabel>
               <Input id="value" name="value" type="number" defaultValue={editingDisc?.value ?? ""} min={0} placeholder="10" required />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="start_date">Tanggal Mulai</Label>
+                <FieldLabel htmlFor="start_date" required>Tanggal Mulai</FieldLabel>
                 <Input id="start_date" name="start_date" type="date" defaultValue={editingDisc?.start_date?.slice(0, 10) ?? ""} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end_date">Tanggal Selesai</Label>
+                <FieldLabel htmlFor="end_date" required>Tanggal Selesai</FieldLabel>
                 <Input id="end_date" name="end_date" type="date" defaultValue={editingDisc?.end_date?.slice(0, 10) ?? ""} required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <FieldLabel htmlFor="status" required>Status</FieldLabel>
               <Select name="status" defaultValue={editingDisc?.status ?? "pending"}>
                 <SelectTrigger id="status"><SelectValue /></SelectTrigger>
                 <SelectContent>

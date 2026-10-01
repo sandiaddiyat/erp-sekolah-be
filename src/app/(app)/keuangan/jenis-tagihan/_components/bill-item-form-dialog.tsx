@@ -7,7 +7,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import type { FormState } from "@/lib/types";
 import { saveBillItem } from "../actions";
 
@@ -23,7 +23,6 @@ const INPUT_CLASS =
   "h-10 rounded-[9px] border-[#dfeae3] text-[11px] text-[#36584a] focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10";
 const SELECT_CLASS =
   "h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none focus-visible:border-[#78ad8a] focus-visible:ring-[#4f9970]/10 dark:bg-input/30";
-const LABEL_CLASS = "text-[10px] font-bold text-[#4c6a5e]";
 
 const PRIMARY_BUTTON =
   "h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]";
@@ -64,9 +63,7 @@ export function BillItemFormDialog({
 
           <div className={MODAL_BODY}>
             <div className="space-y-2">
-              <Label htmlFor="nama_item" className={LABEL_CLASS}>
-                Nama Jenis
-              </Label>
+              <FieldLabel htmlFor="nama_item" required>Nama Jenis</FieldLabel>
               <Input
                 id="nama_item"
                 name="nama_item"
@@ -78,9 +75,7 @@ export function BillItemFormDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="item_nominal" className={LABEL_CLASS}>
-                  Nominal (Rp)
-                </Label>
+                <FieldLabel htmlFor="item_nominal" required>Nominal (Rp)</FieldLabel>
                 <Input
                   id="item_nominal"
                   name="nominal"
@@ -90,9 +85,7 @@ export function BillItemFormDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="frekuensi" className={LABEL_CLASS}>
-                  Frekuensi
-                </Label>
+                <FieldLabel htmlFor="frekuensi" required>Frekuensi</FieldLabel>
                 <select
                   id="frekuensi"
                   name="frekuensi"

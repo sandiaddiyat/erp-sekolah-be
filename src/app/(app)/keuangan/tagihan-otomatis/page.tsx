@@ -20,7 +20,7 @@ export default async function TagihanOtomatisPage() {
       .order("start_date", { ascending: false }),
     supabase
       .from("invoices")
-      .select("*, students(nama_lengkap)")
+      .select("*, students!invoices_student_tenant_fkey(nama_lengkap)")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false }),
     supabase
@@ -31,6 +31,7 @@ export default async function TagihanOtomatisPage() {
   ]);
 
   if (yearsResult.error || invoicesResult.error || logsResult.error) {
+    console.error("[tagihan-otomatis]", invoicesResult.error ?? yearsResult.error ?? logsResult.error);
     return <DataError message="Gagal memuat data tagihan otomatis." />;
   }
 

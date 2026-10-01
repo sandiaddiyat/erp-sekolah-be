@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +151,7 @@ export function RekonsiliasiClient({
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Lunas</CardDescription>
-            <CardTitle className="text-2xl text-emerald-700">{summary.lunas.count}</CardTitle>
+            <CardTitle className="text-2xl text-[#2b7254]">{summary.lunas.count}</CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
             {formatRupiah(summary.lunas.total)}
@@ -222,12 +222,12 @@ export function RekonsiliasiClient({
                             <span className="text-muted-foreground">Total:</span>{" "}
                             <span className="font-medium">{formatRupiah(Number(inv.total_amount))}</span>{" "}
                             <span className="text-muted-foreground">· Terbayar:</span>{" "}
-                            <span className="font-medium text-emerald-700">{formatRupiah(paid)}</span>
+                            <span className="font-medium text-[#2b7254]">{formatRupiah(paid)}</span>
                             {remaining > 0 && (
                               <>
                                 {" "}
                                 <span className="text-muted-foreground">· Sisa:</span>{" "}
-                                <span className="font-medium text-red-700">{formatRupiah(remaining)}</span>
+                                <span className="font-medium text-[#ad685d]">{formatRupiah(remaining)}</span>
                               </>
                             )}
                           </div>
@@ -349,7 +349,7 @@ export function RekonsiliasiClient({
             {editingMethod ? <input type="hidden" name="id" value={editingMethod.id} /> : null}
 
             <div className="space-y-2">
-              <Label htmlFor="name">Nama Metode</Label>
+              <FieldLabel htmlFor="name" required>Nama Metode</FieldLabel>
               <Input id="name" name="name" defaultValue={editingMethod?.name ?? ""} placeholder="Tunai / Transfer BCA" required />
             </div>
 
@@ -384,17 +384,17 @@ export function RekonsiliasiClient({
             {editingBank ? <input type="hidden" name="id" value={editingBank.id} /> : null}
 
             <div className="space-y-2">
-              <Label htmlFor="bank_name">Nama Bank</Label>
+              <FieldLabel htmlFor="bank_name" required>Nama Bank</FieldLabel>
               <Input id="bank_name" name="bank_name" defaultValue={editingBank?.bank_name ?? ""} placeholder="BCA / Mandiri / BNI" required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account_number">Nomor Rekening</Label>
+              <FieldLabel htmlFor="account_number" required>Nomor Rekening</FieldLabel>
               <Input id="account_number" name="account_number" defaultValue={editingBank?.account_number ?? ""} placeholder="123-456-789" required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account_holder">Nama Pemilik</Label>
+              <FieldLabel htmlFor="account_holder" required>Nama Pemilik</FieldLabel>
               <Input id="account_holder" name="account_holder" defaultValue={editingBank?.account_holder ?? ""} placeholder="a.n. Sekolah" required />
             </div>
 
@@ -425,7 +425,7 @@ export function RekonsiliasiClient({
             {payingInvoice && <input type="hidden" name="invoice_id" value={payingInvoice.id} />}
 
             <div className="space-y-2">
-              <Label htmlFor="payment_method_id">Metode Pembayaran</Label>
+              <FieldLabel htmlFor="payment_method_id" required>Metode Pembayaran</FieldLabel>
               <Select name="payment_method_id" required>
                 <SelectTrigger id="payment_method_id"><SelectValue placeholder="Pilih metode" /></SelectTrigger>
                 <SelectContent>
@@ -437,7 +437,7 @@ export function RekonsiliasiClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nominal">Nominal Bayar</Label>
+              <FieldLabel htmlFor="nominal" required>Nominal Bayar</FieldLabel>
               <Input
                 id="nominal"
                 name="nominal"
@@ -451,7 +451,7 @@ export function RekonsiliasiClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="catatan">Catatan (opsional)</Label>
+              <FieldLabel htmlFor="catatan" optional>Catatan</FieldLabel>
               <Input id="catatan" name="catatan" placeholder="Catatan pembayaran" />
             </div>
 

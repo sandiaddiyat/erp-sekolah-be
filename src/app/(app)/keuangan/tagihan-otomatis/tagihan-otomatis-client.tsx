@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
@@ -89,7 +89,7 @@ export function TagihanOtomatisClient({
             </DialogHeader>
 
             <div className="space-y-2">
-              <Label htmlFor="academic_year_id">Tahun Ajaran</Label>
+              <FieldLabel htmlFor="academic_year_id" required>Tahun Ajaran</FieldLabel>
               <Select name="academic_year_id" required>
                 <SelectTrigger id="academic_year_id"><SelectValue placeholder="Pilih tahun ajaran" /></SelectTrigger>
                 <SelectContent>
@@ -101,12 +101,12 @@ export function TagihanOtomatisClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="period_label">Periode Tagihan</Label>
+              <FieldLabel htmlFor="period_label" required>Periode Tagihan</FieldLabel>
               <Input id="period_label" name="period_label" placeholder="Sep 2025 / Bulanan" required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="due_date">Tanggal Jatuh Tempo</Label>
+              <FieldLabel htmlFor="due_date" required>Tanggal Jatuh Tempo</FieldLabel>
               <Input id="due_date" name="due_date" type="date" required />
             </div>
 
@@ -148,9 +148,9 @@ export function TagihanOtomatisClient({
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs font-medium ${
-                      log.status === "selesai" ? "text-emerald-700" :
-                      log.status === "gagal" ? "text-red-700" :
-                      "text-blue-700"
+                      log.status === "selesai" ? "text-[#2b7254]" :
+                      log.status === "gagal" ? "text-[#ad685d]" :
+                      "text-[#3a7591]"
                     }`}>
                       {log.status === "selesai" ? "Selesai" : log.status === "gagal" ? "Gagal" : "Berjalan"}
                     </span>
