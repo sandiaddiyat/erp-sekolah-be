@@ -12,29 +12,36 @@ export type StudentOption = { id: string; nama_lengkap: string };
 export default async function KeuanganPage() {
   const current = await requirePermission(PERMISSIONS.financeView);
   const supabase = await createClient();
+  const schoolId = current.profile.school_id ?? "";
 
   const [billsResult, itemsResult, studentsResult, paymentsResult] =
     await Promise.all([
       supabase
         .from("bills")
         .select(
-          "id, school_id, student_id, bill_item_id, deskripsi, nominal, jatuh_tempo, status, students(nama_lengkap)"
+          "id, school_id, student_id, bill_item_id, deskripsi, nominal, diskon, diskon_keterangan, jatuh_tempo, status, students!bills_student_tenant_fkey(nama_lengkap)"
         )
         .order("created_at", { ascending: false }),
       supabase
         .from("bill_items")
         .select("id, nama_item, nominal, frekuensi")
+        .eq("school_id", schoolId)
         .order("nama_item"),
-      supabase.from("students").select("id, nama_lengkap").order("nama_lengkap"),
+      supabase.from("students")
+        .select("id, nama_lengkap")
+        .eq("school_id", schoolId)
+        .order("nama_lengkap"),
       supabase
         .from("payments")
         .select("*")
+        .eq("school_id", schoolId)
         .order("created_at", { ascending: false }),
     ]);
 
   const loadError =
     billsResult.error ?? itemsResult.error ?? studentsResult.error ?? paymentsResult.error;
   if (loadError) {
+    console.error("[keuangan]", loadError);
     return <DataError message="Gagal memuat data keuangan." />;
   }
 

@@ -18,7 +18,7 @@ export default async function RekonsiliasiPage() {
   const [invoicesResult, paymentsResult, methodsResult, banksResult, studentsResult] = await Promise.all([
     supabase
       .from("invoices")
-      .select("*, students!inner(nama_lengkap)")
+      .select("*, students!invoices_student_tenant_fkey!inner(nama_lengkap)")
       .eq("school_id", schoolId)
       .order("due_date", { ascending: false }),
     supabase
@@ -50,7 +50,8 @@ export default async function RekonsiliasiPage() {
     banksResult.error ||
     studentsResult.error
   ) {
-    return <DataError message="Gagal memuat data rekonsiliasi." />;
+    console.error("[rekonsiliasi]", invoicesResult.error ?? paymentsResult.error ?? methodsResult.error ?? banksResult.error ?? studentsResult.error);
+    return <DataError message="Gadal memuat data rekonsiliasi." />;
   }
 
   const invoices = (invoicesResult.data ?? []) as unknown as InvoiceRow[];

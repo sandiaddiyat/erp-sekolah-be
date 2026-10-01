@@ -16,7 +16,7 @@ export default async function DiskonPage() {
     supabase.from("discount_types").select("*").eq("school_id", schoolId).order("code"),
     supabase
       .from("student_discounts")
-      .select("*, students!inner(nama_lengkap), discount_types(name)")
+      .select("*, students!student_discounts_student_tenant_fkey!inner(nama_lengkap), discount_types!student_discounts_type_tenant_fkey(name)")
       .eq("school_id", schoolId)
       .order("start_date", { ascending: false }),
     supabase.from("students").select("id, nama_lengkap, nisn").eq("school_id", schoolId).order("nama_lengkap"),
@@ -24,6 +24,7 @@ export default async function DiskonPage() {
   ]);
 
   if (typesResult.error || discountsResult.error || studentsResult.error || categoriesResult.error) {
+    console.error("[diskon]", typesResult.error ?? discountsResult.error ?? studentsResult.error ?? categoriesResult.error);
     return <DataError message="Gagal memuat data diskon." />;
   }
 

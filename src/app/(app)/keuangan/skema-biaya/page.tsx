@@ -16,7 +16,7 @@ export default async function SkemaBiayaPage() {
     supabase.from("fee_categories").select("*").eq("school_id", schoolId).order("name"),
     supabase
       .from("fee_structures")
-      .select("*, fee_categories(name), academic_years(name), education_levels(name), grades(name), majors(name)")
+      .select("*, fee_categories!fee_structures_category_tenant_fkey(name), academic_years!fee_structures_year_tenant_fkey(name), education_levels!fee_structures_level_tenant_fkey(name), grades!fee_structures_grade_tenant_fkey(name), majors!fee_structures_major_tenant_fkey(name)")
       .eq("school_id", schoolId)
       .order("amount", { ascending: false }),
     supabase.from("academic_years").select("id, name").eq("school_id", schoolId).order("start_date", { ascending: false }),
@@ -26,6 +26,7 @@ export default async function SkemaBiayaPage() {
   ]);
 
   if (categoriesResult.error || structuresResult.error || yearsResult.error || gradesResult.error || levelsResult.error || majorsResult.error) {
+    console.error("[skema-biaya]", categoriesResult.error ?? structuresResult.error ?? yearsResult.error ?? gradesResult.error ?? levelsResult.error ?? majorsResult.error);
     return <DataError message="Gagal memuat data skema biaya." />;
   }
 

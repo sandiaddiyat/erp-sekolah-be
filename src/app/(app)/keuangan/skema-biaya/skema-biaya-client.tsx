@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatRupiah } from "@/lib/utils";
@@ -230,12 +230,12 @@ export function SkemaBiayaClient({
             {editingCategory ? <input type="hidden" name="id" value={editingCategory.id} /> : null}
 
             <div className="space-y-2">
-              <Label htmlFor="name">Nama Kategori</Label>
+              <FieldLabel htmlFor="name" required>Nama Kategori</FieldLabel>
               <Input id="name" name="name" defaultValue={editingCategory?.name ?? ""} placeholder="SPP, Seragaman, dll." required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="billing_cycle">Frekuensi Tagih</Label>
+              <FieldLabel htmlFor="billing_cycle" required>Frekuensi Tagih</FieldLabel>
               <Select name="billing_cycle" defaultValue={editingCategory?.billing_cycle ?? "bulanan"}>
                 <SelectTrigger id="billing_cycle"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -248,7 +248,7 @@ export function SkemaBiayaClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Deskripsi (opsional)</Label>
+              <FieldLabel htmlFor="description" optional>Deskripsi</FieldLabel>
               <Input id="description" name="description" defaultValue={editingCategory?.description ?? ""} placeholder="Deskripsi kategori biaya" />
             </div>
 
@@ -272,7 +272,7 @@ export function SkemaBiayaClient({
             {editingStructure ? <input type="hidden" name="id" value={editingStructure.id} /> : null}
 
             <div className="space-y-2">
-              <Label htmlFor="fee_category_id">Kategori Biaya</Label>
+              <FieldLabel htmlFor="fee_category_id" required>Kategori Biaya</FieldLabel>
               <Select name="fee_category_id" defaultValue={editingStructure?.fee_category_id ?? ""}>
                 <SelectTrigger id="fee_category_id"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                 <SelectContent>
@@ -284,7 +284,7 @@ export function SkemaBiayaClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="academic_year_id">Tahun Ajaran</Label>
+              <FieldLabel htmlFor="academic_year_id" required>Tahun Ajaran</FieldLabel>
               <Select name="academic_year_id" defaultValue={editingStructure?.academic_year_id ?? ""}>
                 <SelectTrigger id="academic_year_id"><SelectValue placeholder="Pilih tahun ajaran" /></SelectTrigger>
                 <SelectContent>
@@ -296,7 +296,7 @@ export function SkemaBiayaClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="grade_id">Tingkat</Label>
+              <FieldLabel htmlFor="grade_id" required>Tingkat</FieldLabel>
               <Select name="grade_id" defaultValue={editingStructure?.grade_id ?? ""}>
                 <SelectTrigger id="grade_id"><SelectValue placeholder="Pilih tingkat" /></SelectTrigger>
                 <SelectContent>
@@ -308,7 +308,7 @@ export function SkemaBiayaClient({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="major_id">Jurusan (opsional)</Label>
+              <FieldLabel htmlFor="major_id" optional>Jurusan</FieldLabel>
               <Select name="major_id" defaultValue={editingStructure?.major_id ?? ""}>
                 <SelectTrigger id="major_id"><SelectValue placeholder="- tidak ada -" /></SelectTrigger>
                 <SelectContent>
@@ -322,11 +322,11 @@ export function SkemaBiayaClient({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Nominal</Label>
+                <FieldLabel htmlFor="amount" required>Nominal</FieldLabel>
                 <Input id="amount" name="amount" defaultValue={editingStructure?.amount?.toString() ?? ""} placeholder="500000" required={!editingStructure} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="due_day">Hari Jatuh Tempo</Label>
+                <FieldLabel htmlFor="due_day" required>Hari Jatuh Tempo</FieldLabel>
                 <Input id="due_day" name="due_day" type="number" defaultValue={editingStructure?.due_day ?? ""} min={1} max={28} placeholder="1-28" />
               </div>
             </div>
