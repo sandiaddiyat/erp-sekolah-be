@@ -10,6 +10,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  ActivityIcon,
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
@@ -42,6 +43,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -73,7 +75,7 @@ import {
 } from "@/components/ui/table";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import type { FormState, Siswa } from "@/lib/types";
-import { deleteSiswa, saveSiswa } from "./actions";
+import { deleteSiswa, saveSiswa, updateSiswaStatus } from "./actions";
 import { exportSiswa } from "./export-action";
 import { importSiswa, type ImportSiswaResult } from "./import-action";
 import type { SiswaOptionLists } from "./page";
@@ -148,6 +150,8 @@ export function SiswaClient({
   const [editing, setEditing] = useState<Siswa | null>(null);
   const [viewing, setViewing] = useState<Siswa | null>(null);
   const [deleting, setDeleting] = useState<Siswa | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<Siswa | null>(null);
+  const [isUpdatingStatus, startUpdatingStatus] = useTransition();
   const [banner, setBanner] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
@@ -905,18 +909,32 @@ export function SiswaClient({
                       {permissions.update || permissions.delete ? (
                         <div className="flex items-center justify-end gap-1">
                           {permissions.update ? (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Ubah"
-                              className="border border-[#e1ebe4] bg-[#fff] text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEdit(item);
-                              }}
-                            >
-                              <PencilIcon className="size-4" />
-                            </Button>
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Ubah Status"
+                                className="border border-[#e1ebe4] bg-[#fff] text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setUpdatingStatus(item);
+                                }}
+                              >
+                                <ActivityIcon className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Ubah"
+                                className="border border-[#e1ebe4] bg-[#fff] text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEdit(item);
+                                }}
+                              >
+                                <PencilIcon className="size-4" />
+                              </Button>
+                            </>
                           ) : null}
                           {permissions.delete ? (
                             <Button
@@ -1081,6 +1099,64 @@ export function SiswaClient({
               className="bg-destructive text-white hover:bg-destructive/90"
             >
               Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog Ubah Status */}
+      <AlertDialog
+        open={Boolean(updatingStatus)}
+        onOpenChange={(open) => !open && setUpdatingStatus(null)}
+      >
+        <AlertDialogContent className="max-w-[400px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ubah Status Siswa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Silakan pilih status baru untuk <strong>{updatingStatus?.nama_lengkap}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <select
+              id="status_update_select"
+              name="status_update_select"
+              defaultValue={updatingStatus?.status ?? "aktif"}
+              className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+            >
+              <option value="aktif">Aktif</option>
+              <option value="lulus">Lulus</option>
+              <option value="pindah">Pindah</option>
+              <option value="keluar">Keluar</option>
+            </select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isUpdatingStatus}
+              className="h-8 rounded-[9px] border-[#e1ebe4] text-[10px] font-bold text-[#537467]"
+            >
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isUpdatingStatus}
+              className="h-8 rounded-[9px] bg-[#2b7254] px-4 text-[10px] font-bold text-white shadow-[0_2px_15px_-3px_#2b725480] hover:bg-[#1c4a36]"
+              onClick={(e) => {
+                e.preventDefault();
+                const selectEl = document.getElementById("status_update_select") as HTMLSelectElement;
+                if (!selectEl || !updatingStatus) return;
+                const newStatus = selectEl.value as "aktif" | "lulus" | "pindah" | "keluar";
+                
+                startUpdatingStatus(async () => {
+                  const res = await updateSiswaStatus(updatingStatus.id, newStatus);
+                  if (res?.error) {
+                    toast.error(res.error);
+                  } else {
+                    toast.success(res?.success || "Status berhasil diubah.");
+                    setUpdatingStatus(null);
+                  }
+                });
+              }}
+            >
+              {isUpdatingStatus ? "Menyimpan..." : "Simpan Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1451,8 +1527,42 @@ function SiswaFormDialog({
                   />
                 </div>
               </div>
-              <h3 className="mb-1 mt-4 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat Orang Tua</h3>
-              <p className="mb-4 text-[10px] text-[#93a49c]">Alamat lengkap orang tua siswa.</p>
+              <div className="mb-4 mt-4 flex items-center justify-between">
+                <div>
+                  <h3 className="mb-1 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Alamat Orang Tua</h3>
+                  <p className="text-[10px] text-[#93a49c]">Alamat lengkap orang tua siswa.</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="samakan_alamat" 
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        const fields = [
+                          ["alamat_dusun", "alamat_ortu_dusun"],
+                          ["alamat_rt", "alamat_ortu_rt"],
+                          ["alamat_rw", "alamat_ortu_rw"],
+                          ["alamat_desa", "alamat_ortu_desa"],
+                          ["alamat_kecamatan", "alamat_ortu_kecamatan"],
+                          ["alamat_kabupaten_kota", "alamat_ortu_kabupaten_kota"],
+                        ];
+                        fields.forEach(([srcId, destId]) => {
+                          const srcEl = document.getElementById(srcId) as HTMLInputElement;
+                          const destEl = document.getElementById(destId) as HTMLInputElement;
+                          if (srcEl && destEl) {
+                            destEl.value = srcEl.value;
+                          }
+                        });
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="samakan_alamat"
+                    className="text-[11px] font-medium leading-none text-[#537467] peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Samakan dengan Alamat Siswa
+                  </label>
+                </div>
+              </div>
               <div className="mb-6 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <FieldLabel htmlFor="alamat_ortu_dusun">Dusun</FieldLabel>
@@ -1589,23 +1699,8 @@ function SiswaFormDialog({
               </div>
             </TabsContent>
 
-            {/* ===== Status ===== */}
-            <h3 className="mb-1 mt-4 font-heading text-[14px] tracking-[-.03em] text-[#24483b]">Status</h3>
-            <p className="mb-4 text-[10px] text-[#93a49c]">Status kehadiran siswa.</p>
-            <div className="space-y-2">
-              <FieldLabel htmlFor="status_select">Status</FieldLabel>
-              <select
-                id="status_select"
-                name="status"
-                defaultValue={editing?.status ?? "aktif"}
-                className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
-              >
-                <option value="aktif">Aktif</option>
-                <option value="lulus">Lulus</option>
-                <option value="pindah">Pindah</option>
-                <option value="keluar">Keluar</option>
-              </select>
-            </div>
+            {/* ===== Hidden Status (dipindahkan ke modal terpisah) ===== */}
+            <input type="hidden" name="status" value={editing?.status ?? "aktif"} />
           </Tabs>
 
           </div>

@@ -145,3 +145,28 @@ export async function deleteSiswaRecord(
 
   return okResult("Siswa berhasil dihapus.");
 }
+
+export async function updateSiswaStatusRecord(
+  deps: SiswaMutationsDeps,
+  current: CurrentUser,
+  siswaId: string,
+  status: "aktif" | "lulus" | "pindah" | "keluar"
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang boleh mengelola data siswa.");
+  }
+
+  const { error } = await deps.supabase
+    .from("students")
+    .update({ status })
+    .eq("id", siswaId)
+    .eq("school_id", schoolId);
+
+  if (error) {
+    return errResult(serverError(error, "Gagal mengubah status siswa."));
+  }
+
+  return okResult("Status siswa berhasil diperbarui.");
+}

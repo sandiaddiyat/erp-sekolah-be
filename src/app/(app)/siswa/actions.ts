@@ -5,7 +5,7 @@ import { guardAction } from "@/lib/action-guard";
 import { PERMISSIONS } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 import { uploadStudentPhoto } from "@/lib/supabase/storage";
-import { deleteSiswaRecord, saveSiswaRecord } from "@/features/siswa/service";
+import { deleteSiswaRecord, saveSiswaRecord, updateSiswaStatusRecord } from "@/features/siswa/service";
 import { readSaveSiswaInput } from "@/features/siswa/schema";
 import type { FormState } from "@/lib/types";
 
@@ -79,6 +79,25 @@ export async function deleteSiswa(siswaId: string): Promise<FormState> {
 
   const supabase = await createClient();
   const result = await deleteSiswaRecord({ supabase }, guard.user, siswaId);
+
+  if (!result.ok) return { error: result.error };
+
+  revalidateSiswaPages();
+  return { success: result.message };
+}
+
+export async function updateSiswaStatus(
+  siswaId: string,
+  status: "aktif" | "lulus" | "pindah" | "keluar"
+): Promise<FormState> {
+  const guard = await guardAction({
+    permission: PERMISSIONS.studentsUpdate,
+    deniedMessage: "Anda tidak punya izin mengubah data siswa.",
+  });
+  if ("error" in guard) return { error: guard.error };
+
+  const supabase = await createClient();
+  const result = await updateSiswaStatusRecord({ supabase }, guard.user, siswaId, status);
 
   if (!result.ok) return { error: result.error };
 

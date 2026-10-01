@@ -92,45 +92,83 @@ export async function exportSiswa(
 
   const XLSX = await import("xlsx");
 
-  const headers = [
-    "Nama Lengkap",
-    "NIS",
-    "NISN",
-    "Jenis Kelamin",
-    "Tempat Lahir",
-    "Tanggal Lahir",
-    "Agama",
-    "Nama Ayah",
-    "Nama Ibu",
-    "Nama Wali",
-    "Telepon Wali",
-    "Alamat",
-    "Status",
+  const header1 = [
+    "No", "NIS", "NISN", "Nama Siswa", "Nama Panggilan", "Tempat", "Tanggal Lahir", "L/P",
+    "Agama", "Status dalam Keluarga", "Anak ke",
+    "Alamat", "", "", "", "", "",
+    "Nama Orang Tua:", "",
+    "Alamat Orang Tua", "", "", "", "", "",
+    "Nomor Telepon Rumah",
+    "Pekerjaan Orang Tua :", "",
+    "Nama Wali Siswa",
+    "Alamat Wali Siswa", "", "", "",
+    "Nomor Telepon Wali Siswa",
+    "Pekerjaan Wali Siswa",
+    "Status"
   ];
 
-  const rows: ExportRow[] = siswaList.map((item) => ({
-    "Nama Lengkap": item.nama_lengkap ?? "",
-    NIS: item.nis ?? "",
-    NISN: item.nisn ?? "",
-    "Jenis Kelamin":
-      item.jenis_kelamin === "L"
-        ? "Laki-laki"
-        : item.jenis_kelamin === "P"
-          ? "Perempuan"
-          : "",
-    "Tempat Lahir": item.tempat_lahir ?? "",
-    "Tanggal Lahir": item.tanggal_lahir ?? "",
-    Agama: agamaName.get(item.agama_id ?? "") ?? "",
-    "Nama Ayah": item.nama_ayah ?? "",
-    "Nama Ibu": item.nama_ibu ?? "",
-    "Nama Wali": item.nama_wali ?? "",
-    "Telepon Wali": item.no_telp_wali ?? "",
-    Alamat: item.alamat ?? "",
-    Status: item.status ?? "",
-  }));
+  const header2 = [
+    "", "", "", "", "", "", "", "", "", "", "",
+    "Dusun", "RT", "RW", "Desa", "Kecamatan", "Kab./Kota",
+    "Ayah", "Ibu",
+    "Dusun", "RT", "RW", "Desa", "Kecamatan", "Kab./Kota",
+    "",
+    "Ayah", "Ibu",
+    "",
+    "Dusun", "RT", "RW", "Desa",
+    "", "",
+    ""
+  ];
 
-  const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
-  worksheet["!cols"] = headers.map((header) => ({ wch: Math.max(10, header.length + 4) }));
+  const dataRows = siswaList.map((item, index) => [
+    index + 1,
+    item.nis ?? "",
+    item.nisn ?? "",
+    item.nama_lengkap ?? "",
+    item.nama_panggilan ?? "",
+    item.tempat_lahir ?? "",
+    item.tanggal_lahir ?? "",
+    item.jenis_kelamin ?? "",
+    agamaName.get(item.agama_id ?? "") ?? "",
+    item.status_dalam_keluarga ?? "",
+    item.anak_ke ?? "",
+    item.alamat_dusun ?? "",
+    item.alamat_rt ?? "",
+    item.alamat_rw ?? "",
+    item.alamat_desa ?? "",
+    item.alamat_kecamatan ?? "",
+    item.alamat_kabupaten_kota ?? "",
+    item.nama_ayah ?? "",
+    item.nama_ibu ?? "",
+    item.alamat_ortu_dusun ?? "",
+    item.alamat_ortu_rt ?? "",
+    item.alamat_ortu_rw ?? "",
+    item.alamat_ortu_desa ?? "",
+    item.alamat_ortu_kecamatan ?? "",
+    item.alamat_ortu_kabupaten_kota ?? "",
+    item.no_telp_rumah ?? "",
+    item.pekerjaan_ayah ?? "",
+    item.pekerjaan_ibu ?? "",
+    item.nama_wali ?? "",
+    item.alamat_wali_dusun ?? "",
+    item.alamat_wali_rt ?? "",
+    item.alamat_wali_rw ?? "",
+    item.alamat_wali_desa ?? "",
+    item.no_telp_wali ?? "",
+    item.pekerjaan_wali ?? "",
+    item.status ?? ""
+  ]);
+
+  const worksheet = XLSX.utils.aoa_to_sheet([header1, header2, ...dataRows]);
+  
+  worksheet["!merges"] = [
+    { s: { r: 0, c: 11 }, e: { r: 0, c: 16 } }, // Alamat
+    { s: { r: 0, c: 17 }, e: { r: 0, c: 18 } }, // Nama Orang Tua
+    { s: { r: 0, c: 19 }, e: { r: 0, c: 24 } }, // Alamat Orang Tua
+    { s: { r: 0, c: 26 }, e: { r: 0, c: 27 } }, // Pekerjaan Orang Tua
+    { s: { r: 0, c: 29 }, e: { r: 0, c: 32 } }, // Alamat Wali Siswa
+  ];
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Data Siswa");
 
