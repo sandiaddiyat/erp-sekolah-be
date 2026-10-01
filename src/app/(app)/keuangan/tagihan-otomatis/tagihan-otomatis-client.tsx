@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, FileText, SearchIcon } from "lucide-react";
+import { PlusIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/lib/utils";
 import type { AcademicYear, Invoice, BillingRunLog } from "@/lib/types";
 import { runGenerateInvoices } from "./actions";
+import { FinanceDataTable } from "@/components/finance/finance-data-table";
 
 type FormState = { error?: string; success?: string } | undefined;
 
@@ -43,15 +44,11 @@ export function TagihanOtomatisClient({
   canManage: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [runOpen, setRunOpen] = useState(false);
 
   const activeYears = academicYears.filter((y) => y.status === "active");
   const yearOptions = activeYears.length > 0 ? activeYears : academicYears;
-
-  const filtered = invoices.filter((inv) =>
-    (inv.student_id ?? "").toLowerCase().includes(query.toLowerCase()) ||
-    inv.period_label.toLowerCase().includes(query.toLowerCase())
-  );
 
   return (
     <div className="mx-auto w-full max-w-[1190px] space-y-6">
@@ -121,14 +118,10 @@ export function TagihanOtomatisClient({
       <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
         <CardHeader>
           <CardTitle className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">Daftar Tagihan</CardTitle>
-          <CardDescription className="text-[11px] text-[#8b9f95]">{filtered.length} tagihan ditemukan</CardDescription>
-          <div className="relative mt-3 w-full sm:w-64">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-[#91a49a]" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari periode atau siswa..." className="h-[35px] w-full rounded-[9px] border border-[#e2ece5] bg-[#fcfdfc] pl-8 text-sm text-[#284a3d] placeholder:text-[#a8b7b0] focus:border-[#9dc7a8] focus:ring-[#4d986f]/10" />
-          </div>
+          <CardDescription className="text-[11px] text-[#8b9f95]">{invoices.length} tagihan tersedia</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
-          {filtered.length === 0 ? (
+          {invoices.length === 0 ? (
             <div className="px-6 py-10 text-center">
               <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
               <p className="mt-2 text-sm font-medium">Belum ada tagihan</p>
@@ -137,27 +130,56 @@ export function TagihanOtomatisClient({
               </p>
             </div>
           ) : (
-            <div className="divide-y">
-              {filtered.map((inv) => (
-                <div key={inv.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{inv.period_label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Siswa #{inv.student_id} · {inv.issue_date?.slice(0, 10)} → {inv.due_date?.slice(0, 10)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium">{formatRupiah(Number(inv.total_amount))}</span>
-                    <Badge variant={STATUS_VARIANT[inv.status as Invoice["status"]]}>
-                      {STATUS_LABELS[inv.status as Invoice["status"]]}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <FinanceDataTable
+              rows={invoices}
+              rowKey={(invoice) => invoice.id}
+              search={query}
+              onSearchChange={setQuery}
+              emptyLabel="Belum ada tagihan. Jalankan job generate tagihan untuk membuat tagihan otomatis."
+              filteredEmptyLabel="Tidak ada tagihan yang cocok dengan pencarian."
+              columns={[
+                { key: "period", label: "Periode", searchable: true, searchValue: (invoice) => invoice.period_label, sortValue: (invoice) => invoice.period_label, sticky: true, render: (invoice) => <span className="block truncate text-[12px] font-semibold text-[#2b493e]" title={invoice.period_label}>{invoice.period_label}</span> },
+                { key: "student", label: "Siswa", searchable: true, searchValue: (invoice) => invoice.student_id, sortValue: (invoice) => invoice.student_id, render: (invoice) => <span className="block truncate text-xs text-[#3e5c50]" title={invoice.student_id}>#{invoice.student_id}</span> },
+                { key: "due_date", label: "Jatuh Tempo", sortValue: (invoice) => invoice.due_date, render: (invoice) => <span className="text-xs text-[#3e5c50]">{invoice.due_date?.slice(0, 10) ?? "-"}</span> },
+                { key: "total", label: "Total", sortValue: (invoice) => Number(invoice.total_amount), render: (invoice) => <span className="text-xs font-semibold text-[#2b493e]">{formatRupiah(Number(invoice.total_amount))}</span> },
+                { key: "status", label: "Status", sortValue: (invoice) => invoice.status, render: (invoice) => <Badge variant={STATUS_VARIANT[invoice.status]}>{STATUS_LABELS[invoice.status]}</Badge> },
+              ]}
+              onRowClick={(invoice) => setViewingInvoice(invoice)}
+            />
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={Boolean(viewingInvoice)} onOpenChange={(open) => !open && setViewingInvoice(null)}>
+        <DialogContent className="border-0 ring-1 ring-[#dbe8df] sm:max-w-[560px] rounded-[17px] bg-[#fbfdfb] p-0">
+          <DialogHeader className="border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <span className="text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">Keuangan</span>
+            <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">Detail Tagihan</DialogTitle>
+            <DialogDescription>{viewingInvoice?.period_label ?? "-"}</DialogDescription>
+          </DialogHeader>
+          {viewingInvoice ? (
+            <dl className="grid grid-cols-2 gap-x-5 gap-y-4 px-7 py-6">
+              <DetailItem label="Siswa" value={`#${viewingInvoice.student_id}`} />
+              <DetailItem label="Status" value={STATUS_LABELS[viewingInvoice.status]} />
+              <DetailItem label="Tanggal Terbit" value={viewingInvoice.issue_date?.slice(0, 10) ?? "-"} />
+              <DetailItem label="Jatuh Tempo" value={viewingInvoice.due_date?.slice(0, 10) ?? "-"} />
+              <DetailItem label="Total" value={formatRupiah(Number(viewingInvoice.total_amount))} />
+            </dl>
+          ) : null}
+          <DialogFooter className="border-t border-[#e3ece6] bg-white px-7 py-[15px]">
+            <Button variant="outline" onClick={() => setViewingInvoice(null)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] font-bold tracking-[.04em] text-[#8b9f95] uppercase">{label}</dt>
+      <dd className="mt-1 truncate text-xs text-[#2b493e]" title={value}>{value}</dd>
     </div>
   );
 }
