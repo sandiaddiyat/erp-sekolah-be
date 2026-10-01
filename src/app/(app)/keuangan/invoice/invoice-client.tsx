@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { EyeIcon, CheckIcon, XIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { formatRupiah } from "@/lib/utils";
 import type { Invoice, InvoiceDetail } from "@/lib/types";
 import { updateInvoiceStatus } from "./actions";
@@ -45,8 +45,6 @@ export function InvoiceClient({
   const [statusFormOpen, setStatusFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
-  const [statusState, statusAction, statusSubmitting] = useActionState<FormState, FormData>(updateInvoiceStatus, undefined);
-
   const invoiceDetails = selectedInvoice
     ? details.filter((d) => d.invoice_id === selectedInvoice.id)
     : [];
@@ -54,24 +52,23 @@ export function InvoiceClient({
   const studentName = (studentId: string) =>
     students.find((s) => s.id === studentId)?.nama_lengkap ?? studentId;
 
-  const handleStatusUpdate = (invoice: Invoice, newStatus: Invoice["status"]) => {
+  const handleStatusUpdate = (invoice: Invoice) => {
     setEditingInvoice(invoice);
     setStatusFormOpen(true);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-[1190px] space-y-6">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Invoice / Tagihan Siswa</h1>
-        <p className="text-sm text-muted-foreground">
-          Daftar invoice yang dibuat otomatis dari billing run.
-        </p>
+        <span className="mb-2.5 block text-[10px] font-bold tracking-[0.1em] text-[#4c9a77] uppercase">Keuangan</span>
+        <h1 className="font-heading text-2xl font-semibold tracking-[-0.05em] text-[#183d32]">Invoice / Tagihan Siswa</h1>
+        <p className="mt-2 text-xs text-[#82978d]">Daftar invoice yang dibuat otomatis dari billing run.</p>
       </div>
 
-      <Card>
+      <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
         <CardHeader>
-          <CardTitle>Daftar Invoice</CardTitle>
-          <CardDescription>{invoices.length} invoice</CardDescription>
+          <CardTitle className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">Daftar Invoice</CardTitle>
+          <CardDescription className="text-[11px] text-[#8b9f95]">{invoices.length} invoice</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           {invoices.length === 0 ? (
@@ -84,7 +81,7 @@ export function InvoiceClient({
               {invoices.map((inv) => {
                 const badge = STATUS_BADGE[inv.status];
                 return (
-                  <div key={inv.id} className="flex items-center justify-between gap-3 px-6 py-3">
+                  <div key={inv.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{studentName(inv.student_id)}</p>
                       <p className="text-xs text-muted-foreground">
@@ -99,18 +96,16 @@ export function InvoiceClient({
                           <Button variant="outline" size="sm" onClick={() => setSelectedInvoice(inv)}>
                             <EyeIcon className="h-4 w-4" />
                           </Button>
-                          <select
-                            defaultValue=""
-                            onChange={(e) => {
-                              if (e.target.value) handleStatusUpdate(inv, e.target.value as Invoice["status"]);
-                            }}
-                            className="text-xs border rounded px-1 py-0.5 bg-transparent"
-                          >
-                            <option value="" disabled>Ubah</option>
-                            {STATUS_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </select>
+                          <Select onValueChange={() => handleStatusUpdate(inv)}>
+                            <SelectTrigger className="h-8 w-[100px] rounded-[8px] border-[#d7e6dc] text-[10px] text-[#4b8669]">
+                              <SelectValue placeholder="Ubah" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       ) : null}
                     </div>
@@ -124,9 +119,9 @@ export function InvoiceClient({
 
       {/* Detail Dialog */}
       <Dialog open={Boolean(selectedInvoice)} onOpenChange={() => setSelectedInvoice(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Detail Invoice</DialogTitle>
+        <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[650px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <DialogTitle className="text-[21px] font-semibold tracking-[-.05em] text-[#183d32]">Detail Invoice</DialogTitle>
             <DialogDescription>
               {selectedInvoice && studentName(selectedInvoice.student_id)} · {selectedInvoice?.period_label}
             </DialogDescription>
@@ -163,44 +158,112 @@ export function InvoiceClient({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0 shrink-0 justify-end gap-2 rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px] sm:justify-end">
             <Button variant="outline" onClick={() => setSelectedInvoice(null)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Status Update Dialog */}
-      <Dialog open={statusFormOpen} onOpenChange={setStatusFormOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form action={statusAction} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Ubah Status Invoice</DialogTitle>
-              <DialogDescription>
-                {editingInvoice && studentName(editingInvoice.student_id)} · {formatRupiah(editingInvoice?.total_amount ?? 0)}
-              </DialogDescription>
-            </DialogHeader>
+      <UpdateStatusDialog
+        key={editingInvoice?.id ?? "no-invoice"}
+        open={statusFormOpen}
+        onOpenChange={setStatusFormOpen}
+        invoice={editingInvoice}
+        studentName={editingInvoice ? studentName(editingInvoice.student_id) : undefined}
+        onSaved={() => {
+          setStatusFormOpen(false);
+          setEditingInvoice(null);
+        }}
+      />
+    </div>
+  );
+}
 
-            {editingInvoice ? <input type="hidden" name="id" value={editingInvoice.id} /> : null}
+function UpdateStatusDialog({
+  open,
+  onOpenChange,
+  invoice,
+  studentName,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  invoice: Invoice | null;
+  studentName?: string;
+  onSaved: () => void;
+}) {
+  const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(updateInvoiceStatus, undefined);
 
+  useEffect(() => {
+    if (state?.success) {
+      toast.success(state.success);
+      onSaved();
+    } else if (state?.error) {
+      toast.error(state.error);
+    }
+  }, [state, onSaved]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[560px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
+        <form action={formAction} className="flex h-full max-h-[min(92vh,900px)] flex-col">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">Keuangan</span>
+            <DialogTitle
+              className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Ubah Status Invoice
+            </DialogTitle>
+            <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">
+              {studentName} · {formatRupiah(invoice?.total_amount ?? 0)}
+            </DialogDescription>
+          </DialogHeader>
+
+          {invoice ? <input type="hidden" name="id" value={invoice.id} /> : null}
+
+          <div
+            className="flex-1 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: "none" }}
+          >
             <div className="space-y-2">
               <FieldLabel htmlFor="status" required>Status Baru</FieldLabel>
-              <Select name="status" defaultValue={editingInvoice?.status ?? ""}>
-                <SelectTrigger id="status"><SelectValue placeholder="Pilih status" /></SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                id="status"
+                name="status"
+                defaultValue={invoice?.status ?? ""}
+                className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+                required
+              >
+                <option value="">- pilih status -</option>
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
+          </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setStatusFormOpen(false)}>Batal</Button>
-              <Button type="submit" disabled={statusSubmitting}>{statusSubmitting ? "Menyimpan..." : "Simpan"}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px]">
+            <div className="flex w-full justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-8 rounded-[9px] border border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-3.5 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]"
+              >
+                {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

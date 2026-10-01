@@ -96,7 +96,6 @@ export const MODULE_LABELS: Record<string, string> = {
   academics: "Akademik",
   billing: "Tagihan Otomatis",
   discount: "Diskon & Beasiswa",
-  financeInvoice: "Invoice",
   reports: "Laporan",
   settings: "Pengaturan",
 };
@@ -117,7 +116,6 @@ export const MODULE_ORDER: string[] = [
   "academics",
   "billing",
   "discount",
-  "financeInvoice",
   "reports",
   "settings",
 ];
