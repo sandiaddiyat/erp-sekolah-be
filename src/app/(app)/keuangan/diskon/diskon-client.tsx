@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { FinanceDataTable } from "@/components/finance/finance-data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,22 +41,14 @@ export function DiskonClient({
   // Discount type state
   const [typeFormOpen, setTypeFormOpen] = useState(false);
   const [editingType, setEditingType] = useState<DiscountType | null>(null);
+  const [viewingType, setViewingType] = useState<DiscountType | null>(null);
   const [deletingType, setDeletingType] = useState<DiscountType | null>(null);
 
   // Student discount state
   const [discFormOpen, setDiscFormOpen] = useState(false);
   const [editingDisc, setEditingDisc] = useState<StudentDiscount | null>(null);
+  const [viewingDisc, setViewingDisc] = useState<StudentDiscount | null>(null);
   const [deletingDisc, setDeletingDisc] = useState<StudentDiscount | null>(null);
-
-  const filteredTypes = discountTypes.filter((t) =>
-    (t.code + " " + t.name).toLowerCase().includes(query.toLowerCase())
-  );
-
-  const filteredDiscounts = studentDiscounts.filter((d) => {
-    const studentName = students.find((s) => s.id === d.student_id)?.nama_lengkap ?? "";
-    return studentName.toLowerCase().includes(query.toLowerCase()) ||
-      d.discount_type_id.toLowerCase().includes(query.toLowerCase());
-  });
 
   const studentOptions = students.map((s) => ({ value: s.id, label: `${s.nama_lengkap} (${s.nisn ?? s.id})` }));
   const typeOptions = discountTypes.map((t) => ({ value: t.id, label: `${t.code} - ${t.name} (${t.calc_type})` }));
@@ -100,96 +93,76 @@ export function DiskonClient({
         >
           {activeTab === "types" ? "Diskon Siswa" : "Jenis Diskon"}
         </Button>
-        <div className="relative w-full sm:w-64">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-[#91a49a]" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari data diskon..." className="h-[35px] w-full rounded-[9px] border border-[#e2ece5] bg-[#fcfdfc] pl-8 text-sm text-[#284a3d] placeholder:text-[#a8b7b0] focus:border-[#9dc7a8] focus:ring-[#4d986f]/10" />
-        </div>
       </div>
 
       {activeTab === "types" ? (
         <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
           <CardHeader>
             <CardTitle className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">Jenis Diskon</CardTitle>
-            <CardDescription className="text-[11px] text-[#8b9f95]">{filteredTypes.length} dari {discountTypes.length} jenis</CardDescription>
+            <CardDescription className="text-[11px] text-[#8b9f95]">{discountTypes.length} jenis terdaftar</CardDescription>
           </CardHeader>
           <CardContent className="px-0">
-            {filteredTypes.length === 0 ? (
-              <div className="px-6 py-10 text-center">
-                <p className="text-sm font-medium">Belum ada jenis diskon</p>
-                <p className="text-sm text-muted-foreground mt-1">Tambahkan jenis diskon pertama.</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {filteredTypes.map((item) => (
-                  <div key={item.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.code} · {item.calc_type === "percent" ? "Persen" : "Nominal"}
-                        {item.is_system ? " · Sistem" : ""}
-                      </p>
-                    </div>
-                    {canManage ? (
-                      <div className="flex shrink-0 gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setEditingType(item)}>Ubah</Button>
-                        <Button variant="outline" size="sm" className="text-destructive" onClick={() => setDeletingType(item)}>Hapus</Button>
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
+            <FinanceDataTable
+              rows={discountTypes}
+              rowKey={(item) => item.id}
+              search={query}
+              onSearchChange={setQuery}
+              emptyLabel="Belum ada jenis diskon. Tambahkan jenis diskon pertama."
+              filteredEmptyLabel="Tidak ada jenis diskon yang cocok dengan pencarian."
+              columns={[
+                { key: "code", label: "Kode", searchable: true, searchValue: (item) => item.code, sortValue: (item) => item.code, sticky: true, render: (item) => <span className="text-xs font-semibold text-[#2b493e]">{item.code}</span> },
+                { key: "name", label: "Nama", searchable: true, searchValue: (item) => item.name, sortValue: (item) => item.name, render: (item) => <span className="block truncate text-xs text-[#3e5c50]" title={item.name}>{item.name}</span> },
+                { key: "calculation", label: "Perhitungan", sortValue: (item) => item.calc_type, render: (item) => <span className="text-xs text-[#3e5c50]">{item.calc_type === "percent" ? "Persen" : "Nominal"}</span> },
+                { key: "system", label: "Jenis", sortValue: (item) => Number(item.is_system), render: (item) => <span className="text-xs text-[#3e5c50]">{item.is_system ? "Sistem" : "Kustom"}</span> },
+              ]}
+              onRowClick={setViewingType}
+              actions={canManage ? (item) => <div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="Ubah jenis diskon" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5]" onClick={() => setEditingType(item)}><PencilIcon className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Hapus jenis diskon" className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#e8bcb4] hover:bg-[#fff7f5]" onClick={() => setDeletingType(item)}><Trash2Icon className="size-4" /></Button></div> : undefined}
+            />
           </CardContent>
         </Card>
       ) : (
         <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
           <CardHeader>
             <CardTitle className="font-heading text-[15px] tracking-[-0.035em] text-[#21483b]">Diskon Siswa</CardTitle>
-            <CardDescription className="text-[11px] text-[#8b9f95]">{filteredDiscounts.length} dari {studentDiscounts.length} diskon</CardDescription>
+            <CardDescription className="text-[11px] text-[#8b9f95]">{studentDiscounts.length} diskon terdaftar</CardDescription>
           </CardHeader>
           <CardContent className="px-0">
-            {filteredDiscounts.length === 0 ? (
-              <div className="px-6 py-10 text-center">
-                <p className="text-sm font-medium">Belum ada diskon siswa</p>
-                <p className="text-sm text-muted-foreground mt-1">Tambahkan diskon siswa pertama.</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {filteredDiscounts.map((item) => {
-                  const student = students.find((s) => s.id === item.student_id);
-                  const dtype = discountTypes.find((t) => t.id === item.discount_type_id);
-                  return (
-                    <div key={item.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{student?.nama_lengkap ?? item.student_id}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {dtype?.name ?? item.discount_type_id} · {item.start_date?.slice(0, 10)} → {item.end_date?.slice(0, 10)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          item.status === "disetujui" ? "bg-[#e7f5e9] text-[#2b7254]" :
-                          item.status === "ditolak" ? "bg-[#fdf0ee] text-[#ad685d]" :
-                          item.status === "berakhir" ? "bg-[#eef1ef] text-[#6b7a72]" :
-                          "bg-[#e8f2f5] text-[#3a7591]"
-                        }`}>
-                          {STATUS_LABELS[item.status]}
-                        </span>
-                        {canManage ? (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => setEditingDisc(item)}>Ubah</Button>
-                            <Button variant="outline" size="sm" className="text-destructive" onClick={() => setDeletingDisc(item)}>Hapus</Button>
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <FinanceDataTable
+              rows={studentDiscounts}
+              rowKey={(item) => item.id}
+              search={query}
+              onSearchChange={setQuery}
+              emptyLabel="Belum ada diskon siswa. Tambahkan diskon siswa pertama."
+              filteredEmptyLabel="Tidak ada diskon siswa yang cocok dengan pencarian."
+              columns={[
+                { key: "student", label: "Siswa", searchable: true, searchValue: (item) => students.find((student) => student.id === item.student_id)?.nama_lengkap ?? item.student_id, sortValue: (item) => students.find((student) => student.id === item.student_id)?.nama_lengkap ?? item.student_id, sticky: true, render: (item) => <span className="block truncate text-xs font-semibold text-[#2b493e]">{students.find((student) => student.id === item.student_id)?.nama_lengkap ?? item.student_id}</span> },
+                { key: "type", label: "Jenis Diskon", searchable: true, searchValue: (item) => discountTypes.find((type) => type.id === item.discount_type_id)?.name ?? item.discount_type_id, sortValue: (item) => discountTypes.find((type) => type.id === item.discount_type_id)?.name ?? item.discount_type_id, render: (item) => <span className="block truncate text-xs text-[#3e5c50]">{discountTypes.find((type) => type.id === item.discount_type_id)?.name ?? item.discount_type_id}</span> },
+                { key: "period", label: "Periode", sortValue: (item) => item.start_date, render: (item) => <span className="text-xs text-[#3e5c50]">{item.start_date?.slice(0, 10)} → {item.end_date?.slice(0, 10)}</span> },
+                { key: "value", label: "Nilai", sortValue: (item) => Number(item.value), render: (item) => <span className="text-xs font-semibold text-[#2b493e]">{item.value}</span> },
+                { key: "status", label: "Status", sortValue: (item) => item.status, render: (item) => <span className="rounded-full bg-[#eef6f0] px-2 py-0.5 text-xs font-medium text-[#2b7254]">{STATUS_LABELS[item.status]}</span> },
+              ]}
+              onRowClick={setViewingDisc}
+              actions={canManage ? (item) => <div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="Ubah diskon siswa" className="border border-[#e1ebe4] bg-white text-[#537467] hover:bg-[#f4faf5]" onClick={() => setEditingDisc(item)}><PencilIcon className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Hapus diskon siswa" className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:bg-[#fff7f5]" onClick={() => setDeletingDisc(item)}><Trash2Icon className="size-4" /></Button></div> : undefined}
+            />
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={Boolean(viewingType)} onOpenChange={(open) => !open && setViewingType(null)}>
+        <DialogContent className="border-0 ring-1 ring-[#dbe8df] sm:max-w-[520px] rounded-[17px] bg-[#fbfdfb] p-0">
+          <DialogHeader className="border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6"><DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">Detail Jenis Diskon</DialogTitle><DialogDescription>{viewingType?.name ?? "-"}</DialogDescription></DialogHeader>
+          {viewingType ? <dl className="grid grid-cols-2 gap-4 px-7 py-6"><DetailItem label="Kode" value={viewingType.code} /><DetailItem label="Perhitungan" value={viewingType.calc_type === "percent" ? "Persen" : "Nominal"} /><DetailItem label="Jenis" value={viewingType.is_system ? "Sistem" : "Kustom"} /></dl> : null}
+          <DialogFooter className="border-t border-[#e3ece6] bg-white px-7 py-[15px]"><Button variant="outline" onClick={() => setViewingType(null)}>Tutup</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(viewingDisc)} onOpenChange={(open) => !open && setViewingDisc(null)}>
+        <DialogContent className="border-0 ring-1 ring-[#dbe8df] sm:max-w-[520px] rounded-[17px] bg-[#fbfdfb] p-0">
+          <DialogHeader className="border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6"><DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">Detail Diskon Siswa</DialogTitle><DialogDescription>{viewingDisc ? students.find((student) => student.id === viewingDisc.student_id)?.nama_lengkap ?? viewingDisc.student_id : "-"}</DialogDescription></DialogHeader>
+          {viewingDisc ? <dl className="grid grid-cols-2 gap-4 px-7 py-6"><DetailItem label="Jenis Diskon" value={discountTypes.find((type) => type.id === viewingDisc.discount_type_id)?.name ?? viewingDisc.discount_type_id} /><DetailItem label="Nilai" value={String(viewingDisc.value)} /><DetailItem label="Periode" value={`${viewingDisc.start_date?.slice(0, 10)} → ${viewingDisc.end_date?.slice(0, 10)}`} /><DetailItem label="Status" value={STATUS_LABELS[viewingDisc.status]} /></dl> : null}
+          <DialogFooter className="border-t border-[#e3ece6] bg-white px-7 py-[15px]"><Button variant="outline" onClick={() => setViewingDisc(null)}>Tutup</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <DiscountTypeFormDialog
         key={editingType?.id ?? "new-type"}
@@ -242,6 +215,10 @@ export function DiskonClient({
       </AlertDialog>
     </div>
   );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0"><dt className="text-[10px] font-bold tracking-[.04em] text-[#8b9f95] uppercase">{label}</dt><dd className="mt-1 truncate text-xs text-[#2b493e]" title={value}>{value}</dd></div>;
 }
 
 function DiscountTypeFormDialog({

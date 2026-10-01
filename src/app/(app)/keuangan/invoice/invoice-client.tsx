@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { EyeIcon } from "lucide-react";
+import { PencilIcon } from "lucide-react";
+import { FinanceDataTable } from "@/components/finance/finance-data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRupiah } from "@/lib/utils";
 import type { Invoice, InvoiceDetail } from "@/lib/types";
 import { updateInvoiceStatus } from "./actions";
@@ -42,6 +42,7 @@ export function InvoiceClient({
   permissions: { canManage: boolean };
 }) {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [query, setQuery] = useState("");
   const [statusFormOpen, setStatusFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
@@ -77,42 +78,25 @@ export function InvoiceClient({
               <p className="text-sm text-muted-foreground mt-1">Invoice dibuat otomatis saat billing run berjalan.</p>
             </div>
           ) : (
-            <div className="divide-y">
-              {invoices.map((inv) => {
-                const badge = STATUS_BADGE[inv.status];
-                return (
-                  <div key={inv.id} className="group flex items-center justify-between gap-3 border-b border-[#f0f5f1] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#f6fbf7]">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{studentName(inv.student_id)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {inv.period_label} · Jatuh tempo {inv.due_date?.slice(0, 10) ?? "-"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-medium">{formatRupiah(inv.total_amount)}</span>
-                      <Badge variant={badge.variant}>{badge.label}</Badge>
-                      {permissions.canManage ? (
-                        <div className="flex gap-1 ml-2">
-                          <Button variant="outline" size="sm" onClick={() => setSelectedInvoice(inv)}>
-                            <EyeIcon className="h-4 w-4" />
-                          </Button>
-                          <Select onValueChange={() => handleStatusUpdate(inv)}>
-                            <SelectTrigger className="h-8 w-[100px] rounded-[8px] border-[#d7e6dc] text-[10px] text-[#4b8669]">
-                              <SelectValue placeholder="Ubah" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <FinanceDataTable
+              rows={invoices}
+              rowKey={(invoice) => invoice.id}
+              search={query}
+              onSearchChange={setQuery}
+              emptyLabel="Belum ada invoice. Invoice dibuat otomatis saat billing run berjalan."
+              filteredEmptyLabel="Tidak ada invoice yang cocok dengan pencarian."
+              columns={[
+                { key: "student", label: "Siswa", searchable: true, searchValue: (invoice) => studentName(invoice.student_id), sortValue: (invoice) => studentName(invoice.student_id), sticky: true, render: (invoice) => <span className="block truncate text-[12px] font-semibold text-[#2b493e]" title={studentName(invoice.student_id)}>{studentName(invoice.student_id)}</span> },
+                { key: "period", label: "Periode", searchable: true, searchValue: (invoice) => invoice.period_label, sortValue: (invoice) => invoice.period_label, render: (invoice) => <span className="block truncate text-xs text-[#3e5c50]" title={invoice.period_label}>{invoice.period_label}</span> },
+                { key: "due_date", label: "Jatuh Tempo", sortValue: (invoice) => invoice.due_date, render: (invoice) => <span className="text-xs text-[#3e5c50]">{invoice.due_date?.slice(0, 10) ?? "-"}</span> },
+                { key: "total", label: "Total", sortValue: (invoice) => Number(invoice.total_amount), render: (invoice) => <span className="text-xs font-semibold text-[#2b493e]">{formatRupiah(invoice.total_amount)}</span> },
+                { key: "status", label: "Status", sortValue: (invoice) => invoice.status, render: (invoice) => { const badge = STATUS_BADGE[invoice.status]; return <Badge variant={badge.variant}>{badge.label}</Badge>; } },
+              ]}
+              onRowClick={(invoice) => setSelectedInvoice(invoice)}
+              actions={permissions.canManage ? (invoice) => (
+                <Button variant="ghost" size="icon-sm" aria-label="Ubah status invoice" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => handleStatusUpdate(invoice)}><PencilIcon className="size-4" /></Button>
+              ) : undefined}
+            />
           )}
         </CardContent>
       </Card>
