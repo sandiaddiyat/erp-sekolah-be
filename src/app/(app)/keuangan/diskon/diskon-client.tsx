@@ -48,6 +48,8 @@ export function DiskonClient({
   const [discFormOpen, setDiscFormOpen] = useState(false);
   const [editingDisc, setEditingDisc] = useState<StudentDiscount | null>(null);
   const [viewingDisc, setViewingDisc] = useState<StudentDiscount | null>(null);
+  const [dialogKeyType, setDialogKeyType] = useState(0);
+  const [dialogKeyDisc, setDialogKeyDisc] = useState(0);
   const [deletingDisc, setDeletingDisc] = useState<StudentDiscount | null>(null);
 
   const studentOptions = students.map((s) => ({ value: s.id, label: `${s.nama_lengkap} (${s.nisn ?? s.id})` }));
@@ -165,17 +167,29 @@ export function DiskonClient({
       </Dialog>
 
       <DiscountTypeFormDialog
-        key={editingType?.id ?? "new-type"}
+        key={editingType?.id ?? dialogKeyType}
         open={typeFormOpen}
-        onOpenChange={setTypeFormOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setEditingType(null);
+            setDialogKeyType(k => k + 1);
+          }
+          setTypeFormOpen(open);
+        }}
         editing={editingType}
         onSaved={() => setTypeFormOpen(false)}
       />
 
       <StudentDiscountFormDialog
-        key={editingDisc?.id ?? "new-discount"}
+        key={editingDisc?.id ?? dialogKeyDisc}
         open={discFormOpen}
-        onOpenChange={setDiscFormOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setEditingDisc(null);
+            setDialogKeyDisc(k => k + 1);
+          }
+          setDiscFormOpen(open);
+        }}
         editing={editingDisc}
         studentOptions={studentOptions}
         typeOptions={typeOptions}

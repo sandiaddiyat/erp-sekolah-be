@@ -86,6 +86,7 @@ export function JurusanClient({
   const [filterLevel, setFilterLevel] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const levelById = useMemo(
     () => new Map(levels.map((l) => [l.id, l.name])),
@@ -152,12 +153,14 @@ export function JurusanClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (item: Major) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -513,7 +516,7 @@ export function JurusanClient({
       {canManage ? (
         <>
           <FormDialog
-            key={editing?.id ?? "new"}
+            key={editing?.id ?? dialogKey}
             open={formOpen}
             onOpenChange={setFormOpen}
             editing={editing}

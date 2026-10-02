@@ -278,6 +278,40 @@ export async function deleteEnrollment(_prevState: FormState, formData: FormData
   return { success: result.message };
 }
 
+export async function deleteBulkEnrollment(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const idsStr = String(formData.get("ids") ?? "").trim();
+  if (!idsStr) return { error: "ID pendaftaran tidak ditemukan." };
+
+  let ids: string[] = [];
+  try {
+    ids = JSON.parse(idsStr);
+  } catch {
+    return { error: "Format ID tidak valid." };
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { error: "ID pendaftaran tidak valid." };
+  }
+
+  const supabase = await createClient();
+  // We need to import deleteBulkEnrollmentRecord from service
+  const { deleteBulkEnrollmentRecord } = await import("@/features/akademik/service");
+  const result = await deleteBulkEnrollmentRecord({ supabase }, guard.user, ids);
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  
+  const className = String(formData.get("className") ?? "").trim();
+  if (className) {
+    return { success: `Data pendaftaran ${ids.length} siswa di kelas ${className} berhasil dihapus.` };
+  }
+
+  return { success: result.message };
+}
+
 // ===== Bulk Student Enrollments =====
 
 export async function fetchAvailableStudents(academicYearId: string) {

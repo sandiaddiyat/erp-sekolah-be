@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type FinanceTableColumn<T> = {
   key: string;
@@ -29,6 +30,9 @@ export function FinanceDataTable<T>({
   filteredEmptyLabel,
   onRowClick,
   actions,
+  selectable,
+  selectedKeys,
+  onSelectedKeysChange,
 }: {
   rows: T[];
   columns: FinanceTableColumn<T>[];
@@ -39,6 +43,9 @@ export function FinanceDataTable<T>({
   filteredEmptyLabel?: string;
   onRowClick?: (row: T) => void;
   actions?: (row: T) => React.ReactNode;
+  selectable?: boolean;
+  selectedKeys?: Set<string>;
+  onSelectedKeysChange?: (keys: Set<string>) => void;
 }) {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(() => new Set(columns.map((column) => column.key)));
   const [sortKey, setSortKey] = useState(columns[0]?.key ?? "");
@@ -133,10 +140,29 @@ export function FinanceDataTable<T>({
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[#e5eee8] hover:bg-transparent">
+              {selectable && selectedKeys && onSelectedKeysChange ? (
+                <TableHead className="sticky left-0 z-30 w-10 bg-white px-3.5 py-2.5 shadow-[8px_0_8px_-8px_#1c44331a]">
+                  <Checkbox 
+                    checked={pageRows.length > 0 && pageRows.every(row => selectedKeys.has(rowKey(row)))}
+                    onCheckedChange={(checked) => {
+                      const newSet = new Set(selectedKeys);
+                      pageRows.forEach(row => {
+                        if (checked) newSet.add(rowKey(row));
+                        else newSet.delete(rowKey(row));
+                      });
+                      onSelectedKeysChange(newSet);
+                    }}
+                    className="rounded-[4px] border-[#c0cfc6] data-[state=checked]:bg-[#185743] data-[state=checked]:border-[#185743] text-white h-4 w-4"
+                  />
+                </TableHead>
+              ) : null}
               {visibleColumns.map((column) => {
                 const active = sortKey === column.key;
+                const stickyClass = column.sticky 
+                  ? (selectable ? "sticky left-10 z-20 bg-white pl-3.5 shadow-[8px_0_8px_-8px_#1c44331a]" : "sticky left-0 z-20 bg-white pl-6 shadow-[8px_0_8px_-8px_#1c44331a]")
+                  : "";
                 return (
-                  <TableHead key={column.key} onClick={() => column.sortValue && setSort(column.key)} className={`px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] whitespace-nowrap ${column.sortValue ? "cursor-pointer select-none hover:text-[#2b7254]" : ""} ${column.sticky ? "sticky left-0 z-20 bg-white pl-6 shadow-[8px_0_8px_-8px_#1c44331a]" : ""}`}>
+                  <TableHead key={column.key} onClick={() => column.sortValue && setSort(column.key)} className={`px-3.5 py-2.5 text-[10px] font-bold text-[#6c8279] whitespace-nowrap ${column.sortValue ? "cursor-pointer select-none hover:text-[#2b7254]" : ""} ${stickyClass}`}>
                     <span className="inline-flex items-center gap-1.5">{column.label}{column.sortValue ? active ? sortDirection === "asc" ? <ArrowUpIcon className="size-3.5 text-[#2b7254]" /> : <ArrowDownIcon className="size-3.5 text-[#2b7254]" /> : <ArrowUpDownIcon className="size-3.5 text-[#9aaa9f]" /> : null}</span>
                   </TableHead>
                 );
@@ -146,10 +172,31 @@ export function FinanceDataTable<T>({
           </TableHeader>
           <TableBody>
             {pageRows.length === 0 ? (
-              <TableRow><TableCell colSpan={visibleColumns.length + (actions ? 1 : 0)} className="h-32 text-center text-sm text-[#8b9f95]">{search ? filteredEmptyLabel ?? "Tidak ada data yang cocok dengan pencarian." : emptyLabel}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={visibleColumns.length + (actions ? 1 : 0) + (selectable ? 1 : 0)} className="h-32 text-center text-sm text-[#8b9f95]">{search ? filteredEmptyLabel ?? "Tidak ada data yang cocok dengan pencarian." : emptyLabel}</TableCell></TableRow>
             ) : pageRows.map((row) => (
               <TableRow key={rowKey(row)} className={`group border-b border-[#f0f5f1] ${onRowClick ? "cursor-pointer" : ""} hover:bg-[#f6fbf7]`} onClick={() => onRowClick?.(row)}>
-                {visibleColumns.map((column) => <TableCell key={column.key} className={`px-3.5 py-3 align-middle ${column.sticky ? "sticky left-0 z-10 bg-white pl-6 shadow-[8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]" : ""}`}>{column.render(row)}</TableCell>)}
+                {selectable && selectedKeys && onSelectedKeysChange ? (
+                  <TableCell className="sticky left-0 z-20 bg-white px-3.5 py-3 align-middle shadow-[8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox 
+                      checked={selectedKeys.has(rowKey(row))}
+                      onCheckedChange={(checked) => {
+                        const newSet = new Set(selectedKeys);
+                        if (checked) newSet.add(rowKey(row));
+                        else newSet.delete(rowKey(row));
+                        onSelectedKeysChange(newSet);
+                      }}
+                      className="rounded-[4px] border-[#c0cfc6] data-[state=checked]:bg-[#185743] data-[state=checked]:border-[#185743] text-white h-4 w-4"
+                    />
+                  </TableCell>
+                ) : null}
+                {visibleColumns.map((column) => {
+                  const stickyClass = column.sticky 
+                    ? (selectable ? "sticky left-10 z-10 bg-white pl-3.5 shadow-[8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]" : "sticky left-0 z-10 bg-white pl-6 shadow-[8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]")
+                    : "";
+                  return (
+                    <TableCell key={column.key} className={`px-3.5 py-3 align-middle ${stickyClass}`}>{column.render(row)}</TableCell>
+                  );
+                })}
                 {actions ? <TableCell className="sticky right-0 z-10 bg-white px-3 py-3 pr-6 align-middle shadow-[-8px_0_8px_-8px_#1c44331a] group-hover:bg-[#f6fbf7]" onClick={(event) => event.stopPropagation()}>{actions(row)}</TableCell> : null}
               </TableRow>
             ))}

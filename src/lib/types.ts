@@ -501,6 +501,16 @@ export type Invoice = {
   status: InvoiceStatus;
   created_at: string;
   updated_at: string;
+  students?: {
+    nama_lengkap: string;
+  };
+  invoice_details?: {
+    id: string;
+    description: string;
+    base_amount: number;
+    discount_amount: number;
+    final_amount: number;
+  }[];
 };
 
 export type InvoiceDetail = {

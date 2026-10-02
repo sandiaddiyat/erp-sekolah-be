@@ -75,6 +75,7 @@ export function UsersClient({
   const [roleFilter, setRoleFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
   const [visibleColumns, setVisibleColumns] = useState<Set<UserColumnKey>>(
     () => new Set(columns.map((column) => column.key))
   );
@@ -172,11 +173,13 @@ export function UsersClient({
 
   const openCreate = () => {
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (user: UserWithRoles) => {
     setEditing(user);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -362,7 +365,7 @@ export function UsersClient({
         </CardContent>
       </Card>
 
-      <UserFormDialog key={editing?.id ?? "new"} open={formOpen} onOpenChange={setFormOpen} user={editing} roles={roles} schools={schools} isSuperAdmin={isSuperAdmin} currentSchoolId={currentSchoolId} permissions={permissions} />
+      <UserFormDialog key={editing?.id ?? dialogKey} open={formOpen} onOpenChange={setFormOpen} user={editing} roles={roles} schools={schools} isSuperAdmin={isSuperAdmin} currentSchoolId={currentSchoolId} permissions={permissions} />
       <UserDeleteDialog user={deleting} open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={handleDelete} isPending={isPending} />
 
       <UserDetailDialog

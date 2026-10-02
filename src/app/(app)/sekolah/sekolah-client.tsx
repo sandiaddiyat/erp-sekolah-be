@@ -38,6 +38,7 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -100,11 +101,13 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
 
   const openCreate = () => {
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (school: SchoolWithCounts) => {
     setEditing(school);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -272,7 +275,7 @@ export function SekolahClient({ schools }: { schools: SchoolWithCounts[] }) {
       </Card>
 
       <SchoolFormDialog
-        key={editing?.id ?? "new"}
+        key={editing?.id ?? dialogKey}
         open={formOpen}
         onOpenChange={setFormOpen}
         school={editing}
