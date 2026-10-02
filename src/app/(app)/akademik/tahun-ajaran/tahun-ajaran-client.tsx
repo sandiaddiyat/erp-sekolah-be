@@ -107,6 +107,7 @@ export function AcademicYearClient({
   const [filterStatus, setFilterStatus] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -175,12 +176,14 @@ export function AcademicYearClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (item: AcademicYear) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -555,7 +558,7 @@ export function AcademicYearClient({
       {canManage ? (
         <>
           <FormDialog
-            key={editing?.id ?? "new"}
+            key={editing?.id ?? dialogKey}
             open={formOpen}
             onOpenChange={setFormOpen}
             editing={editing}

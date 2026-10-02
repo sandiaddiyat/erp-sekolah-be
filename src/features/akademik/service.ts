@@ -531,6 +531,29 @@ export async function deleteEnrollmentRecord(
   return okResult("Pendaftaran berhasil dihapus.");
 }
 
+export async function deleteBulkEnrollmentRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  ids: string[]
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  if (ids.length === 0) {
+    return okResult("Tidak ada pendaftaran yang dihapus.");
+  }
+
+  const { error } = await deps.supabase
+    .from("student_enrollments")
+    .delete()
+    .in("id", ids)
+    .eq("school_id", schoolId);
+  if (error) return handleInsertError(error, "Gagal menghapus pendaftaran secara massal.");
+  return okResult(`${ids.length} pendaftaran berhasil dihapus.`);
+}
+
 // ===== Bulk Enrollment Queries =====
 
 export type AvailableStudent = {

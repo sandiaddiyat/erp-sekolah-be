@@ -79,6 +79,7 @@ export function RolesClient({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const schoolNames = useMemo(
     () => new Map(schools.map((school) => [school.id, school.name])),
@@ -166,11 +167,13 @@ export function RolesClient({
 
   const openCreate = () => {
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (role: RoleWithCounts) => {
     setEditing(role);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -364,7 +367,7 @@ export function RolesClient({
       </Card>
 
       <RoleFormDialog
-        key={editing?.id ?? "new"}
+        key={editing?.id ?? dialogKey}
         open={formOpen}
         onOpenChange={setFormOpen}
         role={editing}

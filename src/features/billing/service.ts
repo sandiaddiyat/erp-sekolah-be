@@ -37,22 +37,27 @@ export async function generateInvoices(
   }
 
   const { supabase } = deps;
-  const { academic_year_id, period_label, due_date, only_without_invoice } = payload;
+  const { academic_year_id, period_label, due_date, only_without_invoice, fee_category_ids } = payload;
 
   // 1. Idempotensi: cek apakah job untuk periode ini sudah pernah berjalan selesai
   const { data: existingRun } = await supabase
     .from("billing_run_logs")
-    .select("id")
+    .select("id, status")
     .eq("school_id", schoolId)
     .eq("academic_year_id", academic_year_id)
     .eq("period_label", period_label)
-    .eq("status", "selesai")
     .maybeSingle();
 
   if (existingRun) {
-    return errResult(
-      `Tagihan untuk periode "${period_label}" sudah pernah dibuat. Hapus pencatatan lama atau gunakan periode lain.`
-    );
+    if (existingRun.status === "berjalan") {
+      return errResult(
+        `Pembuatan tagihan untuk periode "${period_label}" sedang berjalan. Silakan tunggu hingga selesai.`
+      );
+    }
+    
+    // Jika statusnya 'gagal' atau 'selesai', kita hapus log lama agar bisa mulai ulang 
+    // atau generate kategori lain di periode yang sama
+    await supabase.from("billing_run_logs").delete().eq("id", existingRun.id);
   }
 
   // 2. Buat log run dengan status "berjalan"
@@ -69,14 +74,14 @@ export async function generateInvoices(
     .single();
 
   if (runLogError || !runLog) {
-    return errResult(serverError(runLogError, "Gagal memulai job billing."));
+    return errResult(serverError(runLogError, "Gagal memulai job billing. Periksa koneksi atau data referensi."));
   }
 
   try {
     // 3. Ambil semua enrollment aktif di tahun ajaran ini + siswa + kelas
     const { data: enrollments, error: enrollError } = await supabase
       .from("student_enrollments")
-      .select("*, students!inner(*), classes!inner(grade_id, major_id), pegawai!inner(education_level_id, name)")
+      .select("*, students:students!student_enrollments_student_id_fkey!inner(*), classes:classes!student_enrollments_class_id_fkey!inner(grade_id, major_id)")
       .eq("school_id", schoolId)
       .eq("academic_year_id", academic_year_id)
       .eq("status", "active");
@@ -137,8 +142,9 @@ export async function generateInvoices(
       const gradeId = enrollment.classes?.grade_id;
       const majorId = enrollment.classes?.major_id;
 
-      // Filter fee structures yang cocok: sama dengan grade_id, major_id nullable
+      // Filter fee structures yang cocok: sama dengan grade_id, major_id nullable, dan termasuk di kategori yang dipilih
       const matchedFees = (feeStructures ?? []).filter((fs) => {
+        if (!fee_category_ids.includes(fs.fee_category_id)) return false;
         if (fs.grade_id !== gradeId) return false;
         if (fs.major_id !== null && fs.major_id !== majorId) return false;
         return true;
@@ -281,6 +287,93 @@ export async function generateInvoices(
       })
       .eq("id", runLog.id);
 
-    return errResult(serverError(error, "Job generate tagihan gagal."));
+    return errResult(serverError(error, `Job generate tagihan gagal: ${error instanceof Error ? error.message : JSON.stringify(error)}`));
   }
+}
+
+export async function deleteInvoice(
+  deps: BillingMutationsDeps,
+  current: CurrentUser,
+  payload: { id: string }
+): Promise<MutationResult> {
+  const schoolId = SCHOOL_ID(current);
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat menjalankan aksi ini.");
+  }
+
+  const { supabase } = deps;
+  const { id } = payload;
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", id)
+    .eq("school_id", schoolId)
+    .single();
+
+  if (!invoice) {
+    return errResult("Tagihan tidak ditemukan.");
+  }
+
+  if (invoice.status !== "belum_bayar") {
+    return errResult("Tidak dapat menghapus tagihan yang sudah memiliki riwayat pembayaran.");
+  }
+
+  const { error } = await supabase
+    .from("invoices")
+    .delete()
+    .eq("id", id)
+    .eq("school_id", schoolId);
+
+  if (error) {
+    return errResult(serverError(error, "Gagal menghapus tagihan."));
+  }
+
+  return okResult("Tagihan berhasil dihapus.");
+}
+
+export async function bulkDeleteInvoice(
+  deps: BillingMutationsDeps,
+  current: CurrentUser,
+  payload: { ids: string[] }
+): Promise<MutationResult> {
+  const schoolId = SCHOOL_ID(current);
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat menjalankan aksi ini.");
+  }
+
+  const { supabase } = deps;
+  const { ids } = payload;
+
+  if (!ids || ids.length === 0) {
+    return errResult("Tidak ada tagihan yang dipilih.");
+  }
+
+  // Cek apakah ada yang sudah dibayar
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("status")
+    .in("id", ids)
+    .eq("school_id", schoolId);
+
+  if (!invoices || invoices.length === 0) {
+    return errResult("Tagihan tidak ditemukan.");
+  }
+
+  const hasPaid = invoices.some((inv) => inv.status !== "belum_bayar");
+  if (hasPaid) {
+    return errResult("Tidak dapat menghapus tagihan karena ada yang sudah memiliki riwayat pembayaran.");
+  }
+
+  const { error } = await supabase
+    .from("invoices")
+    .delete()
+    .in("id", ids)
+    .eq("school_id", schoolId);
+
+  if (error) {
+    return errResult(serverError(error, "Gagal menghapus tagihan dalam jumlah banyak."));
+  }
+
+  return okResult(`${ids.length} tagihan berhasil dihapus.`);
 }

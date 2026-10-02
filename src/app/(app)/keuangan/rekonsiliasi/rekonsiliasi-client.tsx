@@ -70,6 +70,9 @@ export function RekonsiliasiClient({
   // Record payment state
   const [payOpen, setPayOpen] = useState(false);
   const [payingInvoice, setPayingInvoice] = useState<InvoiceRow | null>(null);
+  const [dialogKeyMethod, setDialogKeyMethod] = useState(0);
+  const [dialogKeyBank, setDialogKeyBank] = useState(0);
+  const [dialogKeyPay, setDialogKeyPay] = useState(0);
 
   const statusFilteredInvoices = useMemo(
     () => invoices.filter((invoice) => statusFilter === "all" || invoice.status === statusFilter),
@@ -279,25 +282,43 @@ export function RekonsiliasiClient({
       </Dialog>
 
       <PaymentMethodDialog
-        key={editingMethod?.id ?? "new-method"}
+        key={editingMethod?.id ?? dialogKeyMethod}
         open={methodOpen}
-        onOpenChange={setMethodOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setEditingMethod(null);
+            setDialogKeyMethod(k => k + 1);
+          }
+          setMethodOpen(open);
+        }}
         editing={editingMethod}
         onSaved={() => setMethodOpen(false)}
       />
 
       <BankAccountDialog
-        key={editingBank?.id ?? "new-bank"}
+        key={editingBank?.id ?? dialogKeyBank}
         open={bankOpen}
-        onOpenChange={setBankOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setEditingBank(null);
+            setDialogKeyBank(k => k + 1);
+          }
+          setBankOpen(open);
+        }}
         editing={editingBank}
         onSaved={() => setBankOpen(false)}
       />
 
       <RecordPaymentDialog
-        key={payingInvoice?.id ?? "no-invoice"}
+        key={payingInvoice?.id ?? dialogKeyPay}
         open={payOpen}
-        onOpenChange={setPayOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setPayingInvoice(null);
+            setDialogKeyPay(k => k + 1);
+          }
+          setPayOpen(open);
+        }}
         invoice={payingInvoice}
         studentName={payingInvoice ? students.find((s) => s.id === payingInvoice.student_id)?.nama_lengkap : undefined}
         remaining={

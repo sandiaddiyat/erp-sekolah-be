@@ -105,6 +105,7 @@ export function KelasClient({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const yearById = useMemo(
     () => new Map(options.academic_years.map((y) => [y.id, y.name])),
@@ -217,12 +218,14 @@ export function KelasClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (item: SchoolClass) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -668,7 +671,7 @@ export function KelasClient({
       {canManage ? (
         <>
           <FormDialog
-            key={editing?.id ?? "new"}
+            key={editing?.id ?? dialogKey}
             open={formOpen}
             onOpenChange={setFormOpen}
             editing={editing}

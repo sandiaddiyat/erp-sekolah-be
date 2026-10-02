@@ -79,9 +79,15 @@ export default async function DashboardPage() {
 
   const permissionsByModule = user.permissions.reduce<Record<string, string[]>>(
     (acc, slug) => {
-      const moduleKey = slug.split(".")[0] ?? "lainnya";
+      const parts = slug.split(".");
+      const moduleKey = parts[0] ?? "lainnya";
       acc[moduleKey] = acc[moduleKey] ?? [];
-      acc[moduleKey].push(slug.split(".")[1] ?? slug);
+      
+      const action = parts.slice(1).join(".") || slug;
+      if (!acc[moduleKey].includes(action)) {
+        acc[moduleKey].push(action);
+      }
+      
       return acc;
     },
     {}

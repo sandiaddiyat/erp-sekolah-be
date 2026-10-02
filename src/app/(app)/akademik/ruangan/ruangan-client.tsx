@@ -82,6 +82,7 @@ export function RuanganClient({
   const [filterType, setFilterType] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const typeOptions = useMemo(() => {
     const types = new Set<string>();
@@ -157,12 +158,14 @@ export function RuanganClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (item: Room) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -532,7 +535,7 @@ export function RuanganClient({
       {canManage ? (
         <>
           <FormDialog
-            key={editing?.id ?? "new"}
+            key={editing?.id ?? dialogKey}
             open={formOpen}
             onOpenChange={setFormOpen}
             editing={editing}
