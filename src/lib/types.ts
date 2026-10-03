@@ -435,6 +435,8 @@ export type Class = {
 
 export type StudentEnrollmentStatus = "active" | "keluar" | "pindah" | "lulus";
 
+export type PlacementStatus = "draft" | "final";
+
 export type StudentEnrollment = {
   id: string;
   school_id: string;
@@ -444,6 +446,7 @@ export type StudentEnrollment = {
   enrollment_date: string;
   exit_date: string | null;
   status: StudentEnrollmentStatus;
+  placement_status: PlacementStatus;
   created_at: string;
   updated_at: string;
 };

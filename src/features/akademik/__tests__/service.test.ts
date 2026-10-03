@@ -22,6 +22,10 @@ import {
   saveBulkEnrollmentDiffRecord,
   fetchClassRoster,
   fetchClassRosterWithAvailable,
+  savePlacementRecord,
+  fetchUnplacedStudents,
+  generateDraftPlacement,
+  finalizePlacementRecord,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -32,6 +36,8 @@ import {
   readSaveClassInput,
   readCopyClassesInput,
   readSaveEnrollmentInput,
+  readSavePlacementInput,
+  readGenerateDraftPlacementInput,
 } from "@/features/akademik/schema";
 import type { CurrentUser } from "@/lib/types";
 
@@ -1678,5 +1684,299 @@ describe("deleteEnrollmentRecord (service)", () => {
     expect(result.ok).toBe(true);
     expect(table.calls.some((c) => c === "eq:id=" + UUID)).toBe(true);
     expect(table.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+  });
+});
+
+// ===== Class Placement (Issue #104) =====
+
+describe("readSavePlacementInput (schema)", () => {
+  it("menerima penempatan lengkap dan default placement_status final", () => {
+    const result = readSavePlacementInput(
+      formData({
+        student_id: UUID,
+        academic_year_id: UUID,
+        class_id: UUID,
+        enrollment_date: "2025-07-01",
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.placement_status).toBe("final");
+      expect(result.command.status).toBe("active");
+    }
+  });
+
+  it("menerima placement_status draft", () => {
+    const result = readSavePlacementInput(
+      formData({
+        student_id: UUID,
+        academic_year_id: UUID,
+        class_id: UUID,
+        enrollment_date: "2025-07-01",
+        placement_status: "draft",
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.placement_status).toBe("draft");
+    }
+  });
+
+  it("menolak placement_status tidak valid", () => {
+    expect(
+      readSavePlacementInput(
+        formData({
+          student_id: UUID,
+          academic_year_id: UUID,
+          class_id: UUID,
+          enrollment_date: "2025-07-01",
+          placement_status: "entah",
+        })
+      ).ok
+    ).toBe(false);
+  });
+
+  it("menolak tanpa class_id", () => {
+    expect(
+      readSavePlacementInput(
+        formData({
+          student_id: UUID,
+          academic_year_id: UUID,
+          enrollment_date: "2025-07-01",
+        })
+      ).ok
+    ).toBe(false);
+  });
+});
+
+describe("readGenerateDraftPlacementInput (schema)", () => {
+  it("menerima tahun ajaran dan tingkat valid", () => {
+    const result = readGenerateDraftPlacementInput(
+      formData({ academic_year_id: UUID, grade_id: UUID })
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("menolak tanpa tingkat", () => {
+    expect(readGenerateDraftPlacementInput(formData({ academic_year_id: UUID })).ok).toBe(false);
+  });
+});
+
+describe("savePlacementRecord (service)", () => {
+  const PAYLOAD = {
+    id: undefined,
+    student_id: UUID,
+    academic_year_id: UUID,
+    class_id: UUID,
+    enrollment_date: "2025-07-01",
+    exit_date: undefined,
+    status: "active" as const,
+    placement_status: "final" as const,
+  };
+
+  it("menempatkan siswa dengan school_id dari user login", async () => {
+    const enrollments = new QueryMock();
+    const queues = {
+      classes: [
+        new QueryMock({ grade_id: UUID, major_id: null }),
+        new QueryMock({
+          id: UUID,
+          name: "7A",
+          major_id: null,
+          capacity: null,
+          academic_year_id: UUID,
+          grade_id: UUID,
+        }),
+      ],
+      student_enrollments: [enrollments],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await savePlacementRecord({ supabase }, makeUser(), PAYLOAD);
+
+    expect(result.ok).toBe(true);
+    const payload = JSON.parse(
+      enrollments.calls.find((c) => c.startsWith("insert:"))!.slice("insert:".length)
+    );
+    expect(payload.school_id).toBe("school-1");
+    expect(payload.student_id).toBe(UUID);
+    expect(payload.placement_status).toBe("final");
+  });
+
+  it("menolak saat kapasitas kelas sudah penuh", async () => {
+    const queues = {
+      classes: [
+        new QueryMock({ grade_id: UUID, major_id: null }),
+        new QueryMock({
+          id: UUID,
+          name: "7A",
+          major_id: null,
+          capacity: 1,
+          academic_year_id: UUID,
+          grade_id: UUID,
+        }),
+      ],
+      student_enrollments: [new QueryMock([{ id: "enr-1" }])],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await savePlacementRecord({ supabase }, makeUser(), PAYLOAD);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Kapasitas kelas sudah penuh (1/1 siswa).");
+    }
+  });
+
+  it("menolak saat kelas tidak sesuai tahun ajaran", async () => {
+    const queues = {
+      classes: [
+        new QueryMock({ grade_id: UUID, major_id: null }),
+        new QueryMock({
+          id: UUID,
+          name: "7A",
+          major_id: null,
+          capacity: null,
+          academic_year_id: UUID_2,
+          grade_id: UUID,
+        }),
+      ],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await savePlacementRecord({ supabase }, makeUser(), PAYLOAD);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Kelas tujuan tidak sesuai dengan tahun ajaran yang dipilih.");
+    }
+  });
+});
+
+describe("fetchUnplacedStudents (service)", () => {
+  it("menge-return siswa aktif yang belum terdaftar di tahun ajaran", async () => {
+    const queues = {
+      student_enrollments: [new QueryMock([{ student_id: "student-1" }])],
+      students: [
+        new QueryMock([
+          { id: "student-1", nama_lengkap: "A", nis: "001", jenis_kelamin: "L" },
+          { id: "student-2", nama_lengkap: "B", nis: null, jenis_kelamin: "P" },
+        ]),
+      ],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await fetchUnplacedStudents({ supabase }, "school-1", UUID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe("student-2");
+    }
+  });
+});
+
+describe("generateDraftPlacement (service)", () => {
+  it("menolak saat tidak ada kelas pada tingkat", async () => {
+    const queues = { classes: [new QueryMock([])] };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await generateDraftPlacement({ supabase }, makeUser(), UUID, UUID);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Tidak ada kelas yang dibuka pada tingkat ini.",
+    });
+  });
+
+  it("menolak saat semua siswa sudah ditempatkan", async () => {
+    const queues = {
+      classes: [new QueryMock([{ id: UUID, capacity: 30 }])],
+      academic_years: [
+        new QueryMock({ start_date: "2025-07-01", end_date: "2026-06-30" }),
+      ],
+      // 1) fetchUnplacedStudents -> baca enrollment, 2) baca students
+      student_enrollments: [new QueryMock([{ student_id: "student-1" }])],
+      students: [new QueryMock([{ id: "student-1", nama_lengkap: "A" }])],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await generateDraftPlacement({ supabase }, makeUser(), UUID, UUID);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Tidak ada siswa yang belum ditempatkan.",
+    });
+  });
+
+  it("membagi siswa secara round-robin ke kelas yang tersedia", async () => {
+    const inserted = new QueryMock();
+    const queues = {
+      classes: [
+        new QueryMock([
+          { id: "class-a", capacity: 2 },
+          { id: "class-b", capacity: 2 },
+        ]),
+      ],
+      academic_years: [
+        new QueryMock({ start_date: "2025-07-01", end_date: "2026-06-30" }),
+      ],
+      // 1) fetchUnplaced -> enrollment, 2) students, 3) hitung okupansi, 4) insert
+      student_enrollments: [new QueryMock([]), new QueryMock([]), inserted],
+      students: [
+        new QueryMock([
+          { id: "s1", nama_lengkap: "A", nis: null, jenis_kelamin: null },
+          { id: "s2", nama_lengkap: "B", nis: null, jenis_kelamin: null },
+        ]),
+      ],
+    };
+    const supabase = {
+      from: (table: keyof typeof queues) => queues[table].shift(),
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await generateDraftPlacement({ supabase }, makeUser(), UUID, UUID);
+
+    expect(result).toEqual({ ok: true, created: 2, unplaced: 0 });
+    const rows = JSON.parse(
+      inserted.calls.find((c) => c.startsWith("insert:"))!.slice("insert:".length)
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0].class_id).toBe("class-a");
+    expect(rows[1].class_id).toBe("class-b");
+    expect(rows[0].placement_status).toBe("draft");
+  });
+});
+
+describe("finalizePlacementRecord (service)", () => {
+  it("mengubah draft menjadi final untuk tahun ajaran terpilih", async () => {
+    const table = new QueryMock();
+    const supabase = makeSupabase({ student_enrollments: () => table });
+
+    const result = await finalizePlacementRecord({ supabase }, makeUser(), UUID);
+
+    expect(result.ok).toBe(true);
+    expect(table.calls.some((c) => c === "eq:placement_status=draft")).toBe(true);
+    expect(table.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+  });
+
+  it("menolak user tanpa school_id", async () => {
+    const supabase = makeSupabase({});
+    const user = makeUser({ profile: { school_id: null } as never });
+
+    const result = await finalizePlacementRecord({ supabase }, user, UUID);
+
+    expect(result.ok).toBe(false);
   });
 });

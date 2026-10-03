@@ -10,6 +10,7 @@ import type {
   SaveEnrollmentInput,
   SaveGradeInput,
   SaveMajorInput,
+  SavePlacementInput,
   SaveRoomInput,
   BulkEnrollmentInput,
 } from "./schema";
@@ -1096,4 +1097,299 @@ export async function saveBulkEnrollmentDiffRecord(
   }
 
   return okResult(`${toAdd.length} siswa ditambahkan, ${toRemove.length} siswa dikeluarkan dari kelas.`);
+}
+
+// ===== Class Placement (Issue #104) =====
+
+type PlacementClassRow = {
+  id: string;
+  name: string;
+  major_id: string | null;
+  capacity: number | null;
+};
+
+/**
+ * Validasi aturan bisnis untuk satu penempatan siswa:
+ * - kelas harus milik sekolah, tahun ajaran, dan tingkat yang dipilih;
+ * - kapasitas kelas tidak boleh terlampaui.
+ */
+async function assertPlacementAllowed(
+  supabase: SupabaseClient<Database>,
+  schoolId: string,
+  academicYearId: string,
+  gradeId: string,
+  classId: string,
+  extra = 1
+): Promise<MutationResult | null> {
+  const { data: classRow, error: classError } = await supabase
+    .from("classes")
+    .select("id, name, major_id, capacity, academic_year_id, grade_id")
+    .eq("id", classId)
+    .eq("school_id", schoolId)
+    .maybeSingle<PlacementClassRow & { academic_year_id: string; grade_id: string }>();
+  if (classError || !classRow) {
+    return errResult("Kelas tujuan tidak ditemukan.");
+  }
+  if (classRow.academic_year_id !== academicYearId) {
+    return errResult("Kelas tujuan tidak sesuai dengan tahun ajaran yang dipilih.");
+  }
+  if (classRow.grade_id !== gradeId) {
+    return errResult("Kelas tujuan tidak sesuai dengan tingkat yang dipilih.");
+  }
+
+  if (classRow.capacity !== null) {
+    const { data: enrolled, error: enrollError } = await supabase
+      .from("student_enrollments")
+      .select("id")
+      .eq("school_id", schoolId)
+      .eq("class_id", classId)
+      .eq("status", "active");
+    if (enrollError) return null;
+    const activeCount = (enrolled ?? []).length;
+    if (activeCount + extra > classRow.capacity) {
+      return errResult(
+        `Kapasitas kelas sudah penuh (${activeCount}/${classRow.capacity} siswa).`
+      );
+    }
+  }
+
+  return null;
+}
+
+export async function savePlacementRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  payload: SavePlacementInput
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  const { supabase } = deps;
+  const {
+    id,
+    student_id,
+    academic_year_id,
+    class_id,
+    enrollment_date,
+    exit_date,
+    status,
+    placement_status,
+  } = payload;
+
+  const { data: classRow } = await supabase
+    .from("classes")
+    .select("grade_id, major_id")
+    .eq("id", class_id)
+    .eq("school_id", schoolId)
+    .maybeSingle<{ grade_id: string; major_id: string | null }>();
+  if (!classRow) {
+    return errResult("Kelas tujuan tidak ditemukan.");
+  }
+
+  const placementError = await assertPlacementAllowed(
+    supabase,
+    schoolId,
+    academic_year_id,
+    classRow.grade_id,
+    class_id,
+    id ? 0 : 1
+  );
+  if (placementError) return placementError;
+
+  const values = {
+    student_id,
+    academic_year_id,
+    class_id,
+    enrollment_date,
+    exit_date: exit_date ?? null,
+    status,
+    placement_status,
+  };
+
+  if (id) {
+    const { error } = await supabase
+      .from("student_enrollments")
+      .update(values)
+      .eq("id", id)
+      .eq("school_id", schoolId);
+    if (error) return handleInsertError(error, "Gagal memperbarui penempatan.");
+    return okResult("Penempatan siswa berhasil diperbarui.");
+  }
+
+  const { error } = await supabase
+    .from("student_enrollments")
+    .insert({ ...values, school_id: schoolId });
+  if (error) {
+    const code = (error as { code?: string } | null)?.code;
+    const message = (error as { message?: string } | null)?.message ?? "";
+    if (code === "23505" || /duplicate key/i.test(message)) {
+      return errResult("Siswa sudah terdaftar pada tahun ajaran ini.");
+    }
+    return handleInsertError(error, "Gagal menempatkan siswa.");
+  }
+  return okResult("Siswa berhasil ditempatkan ke kelas.");
+}
+
+export type UnplacedStudent = {
+  id: string;
+  nama_lengkap: string;
+  nis: string | null;
+  jenis_kelamin: string | null;
+};
+
+export async function fetchUnplacedStudents(
+  deps: AkademikMutationsDeps,
+  schoolId: string,
+  academicYearId: string
+): Promise<{ ok: true; data: UnplacedStudent[] } | { ok: false; error: string }> {
+  if (!schoolId) return { ok: false, error: "Sekolah tidak ditemukan." };
+
+  const { data: enrolled, error: enrolledError } = await deps.supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId);
+  if (enrolledError) return { ok: false, error: enrolledError.message };
+
+  const enrolledIds = new Set((enrolled ?? []).map((row) => row.student_id));
+  const { data, error } = await deps.supabase
+    .from("students")
+    .select("id, nama_lengkap, nis, jenis_kelamin")
+    .eq("school_id", schoolId)
+    .eq("status", "aktif")
+    .order("nama_lengkap");
+  if (error) return { ok: false, error: error.message };
+
+  return {
+    ok: true,
+    data: (data ?? []).filter((student) => !enrolledIds.has(student.id)),
+  };
+}
+
+export type DraftPlacementResult =
+  | { ok: true; created: number; unplaced: number }
+  | { ok: false; error: string };
+
+/**
+ * Generate draft placement round-robin: distribute siswa yang belum
+ * ditempatkan ke kelas pada tingkat terpilih, melewati kelas yang penuh.
+ */
+export async function generateDraftPlacement(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  academicYearId: string,
+  gradeId: string,
+  placementStatus: "draft" | "final" = "draft"
+): Promise<DraftPlacementResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return { ok: false, error: "Hanya admin sekolah yang dapat mengelola data akademik." };
+  }
+
+  const { supabase } = deps;
+
+  const { data: classes, error: classError } = await supabase
+    .from("classes")
+    .select("id, capacity")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId)
+    .eq("grade_id", gradeId)
+    .order("name");
+  if (classError) return { ok: false, error: classError.message };
+  if (!classes || classes.length === 0) {
+    return { ok: false, error: "Tidak ada kelas yang dibuka pada tingkat ini." };
+  }
+
+  const { data: yearRow } = await supabase
+    .from("academic_years")
+    .select("start_date, end_date")
+    .eq("id", academicYearId)
+    .eq("school_id", schoolId)
+    .maybeSingle<{ start_date: string; end_date: string }>();
+  if (!yearRow) {
+    return { ok: false, error: "Tahun ajaran tidak ditemukan." };
+  }
+
+  const unplaced = await fetchUnplacedStudents(deps, schoolId, academicYearId);
+  if (!unplaced.ok) return unplaced;
+  if (unplaced.data.length === 0) {
+    return { ok: false, error: "Tidak ada siswa yang belum ditempatkan." };
+  }
+
+  const { data: enrolledRows, error: enrolledError } = await supabase
+    .from("student_enrollments")
+    .select("class_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId);
+  if (enrolledError) return { ok: false, error: enrolledError.message };
+
+  const counts = new Map<string, number>();
+  for (const classId of classes.map((c) => c.id)) {
+    counts.set(classId, 0);
+  }
+  for (const row of enrolledRows ?? []) {
+    if (!row.class_id) continue;
+    counts.set(row.class_id, (counts.get(row.class_id) ?? 0) + 1);
+  }
+
+  const rows: Database["public"]["Tables"]["student_enrollments"]["Insert"][] = [];
+  let unplacedCount = 0;
+  let cursor = 0;
+
+  for (const student of unplaced.data) {
+    // Round-robin: mulai dari kelas berikutnya yang masih punya sisa kapasitas.
+    let target: (typeof classes)[number] | undefined;
+    for (let step = 0; step < classes.length; step += 1) {
+      const candidate = classes[(cursor + step) % classes.length];
+      if (candidate.capacity === null || (counts.get(candidate.id) ?? 0) < candidate.capacity) {
+        target = candidate;
+        cursor = (cursor + step + 1) % classes.length;
+        break;
+      }
+    }
+    if (!target) {
+      unplacedCount += 1;
+      continue;
+    }
+    counts.set(target.id, (counts.get(target.id) ?? 0) + 1);
+    rows.push({
+      school_id: schoolId,
+      student_id: student.id,
+      academic_year_id: academicYearId,
+      class_id: target.id,
+      enrollment_date: yearRow.start_date.slice(0, 10),
+      exit_date: null,
+      status: "active",
+      placement_status: placementStatus,
+    });
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("student_enrollments").insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  return { ok: true, created: rows.length, unplaced: unplacedCount };
+}
+
+export async function finalizePlacementRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  academicYearId: string
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  const { error } = await deps.supabase
+    .from("student_enrollments")
+    .update({ placement_status: "final" })
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId)
+    .eq("placement_status", "draft");
+  if (error) return handleInsertError(error, "Gagal memfinalisasi penempatan.");
+  return okResult("Data penempatan berhasil difinalisasi.");
 }
