@@ -42,8 +42,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Class as SchoolClass, AcademicYear, Grade, Major, Room } from "@/lib/types";
+import type {
+  Class as SchoolClass,
+  AcademicYear,
+  EducationLevel,
+  Grade,
+  Major,
+  Room,
+  ClassStatus,
+} from "@/lib/types";
 import { saveClass, deleteClass } from "../actions";
 import { copyClassesFromPrevious } from "./copy-action";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
@@ -58,9 +67,18 @@ type KelasOptions = {
   majors: Major[];
   rooms: Room[];
   pegawai: PegawaiSimple[];
+  education_levels: Pick<EducationLevel, "id" | "code" | "name">[];
 };
 
-type ColumnKey = "name" | "year" | "grade" | "major" | "room" | "homeroom" | "capacity";
+type ColumnKey =
+  | "name"
+  | "year"
+  | "grade"
+  | "major"
+  | "room"
+  | "homeroom"
+  | "capacity"
+  | "status";
 
 const allColumns: { key: ColumnKey; label: string }[] = [
   { key: "name", label: "Nama Kelas" },
@@ -70,7 +88,22 @@ const allColumns: { key: ColumnKey; label: string }[] = [
   { key: "room", label: "Ruangan" },
   { key: "homeroom", label: "Wali Kelas" },
   { key: "capacity", label: "Kapasitas" },
+  { key: "status", label: "Status" },
 ];
+
+const STATUS_LABELS: Record<ClassStatus, string> = {
+  aktif: "Aktif",
+  nonaktif: "Nonaktif",
+  arsip: "Arsip",
+};
+
+const STATUS_COLORS: Record<ClassStatus, string> = {
+  aktif: "bg-[#e7f5e9] text-[#2b7254]",
+  nonaktif: "bg-[#fdf0ee] text-[#ad685d]",
+  arsip: "bg-[#fcf3e3] text-[#a67437]",
+};
+
+const MAJOR_LEVEL_CODES = new Set(["SMA", "SMK"]);
 
 const SELECT_CLASS =
   "h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10";
@@ -80,10 +113,14 @@ const SCROLLBAR_HIDDEN_STYLE = { scrollbarWidth: "none" } as const;
 export function KelasClient({
   classes,
   options,
+  studentCounts,
+  doubleSessions,
   canManage,
 }: {
   classes: SchoolClass[];
   options: KelasOptions;
+  studentCounts: Record<string, number>;
+  doubleSessions: boolean;
   canManage: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -102,6 +139,7 @@ export function KelasClient({
   const [pageSize, setPageSize] = useState(10);
   const [filterYear, setFilterYear] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
@@ -133,6 +171,7 @@ export function KelasClient({
     return classes.filter((c) => {
       if (filterYear && c.academic_year_id !== filterYear) return false;
       if (filterGrade && c.grade_id !== filterGrade) return false;
+      if (filterStatus && c.status !== filterStatus) return false;
       if (!q) return true;
       const searchable = [
         c.name,
@@ -144,7 +183,7 @@ export function KelasClient({
       ];
       return searchable.some((val) => val.toLowerCase().includes(q));
     });
-  }, [classes, query, filterYear, filterGrade, yearById, gradeById, majorById, roomById, teacherById]);
+  }, [classes, query, filterYear, filterGrade, filterStatus, yearById, gradeById, majorById, roomById, teacherById]);
 
   const sorted = useMemo(() => {
     const getVal = (item: SchoolClass): string | number => {
@@ -163,6 +202,8 @@ export function KelasClient({
           return item.homeroom_teacher_id ? (teacherById.get(item.homeroom_teacher_id) ?? "") : "";
         case "capacity":
           return item.capacity ?? -1;
+        case "status":
+          return item.status;
       }
     };
     return [...filtered].sort((a, b) => {
@@ -185,7 +226,7 @@ export function KelasClient({
 
   const visibleColumnList = allColumns.filter((col) => visibleColumns.has(col.key));
 
-  const activeFilterCount = [filterYear, filterGrade].filter(Boolean).length;
+  const activeFilterCount = [filterYear, filterGrade, filterStatus].filter(Boolean).length;
   const hasActiveFilters = activeFilterCount > 0;
 
   const handleSort = (key: ColumnKey) => {
@@ -381,6 +422,7 @@ export function KelasClient({
                   onClick={() => {
                     setFilterYear("");
                     setFilterGrade("");
+                    setFilterStatus("");
                     setPage(1);
                   }}
                   className="h-7 gap-1.5 rounded-[8px] px-2.5 text-[10px] font-bold text-[#ad685d] hover:bg-[#fdf0ee] hover:text-[#ad685d]"
@@ -425,6 +467,22 @@ export function KelasClient({
                       {g.name}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-[#4c6a5e]">Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(event) => {
+                    setFilterStatus(event.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none focus:border-[#78ad8a]"
+                >
+                  <option value="">Semua</option>
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                  <option value="arsip">Arsip</option>
                 </select>
               </div>
             </div>
@@ -572,7 +630,22 @@ export function KelasClient({
                                 key={col.key}
                                 className="px-3.5 py-3 text-xs text-[#3e5c50] align-middle"
                               >
-                                {item.capacity ?? "-"}
+                                {item.capacity === null || item.capacity === undefined
+                                  ? "-"
+                                  : `${studentCounts[item.id] ?? 0}/${item.capacity}`}
+                              </TableCell>
+                            );
+                          case "status":
+                            return (
+                              <TableCell
+                                key={col.key}
+                                className="px-3.5 py-3 align-middle"
+                              >
+                                <Badge
+                                  className={`rounded-[5px] border-transparent px-2 py-1 text-[9px] font-bold ${STATUS_COLORS[item.status]}`}
+                                >
+                                  {STATUS_LABELS[item.status]}
+                                </Badge>
                               </TableCell>
                             );
                           default:
@@ -666,7 +739,7 @@ export function KelasClient({
         </CardContent>
       </Card>
 
-      <DetailDialog kelas={viewing} onClose={() => setViewing(null)} options={options} />
+      <DetailDialog kelas={viewing} onClose={() => setViewing(null)} options={options} studentCounts={studentCounts} />
 
       {canManage ? (
         <>
@@ -676,6 +749,7 @@ export function KelasClient({
             onOpenChange={setFormOpen}
             editing={editing}
             options={options}
+            doubleSessions={doubleSessions}
             onSaved={(message) => {
               setBanner(message);
               setFormOpen(false);
@@ -736,10 +810,12 @@ function DetailDialog({
   kelas,
   onClose,
   options,
+  studentCounts,
 }: {
   kelas: SchoolClass | null;
   onClose: () => void;
   options: KelasOptions;
+  studentCounts: Record<string, number>;
 }) {
   const yearName = kelas ? (options.academic_years.find((y) => y.id === kelas.academic_year_id)?.name ?? null) : null;
   const gradeName = kelas ? (options.grades.find((g) => g.id === kelas.grade_id)?.name ?? null) : null;
@@ -752,6 +828,11 @@ function DetailDialog({
   const teacherName = kelas?.homeroom_teacher_id
     ? (options.pegawai.find((t) => t.id === kelas.homeroom_teacher_id)?.full_name ?? null)
     : null;
+  const activeCount = kelas ? (studentCounts[kelas.id] ?? 0) : 0;
+  const remainingCapacity =
+    kelas && kelas.capacity !== null && kelas.capacity !== undefined
+      ? kelas.capacity - activeCount
+      : null;
 
   return (
     <Dialog open={Boolean(kelas)} onOpenChange={(open) => !open && onClose()}>
@@ -787,7 +868,23 @@ function DetailDialog({
               <DetailRow label="Jurusan" value={majorName} />
               <DetailRow label="Ruangan" value={roomName} />
               <DetailRow label="Wali Kelas" value={teacherName} />
+              <DetailRow label="Kode Kelas" value={kelas.class_code} />
+              <DetailRow
+                label="Status"
+                value={
+                  <Badge
+                    className={`rounded-[5px] border-transparent px-2 py-1 text-[9px] font-bold ${STATUS_COLORS[kelas.status]}`}
+                  >
+                    {STATUS_LABELS[kelas.status]}
+                  </Badge>
+                }
+              />
+              <DetailRow label="Shift" value={kelas.shift} />
               <DetailRow label="Kapasitas" value={kelas.capacity ?? null} />
+              <DetailRow
+                label="Sisa Kapasitas"
+                value={remainingCapacity === null ? null : `${remainingCapacity} (terisi ${activeCount})`}
+              />
             </dl>
           </div>
         ) : null}
@@ -801,16 +898,50 @@ function FormDialog({
   onOpenChange,
   editing,
   options,
+  doubleSessions,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: SchoolClass | null;
   options: KelasOptions;
+  doubleSessions: boolean;
   onSaved: (message: string) => void;
 }) {
   const isEdit = Boolean(editing);
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(saveClass, undefined);
+
+  // Dialog di-mount ulang per buka (key={editing?.id ?? dialogKey}),
+  // jadi nilai awal state cukup dihitung sekali saat mount.
+  const initialLevelId = !editing?.grade_id
+    ? ""
+    : (options.grades.find((g) => g.id === editing.grade_id)?.education_level_id ?? "");
+  const [educationLevelId, setEducationLevelId] = useState(initialLevelId);
+  const [gradeId, setGradeId] = useState(editing?.grade_id ?? "");
+  const [majorId, setMajorId] = useState(editing?.major_id ?? "");
+
+  const levelGrades = useMemo(
+    () =>
+      educationLevelId
+        ? options.grades.filter((g) => g.education_level_id === educationLevelId)
+        : [],
+    [options.grades, educationLevelId]
+  );
+  const selectedLevel = options.education_levels.find(
+    (l) => l.id === educationLevelId
+  );
+  const isMajorLevel = Boolean(
+    selectedLevel && MAJOR_LEVEL_CODES.has(selectedLevel.code.toUpperCase())
+  );
+  const levelMajors = useMemo(
+    () =>
+      educationLevelId
+        ? options.majors.filter(
+            (m) => m.education_level_id === educationLevelId
+          )
+        : [],
+    [options.majors, educationLevelId]
+  );
 
   useEffect(() => {
     if (state?.success) onSaved(state.success);
@@ -863,18 +994,47 @@ function FormDialog({
             </div>
 
             <div className="space-y-2">
+              <FieldLabel htmlFor="education_level_id" required>
+                Jenjang
+              </FieldLabel>
+              <select
+                id="education_level_id"
+                name="education_level_id"
+                value={educationLevelId}
+                onChange={(event) => {
+                  setEducationLevelId(event.target.value);
+                  setGradeId("");
+                  setMajorId("");
+                }}
+                className={SELECT_CLASS}
+                required
+              >
+                <option value="">- pilih jenjang -</option>
+                {options.education_levels.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
               <FieldLabel htmlFor="grade_id" required>
                 Tingkat
               </FieldLabel>
               <select
                 id="grade_id"
                 name="grade_id"
-                defaultValue={editing?.grade_id ?? ""}
+                value={gradeId}
+                onChange={(event) => setGradeId(event.target.value)}
                 className={SELECT_CLASS}
+                disabled={!educationLevelId}
                 required
               >
-                <option value="">- pilih tingkat -</option>
-                {options.grades.map((g) => (
+                <option value="">
+                  {educationLevelId ? "- pilih tingkat -" : "- pilih jenjang dahulu -"}
+                </option>
+                {levelGrades.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
@@ -895,24 +1055,76 @@ function FormDialog({
               />
             </div>
 
+            {isMajorLevel ? (
+              <div className="space-y-2">
+                <FieldLabel htmlFor="major_id" required>
+                  Jurusan
+                </FieldLabel>
+                <select
+                  id="major_id"
+                  name="major_id"
+                  value={majorId}
+                  onChange={(event) => setMajorId(event.target.value)}
+                  className={SELECT_CLASS}
+                  required
+                >
+                  <option value="">- pilih jurusan -</option>
+                  {levelMajors.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
-              <FieldLabel htmlFor="major_id" optional>
-                Jurusan
+              <FieldLabel htmlFor="class_code" optional>
+                Kode Kelas
+              </FieldLabel>
+              <Input
+                id="class_code"
+                name="class_code"
+                defaultValue={editing?.class_code ?? ""}
+                placeholder="mis. 7A-2026"
+                maxLength={50}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel htmlFor="status" required>
+                Status
               </FieldLabel>
               <select
-                id="major_id"
-                name="major_id"
-                defaultValue={editing?.major_id ?? ""}
+                id="status"
+                name="status"
+                defaultValue={editing?.status ?? "aktif"}
                 className={SELECT_CLASS}
+                required
               >
-                <option value="">- tidak ada -</option>
-                {options.majors.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
+                <option value="aktif">Aktif</option>
+                <option value="nonaktif">Nonaktif</option>
+                <option value="arsip">Arsip</option>
               </select>
             </div>
+
+            {doubleSessions ? (
+              <div className="space-y-2">
+                <FieldLabel htmlFor="shift" optional>
+                  Shift
+                </FieldLabel>
+                <select
+                  id="shift"
+                  name="shift"
+                  defaultValue={editing?.shift ?? ""}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">- tidak ada -</option>
+                  <option value="pagi">Pagi</option>
+                  <option value="siang">Siang</option>
+                </select>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <FieldLabel htmlFor="room_id" optional>

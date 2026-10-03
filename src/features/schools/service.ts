@@ -267,6 +267,7 @@ export async function saveSchoolProfileRecord(
       website: command.website || null,
       email: command.email || null,
       dinas: command.dinas || null,
+      has_double_sessions: command.has_double_sessions,
     } as Database["public"]["Tables"]["schools"]["Update"];
 
   const { error } = await supabase

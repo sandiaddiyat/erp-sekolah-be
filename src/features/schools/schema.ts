@@ -133,6 +133,7 @@ export const sekolahProfileSchema = z
     website: z.string().trim().url("URL website tidak valid").optional().or(z.literal("")),
     email: z.string().trim().email("Format email tidak valid").optional().or(z.literal("")),
     dinas: z.string().trim().max(100).optional().or(z.literal("")),
+    has_double_sessions: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const hasKota = (data.kota ?? "").trim().length > 0;
@@ -172,6 +173,7 @@ export type SaveSchoolProfileCommand = {
   website: string;
   email: string;
   dinas: string;
+  has_double_sessions: boolean;
 };
 
 export type SaveSchoolProfileParseResult =
@@ -216,6 +218,7 @@ export function readSaveSchoolProfileInput(
       website: input.website || "",
       email: input.email || "",
       dinas: input.dinas || "",
+      has_double_sessions: input.has_double_sessions ?? false,
     },
   };
 }

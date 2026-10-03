@@ -14,6 +14,7 @@ import {
   deleteMajorRecord,
   saveClassRecord,
   deleteClassRecord,
+  countActiveStudentsInClass,
   copyClassesFromPreviousYear,
   saveEnrollmentRecord,
   deleteEnrollmentRecord,
@@ -339,6 +340,32 @@ describe("readSaveClassInput (schema)", () => {
 
   it("menolak tanpa academic_year_id", () => {
     expect(readSaveClassInput(formData({ grade_id: UUID, name: "7A" })).ok).toBe(false);
+  });
+
+  it("status default aktif dan shift kosong menjadi null", () => {
+    const result = readSaveClassInput(
+      formData({ academic_year_id: UUID, grade_id: UUID, name: "Kelas 7A" })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.status).toBe("aktif");
+      expect(result.command.shift).toBeNull();
+    }
+  });
+
+  it("menerima shift pagi/siang", () => {
+    const result = readSaveClassInput(
+      formData({
+        academic_year_id: UUID,
+        grade_id: UUID,
+        name: "Kelas 7A",
+        shift: "siang",
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.shift).toBe("siang");
+    }
   });
 });
 
@@ -757,7 +784,13 @@ describe("deleteMajorRecord (service)", () => {
 describe("saveClassRecord (service)", () => {
   it("menambahkan kelas dengan school_id", async () => {
     const table = new QueryMock();
-    const supabase = makeSupabase({ classes: () => table });
+    const gradeTable = new QueryMock({ education_level_id: UUID });
+    const levelTable = new QueryMock({ code: "SMA" });
+    const supabase = makeSupabase({
+      classes: () => table,
+      grades: () => gradeTable,
+      education_levels: () => levelTable,
+    });
 
     const result = await saveClassRecord(
       { supabase },
@@ -771,6 +804,9 @@ describe("saveClassRecord (service)", () => {
         homeroom_teacher_id: UUID,
         name: "Kelas 7A",
         capacity: 32,
+        class_code: undefined,
+        status: "aktif",
+        shift: null,
       }
     );
 
@@ -781,11 +817,19 @@ describe("saveClassRecord (service)", () => {
     expect(payload.school_id).toBe("school-1");
     expect(payload.name).toBe("Kelas 7A");
     expect(payload.capacity).toBe(32);
+    expect(payload.status).toBe("aktif");
+    expect(payload.created_by).toBe("user-1");
   });
 
   it("memperbarui kelas", async () => {
     const table = new QueryMock();
-    const supabase = makeSupabase({ classes: () => table });
+    const gradeTable = new QueryMock({ education_level_id: UUID });
+    const levelTable = new QueryMock({ code: "SD" });
+    const supabase = makeSupabase({
+      classes: () => table,
+      grades: () => gradeTable,
+      education_levels: () => levelTable,
+    });
 
     const result = await saveClassRecord(
       { supabase },
@@ -799,11 +843,160 @@ describe("saveClassRecord (service)", () => {
         homeroom_teacher_id: undefined,
         name: "Kelas 7B",
         capacity: null,
+        class_code: undefined,
+        status: "aktif",
+        shift: null,
       }
     );
 
     expect(result.ok).toBe(true);
     expect(table.calls.some((c) => c === "eq:id=" + UUID)).toBe(true);
+  });
+
+  it("menolak jurusan kosong untuk jenjang SMA", async () => {
+    const gradeTable = new QueryMock({ education_level_id: UUID });
+    const levelTable = new QueryMock({ code: "SMA" });
+    const supabase = makeSupabase({
+      grades: () => gradeTable,
+      education_levels: () => levelTable,
+    });
+
+    const result = await saveClassRecord(
+      { supabase },
+      makeUser(),
+      {
+        id: undefined,
+        academic_year_id: UUID,
+        grade_id: UUID,
+        major_id: undefined,
+        room_id: undefined,
+        homeroom_teacher_id: undefined,
+        name: "Kelas 10A",
+        capacity: null,
+        class_code: undefined,
+        status: "aktif",
+        shift: null,
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Jurusan wajib diisi untuk jenjang SMA/SMK.");
+    }
+  });
+
+  it("menolak jurusan diisi untuk jenjang non-SMA/SMK", async () => {
+    const gradeTable = new QueryMock({ education_level_id: UUID });
+    const levelTable = new QueryMock({ code: "SD" });
+    const supabase = makeSupabase({
+      grades: () => gradeTable,
+      education_levels: () => levelTable,
+    });
+
+    const result = await saveClassRecord(
+      { supabase },
+      makeUser(),
+      {
+        id: undefined,
+        academic_year_id: UUID,
+        grade_id: UUID,
+        major_id: UUID,
+        room_id: undefined,
+        homeroom_teacher_id: undefined,
+        name: "Kelas 3A",
+        capacity: null,
+        class_code: undefined,
+        status: "aktif",
+        shift: null,
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe(
+        "Jurusan hanya boleh diisi untuk jenjang SMA/SMK."
+      );
+    }
+  });
+
+  it("menolak nama kelas duplikat di tingkat & tahun ajaran sama", async () => {
+    const table = new QueryMock({ id: UUID });
+    const gradeTable = new QueryMock({ education_level_id: UUID });
+    const levelTable = new QueryMock({ code: "SD" });
+    const supabase = makeSupabase({
+      classes: () => table,
+      grades: () => gradeTable,
+      education_levels: () => levelTable,
+    });
+
+    const result = await saveClassRecord(
+      { supabase },
+      makeUser(),
+      {
+        id: undefined,
+        academic_year_id: UUID,
+        grade_id: UUID,
+        major_id: undefined,
+        room_id: undefined,
+        homeroom_teacher_id: undefined,
+        name: "Kelas 7A",
+        capacity: null,
+        class_code: undefined,
+        status: "aktif",
+        shift: null,
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe(
+        "Nama kelas sudah digunakan di tingkat dan tahun ajaran yang sama."
+      );
+    }
+  });
+
+  it("menolak kode kelas yang sudah dipakai", async () => {
+    const table = new QueryMock();
+    const codeTable = new QueryMock({ id: UUID });
+    const gradeTable = new QueryMock({ education_level_id: UUID });
+    const levelTable = new QueryMock({ code: "SD" });
+    let classesCall = 0;
+    const supabase = {
+      from: (name: string) => {
+        if (name === "classes") {
+          classesCall += 1;
+          // panggilan pertama: cek duplikat nama (kosong),
+          // panggilan kedua: cek kode kelas (sudah ada)
+          return classesCall === 1 ? table : codeTable;
+        }
+        if (name === "grades") return gradeTable;
+        if (name === "education_levels") return levelTable;
+        throw new Error(`Tabel tak terduga: ${name}`);
+      },
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await saveClassRecord(
+      { supabase },
+      makeUser(),
+      {
+        id: undefined,
+        academic_year_id: UUID,
+        grade_id: UUID,
+        major_id: undefined,
+        room_id: undefined,
+        homeroom_teacher_id: undefined,
+        name: "Kelas 7A",
+        capacity: null,
+        class_code: "7A-2026",
+        status: "aktif",
+        shift: null,
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Kode kelas sudah dipakai kelas lain.");
+    }
   });
 });
 
@@ -817,6 +1010,30 @@ describe("deleteClassRecord (service)", () => {
     expect(result.ok).toBe(true);
     expect(table.calls.some((c) => c === "eq:id=" + UUID)).toBe(true);
     expect(table.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
+  });
+});
+
+describe("countActiveStudentsInClass (service)", () => {
+  it("mengembalikan jumlah siswa aktif di kelas", async () => {
+    const table = new QueryMock([
+      { student_id: "student-1" },
+      { student_id: "student-2" },
+      { student_id: "student-3" },
+    ]);
+    const supabase = makeSupabase({ student_enrollments: () => table });
+
+    const result = await countActiveStudentsInClass(
+      { supabase },
+      "school-1",
+      UUID
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.count).toBe(3);
+    }
+    expect(table.calls).toContain("eq:class_id=" + UUID);
+    expect(table.calls).toContain("eq:status=active");
   });
 });
 
@@ -991,7 +1208,11 @@ describe("copyClassesFromPreviousYear (service)", () => {
 describe("saveEnrollmentRecord (service)", () => {
   it("mendaftarkan siswa dengan school_id", async () => {
     const table = new QueryMock();
-    const supabase = makeSupabase({ student_enrollments: () => table });
+    const classTable = new QueryMock(null);
+    const supabase = makeSupabase({
+      student_enrollments: () => table,
+      classes: () => classTable,
+    });
 
     const result = await saveEnrollmentRecord(
       { supabase },
@@ -1016,9 +1237,53 @@ describe("saveEnrollmentRecord (service)", () => {
     expect(payload.status).toBe("active");
   });
 
+  it("menolak pendaftaran saat kapasitas kelas penuh", async () => {
+    const classTable = new QueryMock({ capacity: 1 });
+    const enrolledTable = new QueryMock([{ student_id: "student-1" }]);
+    const supabase = {
+      from: (name: string) => {
+        if (name === "classes") return classTable;
+        if (name === "student_enrollments") return enrolledTable;
+        throw new Error(`Tabel tak terduga: ${name}`);
+      },
+    } as unknown as SupabaseClient<Database>;
+
+    const result = await saveEnrollmentRecord(
+      { supabase },
+      makeUser(),
+      {
+        id: undefined,
+        student_id: UUID,
+        academic_year_id: UUID,
+        class_id: UUID,
+        enrollment_date: "2025-07-01",
+        exit_date: undefined,
+        status: "active",
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Kapasitas kelas sudah penuh (1/1 siswa).");
+    }
+  });
+
   it("memperbarui pendaftaran", async () => {
     const table = new QueryMock();
-    const supabase = makeSupabase({ student_enrollments: () => table });
+    const currentRow = new QueryMock({ class_id: UUID });
+    const classTable = new QueryMock(null);
+    let enrollmentCall = 0;
+    const supabase = {
+      from: (name: string) => {
+        if (name === "student_enrollments") {
+          enrollmentCall += 1;
+          // panggilan pertama: baca kelas saat ini, kedua: update
+          return enrollmentCall === 1 ? currentRow : table;
+        }
+        if (name === "classes") return classTable;
+        throw new Error(`Tabel tak terduga: ${name}`);
+      },
+    } as unknown as SupabaseClient<Database>;
 
     const result = await saveEnrollmentRecord(
       { supabase },
@@ -1040,7 +1305,11 @@ describe("saveEnrollmentRecord (service)", () => {
 
   it("memberi pesan ramah saat duplikat (siswa sudah terdaftar di tahun ajaran ini)", async () => {
     const table = new QueryMock(null, { code: "23505", message: "duplicate key value" });
-    const supabase = makeSupabase({ student_enrollments: () => table });
+    const classTable = new QueryMock(null);
+    const supabase = makeSupabase({
+      student_enrollments: () => table,
+      classes: () => classTable,
+    });
 
     const result = await saveEnrollmentRecord(
       { supabase },
@@ -1077,9 +1346,13 @@ describe("saveBulkEnrollmentDiffRecord (service)", () => {
       { id: "enr-1", student_id: "student-1" },
       { id: "enr-2", student_id: "student-2" },
     ]);
+    const classCapacity = new QueryMock(null);
     const deleted = new QueryMock();
     const inserted = new QueryMock();
-    const queues = { student_enrollments: [existing, deleted, inserted] };
+    const queues = {
+      student_enrollments: [existing, deleted, inserted],
+      classes: [classCapacity],
+    };
     const supabase = {
       from: (table: keyof typeof queues) => queues[table].shift(),
     } as unknown as SupabaseClient<Database>;
@@ -1101,9 +1374,35 @@ describe("saveBulkEnrollmentDiffRecord (service)", () => {
     expect(payload[0]).toMatchObject({ student_id: "student-3", class_id: UUID_2, school_id: "school-1" });
   });
 
+  it("menolak penambahan siswa melebihi kapasitas kelas", async () => {
+    const existing = new QueryMock([
+      { id: "enr-1", student_id: "student-1", status: "active" },
+    ]);
+    const classCapacity = new QueryMock({ capacity: 1 });
+    const supabase = makeSupabase({
+      student_enrollments: () => existing,
+      classes: () => classCapacity,
+    });
+
+    const result = await saveBulkEnrollmentDiffRecord(
+      { supabase },
+      makeUser(),
+      { ...BULK_INPUT, siswa_ids: ["student-1", "student-2"] }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Kapasitas kelas sudah penuh (2/1 siswa).");
+    }
+  });
+
   it("tidak melakukan query tulis jika tidak ada perubahan", async () => {
     const existing = new QueryMock([{ id: "enr-1", student_id: "student-1" }]);
-    const supabase = makeSupabase({ student_enrollments: () => existing });
+    const classCapacity = new QueryMock(null);
+    const supabase = makeSupabase({
+      student_enrollments: () => existing,
+      classes: () => classCapacity,
+    });
 
     const result = await saveBulkEnrollmentDiffRecord(
       { supabase },

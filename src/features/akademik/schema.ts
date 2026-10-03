@@ -246,6 +246,20 @@ export const saveClassSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v && /^\d+$/.test(v) ? Number(v) : null)),
+  class_code: z
+    .string()
+    .trim()
+    .max(50, "Kode kelas maksimal 50 karakter")
+    .optional()
+    .transform((v) => v || undefined),
+  status: z
+    .union([z.enum(["aktif", "nonaktif", "arsip"]), z.literal("")])
+    .optional()
+    .transform((v) => v || "aktif"),
+  shift: z
+    .union([z.enum(["pagi", "siang"]), z.literal("")])
+    .optional()
+    .transform((v) => v || null),
 });
 
 export type SaveClassInput = z.infer<typeof saveClassSchema>;
@@ -264,6 +278,9 @@ export function readSaveClassInput(formData: FormData): SaveClassParseResult {
     homeroom_teacher_id: formData.get("homeroom_teacher_id") ?? "",
     name: formData.get("name") ?? "",
     capacity: formData.get("capacity") ?? "",
+    class_code: formData.get("class_code") ?? "",
+    status: formData.get("status") ?? "",
+    shift: formData.get("shift") ?? "",
   });
 
   if (!parsed.success) {
