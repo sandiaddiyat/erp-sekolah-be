@@ -23,7 +23,7 @@ export default async function PendaftaranPage() {
       .select("id, school_id, name, start_date, end_date, status, is_active, created_at, updated_at")
       .eq("school_id", schoolId)
       .order("start_date", { ascending: false }),
-    supabase.from("classes").select("id, name, academic_years!classes_academic_year_tenant_fkey(name)").eq("school_id", schoolId).order("name"),
+    supabase.from("classes").select("id, name, academic_year_id").eq("school_id", schoolId).order("name"),
     supabase
       .from("students")
       .select("id, school_id, nis, nisn, nama_lengkap, jenis_kelamin, status")
