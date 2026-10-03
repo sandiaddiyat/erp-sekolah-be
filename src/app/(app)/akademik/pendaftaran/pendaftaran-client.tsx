@@ -266,11 +266,6 @@ export function PendaftaranClient({
   const activeFilterCount = [filterYear, filterClass, filterStatus].filter(Boolean).length;
   const hasActiveFilters = activeFilterCount > 0;
 
-  const classOptions = useMemo(
-    () => classes.map((c) => ({ value: c.id, label: c.name })),
-    [classes]
-  );
-
   const toggleColumn = (key: ColumnKey) => {
     setVisibleColumns((prev) => {
       const next = new Set(prev);
@@ -725,7 +720,7 @@ export function PendaftaranClient({
             open={bulkOpen}
             onOpenChange={setBulkOpen}
             academicYears={activeYears}
-            classOptions={classOptions}
+            classes={classes}
             onReset={() => {
               setExpandedGroups({});
             }}
@@ -843,7 +838,7 @@ function BulkEnrollmentDialog({
   open,
   onOpenChange,
   academicYears,
-  classOptions,
+  classes,
   onReset,
   onSaved,
   initialData,
@@ -851,7 +846,7 @@ function BulkEnrollmentDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   academicYears: AcademicYear[];
-  classOptions: { value: string; label: string }[];
+  classes: SchoolClass[];
   onReset: () => void;
   onSaved: (message: string) => void;
   initialData: { academic_year_id: string; class_id: string } | null;
@@ -876,6 +871,16 @@ function BulkEnrollmentDialog({
 
   const watchedYear = bulkForm.watch("academic_year_id");
   const selectedYear = academicYears.find((year) => year.id === watchedYear);
+
+  const filteredClassOptions = useMemo(
+    () =>
+      watchedYear
+        ? classes
+            .filter((c) => c.academic_year_id === watchedYear)
+            .map((c) => ({ value: c.id, label: c.name }))
+        : [],
+    [classes, watchedYear]
+  );
   const [availableStudents, setAvailableStudents] = useState<EditModalStudent[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -910,6 +915,13 @@ function BulkEnrollmentDialog({
       active = false;
     };
   }, [watchedYear, bulkForm, initialData]);
+
+  useEffect(() => {
+    const currentClassId = bulkForm.getValues("class_id");
+    if (!currentClassId) return;
+    if (filteredClassOptions.some((opt) => opt.value === currentClassId)) return;
+    bulkForm.setValue("class_id", "");
+  }, [watchedYear, filteredClassOptions, bulkForm]);
 
   useEffect(() => {
     if (selectedYear) {
@@ -1117,7 +1129,7 @@ function BulkEnrollmentDialog({
                   required
                 >
                   <option value="">- pilih kelas -</option>
-                  {classOptions.map((opt) => (
+                  {filteredClassOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
