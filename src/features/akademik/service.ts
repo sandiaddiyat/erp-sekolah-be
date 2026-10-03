@@ -324,6 +324,36 @@ export async function deleteMajorRecord(
 
 // ===== Classes =====
 
+const MAJOR_REQUIRED_LEVELS = new Set(["SMA", "SMK"]);
+
+async function fetchGradeLevelCode(
+  supabase: SupabaseClient<Database>,
+  schoolId: string,
+  gradeId: string
+): Promise<string | null> {
+  const { data: grade, error: gradeError } = await supabase
+    .from("grades")
+    .select("education_level_id")
+    .eq("id", gradeId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (gradeError || !grade?.education_level_id) {
+    return null;
+  }
+
+  const { data: level, error: levelError } = await supabase
+    .from("education_levels")
+    .select("code")
+    .eq("id", grade.education_level_id)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (levelError || !level?.code) {
+    return null;
+  }
+
+  return level.code.toUpperCase();
+}
+
 export async function saveClassRecord(
   deps: AkademikMutationsDeps,
   current: CurrentUser,
@@ -335,12 +365,81 @@ export async function saveClassRecord(
   }
 
   const { supabase } = deps;
-  const { id, academic_year_id, grade_id, major_id, room_id, homeroom_teacher_id, name, capacity } = payload;
+  const {
+    id,
+    academic_year_id,
+    grade_id,
+    major_id,
+    room_id,
+    homeroom_teacher_id,
+    name,
+    capacity,
+    class_code,
+    status,
+    shift,
+  } = payload;
+
+  // Validasi jenjang: jurusan wajib untuk SMA/SMK, harus kosong untuk jenjang lain.
+  const levelCode = await fetchGradeLevelCode(supabase, schoolId, grade_id);
+  if (!levelCode) {
+    return errResult("Tingkat tidak valid.");
+  }
+  if (MAJOR_REQUIRED_LEVELS.has(levelCode) && !major_id) {
+    return errResult("Jurusan wajib diisi untuk jenjang SMA/SMK.");
+  }
+  if (!MAJOR_REQUIRED_LEVELS.has(levelCode) && major_id) {
+    return errResult("Jurusan hanya boleh diisi untuk jenjang SMA/SMK.");
+  }
+
+  // Cegah nama kelas ganda di tingkat & tahun ajaran yang sama.
+  let duplicateQuery = supabase
+    .from("classes")
+    .select("id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academic_year_id)
+    .eq("grade_id", grade_id)
+    .eq("name", name.trim());
+  if (id) {
+    duplicateQuery = duplicateQuery.neq("id", id);
+  }
+  const { data: duplicate } = await duplicateQuery.limit(1).maybeSingle();
+  if (duplicate) {
+    return errResult(
+      "Nama kelas sudah digunakan di tingkat dan tahun ajaran yang sama."
+    );
+  }
+
+  // Kode kelas unik per sekolah.
+  if (class_code) {
+    let codeQuery = supabase
+      .from("classes")
+      .select("id")
+      .eq("school_id", schoolId)
+      .eq("class_code", class_code);
+    if (id) {
+      codeQuery = codeQuery.neq("id", id);
+    }
+    const { data: codeExists } = await codeQuery.limit(1).maybeSingle();
+    if (codeExists) {
+      return errResult("Kode kelas sudah dipakai kelas lain.");
+    }
+  }
 
   if (id) {
     const { error } = await supabase
       .from("classes")
-      .update({ academic_year_id, grade_id, major_id, room_id, homeroom_teacher_id, name, capacity })
+      .update({
+        academic_year_id,
+        grade_id,
+        major_id,
+        room_id,
+        homeroom_teacher_id,
+        name,
+        capacity,
+        class_code: class_code ?? null,
+        status: status ?? "aktif",
+        shift,
+      })
       .eq("id", id)
       .eq("school_id", schoolId);
     if (error) return handleInsertError(error, "Gagal memperbarui kelas.");
@@ -356,6 +455,10 @@ export async function saveClassRecord(
     homeroom_teacher_id,
     name,
     capacity,
+    class_code: class_code ?? null,
+    status: status ?? "aktif",
+    shift,
+    created_by: current.id,
   });
   if (error) return handleInsertError(error, "Gagal menambahkan kelas.");
   return okResult("Kelas berhasil ditambahkan.");
@@ -380,6 +483,70 @@ export async function deleteClassRecord(
   return okResult("Kelas berhasil dihapus.");
 }
 
+export type ClassOccupancy =
+  | { ok: true; count: number }
+  | { ok: false; error: string };
+
+export async function countActiveStudentsInClass(
+  deps: AkademikMutationsDeps,
+  schoolId: string,
+  classId: string
+): Promise<ClassOccupancy> {
+  if (!schoolId) {
+    return { ok: false, error: "Hanya admin sekolah yang dapat mengelola data akademik." };
+  }
+
+  const { data, error } = await deps.supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("class_id", classId)
+    .eq("status", "active");
+  if (error) {
+    return { ok: false, error: serverError(error, "Gagal menghitung siswa aktif.") };
+  }
+  return { ok: true, count: (data ?? []).length };
+}
+
+/**
+ * Validasi kapasitas kelas saat menambahkan siswa.
+ * Lewati jika kelas tidak punya capacity atau kelas tidak ditemukan.
+ */
+async function assertClassCapacity(
+  supabase: SupabaseClient<Database>,
+  schoolId: string,
+  classId: string,
+  extra = 0
+): Promise<MutationResult | null> {
+  const { data: classRow, error: classError } = await supabase
+    .from("classes")
+    .select("capacity")
+    .eq("id", classId)
+    .eq("school_id", schoolId)
+    .maybeSingle<{ capacity: number | null }>();
+  if (classError || !classRow || classRow.capacity === null) {
+    return null;
+  }
+
+  const { data: enrolled, error: enrollError } = await supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("school_id", schoolId)
+    .eq("class_id", classId)
+    .eq("status", "active");
+  if (enrollError) {
+    return null;
+  }
+
+  const activeCount = (enrolled ?? []).length;
+  if (activeCount + extra > classRow.capacity) {
+    return errResult(
+      `Kapasitas kelas sudah penuh (${activeCount}/${classRow.capacity} siswa).`
+    );
+  }
+  return null;
+}
+
 export type CopyClassesResult =
   | { ok: true; created: number; skipped: number }
   | { ok: false; error: string };
@@ -397,7 +564,7 @@ export async function copyClassesFromPreviousYear(
 
   const { data: targetYear, error: targetError } = await supabase
     .from("academic_years")
-    .select("id, school_id, start_date")
+    .select("id, school_id, name, start_date")
     .eq("id", targetYearId)
     .eq("school_id", schoolId)
     .single();
@@ -419,7 +586,7 @@ export async function copyClassesFromPreviousYear(
 
   const { data: sourceClasses } = await supabase
     .from("classes")
-    .select("grade_id, major_id, room_id, homeroom_teacher_id, name, capacity")
+    .select("grade_id, major_id, room_id, homeroom_teacher_id, name, capacity, class_code, status")
     .eq("school_id", schoolId)
     .eq("academic_year_id", sourceYear.id);
   if (!sourceClasses || sourceClasses.length === 0) {
@@ -431,7 +598,7 @@ export async function copyClassesFromPreviousYear(
 
   const { data: targetClasses } = await supabase
     .from("classes")
-    .select("name, grade_id")
+    .select("name, grade_id, class_code")
     .eq("school_id", schoolId)
     .eq("academic_year_id", targetYear.id);
 
@@ -439,6 +606,27 @@ export async function copyClassesFromPreviousYear(
   const existingKeys = new Set(
     (targetClasses ?? []).map((c) => `${normalizeName(c.name)}|${c.grade_id}`)
   );
+  const existingCodes = new Set(
+    (targetClasses ?? [])
+      .map((c) => c.class_code)
+      .filter((code): code is string => Boolean(code))
+  );
+
+  const buildClassCode = (base: string | null): string | null => {
+    if (!base) {
+      return null;
+    }
+    const suffix = targetYear.name;
+    let candidate = `${base}-${suffix}`.slice(0, 50);
+    let counter = 2;
+    while (existingCodes.has(candidate)) {
+      const trimmed = base.slice(0, 50 - String(`-${suffix}-${counter}`).length);
+      candidate = `${trimmed}-${suffix}-${counter}`;
+      counter += 1;
+    }
+    existingCodes.add(candidate);
+    return candidate;
+  };
 
   let skipped = 0;
   const rows: Database["public"]["Tables"]["classes"]["Insert"][] = [];
@@ -458,6 +646,8 @@ export async function copyClassesFromPreviousYear(
       homeroom_teacher_id: source.homeroom_teacher_id,
       name: source.name,
       capacity: source.capacity,
+      class_code: buildClassCode(source.class_code),
+      status: source.status ?? "aktif",
     });
   }
 
@@ -498,6 +688,22 @@ export async function saveEnrollmentRecord(
   };
 
   if (id) {
+    // Validasi kapasitas hanya jika kelas tujuan berubah.
+    const { data: currentRow } = await supabase
+      .from("student_enrollments")
+      .select("class_id")
+      .eq("id", id)
+      .eq("school_id", schoolId)
+      .maybeSingle<{ class_id: string }>();
+    if (currentRow && currentRow.class_id !== class_id) {
+      const capacityError = await assertClassCapacity(
+        supabase,
+        schoolId,
+        class_id,
+        1
+      );
+      if (capacityError) return capacityError;
+    }
     const { error } = await supabase
       .from("student_enrollments")
       .update(values)
@@ -506,6 +712,14 @@ export async function saveEnrollmentRecord(
     if (error) return handleInsertError(error, "Gagal memperbarui pendaftaran.");
     return okResult("Pendaftaran berhasil diperbarui.");
   }
+
+  const capacityError = await assertClassCapacity(
+    supabase,
+    schoolId,
+    class_id,
+    1
+  );
+  if (capacityError) return capacityError;
 
   const { error } = await supabase.from("student_enrollments").insert(values);
   if (error) return handleInsertError(error, "Gagal mendaftarkan siswa.");
@@ -695,6 +909,14 @@ export async function saveBulkEnrollmentRecord(
   const { supabase } = deps;
   const { academic_year_id, class_id, enrollment_date, exit_date, status, siswa_ids } = payload;
 
+  const capacityError = await assertClassCapacity(
+    supabase,
+    schoolId,
+    class_id,
+    siswa_ids.length
+  );
+  if (capacityError) return capacityError;
+
   const values = {
     school_id: schoolId,
     academic_year_id,
@@ -804,7 +1026,7 @@ export async function saveBulkEnrollmentDiffRecord(
 
   const { data: existingRows, error: existingError } = await supabase
     .from("student_enrollments")
-    .select("id, student_id")
+    .select("id, student_id, status")
     .eq("school_id", schoolId)
     .eq("academic_year_id", academic_year_id)
     .eq("class_id", class_id);
@@ -815,6 +1037,29 @@ export async function saveBulkEnrollmentDiffRecord(
     .filter((row) => !siswa_ids.includes(row.student_id))
     .map((row) => row.id);
   const toAdd = siswa_ids.filter((id) => !existingIds.has(id));
+
+  // Validasi kapasitas dengan proyeksi: siswa yang dikeluarkan sudah tidak dihitung.
+  const { data: classRow } = await supabase
+    .from("classes")
+    .select("capacity")
+    .eq("id", class_id)
+    .eq("school_id", schoolId)
+    .maybeSingle<{ capacity: number | null }>();
+  if (classRow && classRow.capacity !== null) {
+    const removeIds = new Set(toRemove);
+    const activeCount = (existingRows ?? []).filter(
+      (row) => row.status === "active"
+    ).length;
+    const removedActive = (existingRows ?? []).filter(
+      (row) => removeIds.has(row.id) && row.status === "active"
+    ).length;
+    const projected = activeCount - removedActive + toAdd.length;
+    if (projected > classRow.capacity) {
+      return errResult(
+        `Kapasitas kelas sudah penuh (${projected}/${classRow.capacity} siswa).`
+      );
+    }
+  }
 
   if (toRemove.length > 0) {
     const { error: deleteError } = await supabase

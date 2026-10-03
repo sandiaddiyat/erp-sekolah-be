@@ -20,6 +20,19 @@ Format penulisan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.
   - `TESTING.md`: Panduan implementasi tes (Vitest dan React Testing Library).
 - Pembaruan `AGENTS.md` untuk menyertakan ringkasan perintah esensial (`npm run dev`, `build`) serta 7 aturan wajib (*golden rules*).
 - Pembuatan file `CHANGELOG.md` ini untuk menyimpan catatan lintas-sesi.
+- **Master Kelas (Issue #100)**: Perubahan additive pada tabel `classes` agar lebih lengkap untuk operasional:
+  - Kolom baru: `class_code` (kode internal, unik per sekolah), `status` (aktif/nonaktif/arsip, default `aktif`), `shift` (pagi/siang, untuk sekolah sesi ganda), `created_by` (audit).
+  - Unique index `(academic_year_id, grade_id, name)` — mencegah nama kelas ganda di tingkat & tahun ajaran yang sama.
+  - Trigger `trg_classes_updated_at` (sebelumnya hilang sejak migrasi 0018).
+  - Validasi backend: `major_id` wajib untuk jenjang SMA/SMK dan harus kosong untuk TK/SD/SMP; pesan error jelas untuk duplikat nama kelas dan kode kelas.
+  - Fungsi `countActiveStudentsInClass` + validasi kapasitas saat menambahkan siswa (single, bulk, dan diff sync) — menolak jika siswa aktif sudah mencapai `capacity`.
+  - UI: form kelas punya pilih Jenjang → Tingkat terfilter → Jurusan terfilter (hanya untuk SMA/SMK); field Kode Kelas dan Status; daftar kelas menampilkan badge status + filter status + okupansi kapasitas (`terisi/kapasitas`); dialog detail menampilkan kode kelas, status, shift, dan sisa kapasitas.
+   - Salin kelas dari tahun ajaran sebelumnya kini menyalin `status` dan membuat `class_code` baru otomatis (format `<kode>-<tahun ajaran>`, unik).
+- **Sesi Ganda (lanjutan Issue #100)**: Dukungan sekolah dengan 2 sesi masuk (pagi/siang):
+  - Kolom `has_double_sessions` (boolean, default `false`) pada tabel `schools` (migrasi 0042).
+  - Profil sekolah menampilkan checkbox "Aktifkan sesi ganda (pagi / siang)".
+  - Form kelas menampilkan field Shift (pagi/siang) hanya saat sekolah mengaktifkan sesi ganda; nilai tersimpan di kolom `classes.shift`.
+  - Migration: `supabase/migrations/0041_classes_enhancement.sql`.
 
 ### Changed (Diubah)
 - *(Belum ada perubahan kode yang dicatat)*

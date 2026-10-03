@@ -27,6 +27,7 @@ function makeSchool(overrides: Partial<School> = {}): School {
     provinsi: null,
     website: null,
     dinas: null,
+    has_double_sessions: false,
     ...overrides,
   };
 }

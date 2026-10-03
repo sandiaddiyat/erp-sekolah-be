@@ -24,6 +24,7 @@ export type School = {
   provinsi: string | null;
   website: string | null;
   dinas: string | null;
+  has_double_sessions: boolean;
 };
 
 export type SchoolWithCounts = School & {
@@ -411,6 +412,9 @@ export type Room = {
   updated_at: string;
 };
 
+export type ClassStatus = "aktif" | "nonaktif" | "arsip";
+export type ClassShift = "pagi" | "siang";
+
 export type Class = {
   id: string;
   school_id: string;
@@ -421,6 +425,10 @@ export type Class = {
   homeroom_teacher_id: string | null;
   name: string;
   capacity: number | null;
+  class_code: string | null;
+  status: ClassStatus;
+  shift: ClassShift | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };
