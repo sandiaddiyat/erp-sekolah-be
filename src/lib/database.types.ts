@@ -22,6 +22,7 @@ export interface Database {
           phone: string | null;
           email: string | null;
           logo_url: string | null;
+          has_double_sessions: boolean;
           status: SchoolStatus;
           active_until: string | null;
           notes: string | null;
@@ -39,6 +40,7 @@ export interface Database {
           phone?: string | null;
           email?: string | null;
           logo_url?: string | null;
+          has_double_sessions?: boolean;
           status?: SchoolStatus;
           active_until?: string | null;
           notes?: string | null;
@@ -56,6 +58,7 @@ export interface Database {
           phone?: string | null;
           email?: string | null;
           logo_url?: string | null;
+          has_double_sessions?: boolean;
           status?: SchoolStatus;
           active_until?: string | null;
           notes?: string | null;
@@ -1301,6 +1304,10 @@ export interface Database {
           homeroom_teacher_id: string | null;
           name: string;
           capacity: number | null;
+          class_code: string | null;
+          status: string;
+          shift: string | null;
+          created_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1314,6 +1321,10 @@ export interface Database {
           homeroom_teacher_id?: string | null;
           name: string;
           capacity?: number | null;
+          class_code?: string | null;
+          status?: string;
+          shift?: string | null;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1327,6 +1338,10 @@ export interface Database {
           homeroom_teacher_id?: string | null;
           name?: string;
           capacity?: number | null;
+          class_code?: string | null;
+          status?: string;
+          shift?: string | null;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };

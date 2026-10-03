@@ -168,6 +168,7 @@ export function SiswaClient({
   const [filterLahirSampai, setFilterLahirSampai] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<
@@ -359,6 +360,7 @@ export function SiswaClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -428,6 +430,7 @@ export function SiswaClient({
   const openEdit = (item: Siswa) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -1071,7 +1074,7 @@ export function SiswaClient({
       </Dialog>
 
       <SiswaFormDialog
-        key={editing?.id ?? "new"}
+        key={editing?.id ?? dialogKey}
         open={formOpen}
         onOpenChange={setFormOpen}
         editing={editing}

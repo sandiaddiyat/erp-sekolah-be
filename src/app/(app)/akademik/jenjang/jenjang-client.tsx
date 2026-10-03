@@ -77,6 +77,7 @@ export function JenjangClient({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -128,12 +129,14 @@ export function JenjangClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
   const openEdit = (item: EducationLevel) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -420,7 +423,7 @@ export function JenjangClient({
       {canManage ? (
         <>
           <FormDialog
-            key={editing?.id ?? "new"}
+            key={editing?.id ?? dialogKey}
             open={formOpen}
             onOpenChange={setFormOpen}
             editing={editing}

@@ -185,6 +185,7 @@ export function PegawaiClient({
   const [filterMasukSampai, setFilterMasukSampai] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
 
   const statusName = useMemo(
     () => new Map(options.status_kepegawaian.map((item) => [item.id, item.nama_status])),
@@ -454,6 +455,7 @@ export function PegawaiClient({
   const openCreate = () => {
     setBanner(null);
     setEditing(null);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -487,6 +489,7 @@ export function PegawaiClient({
   const openEdit = (item: Pegawai) => {
     setBanner(null);
     setEditing(item);
+    setDialogKey(k => k + 1);
     setFormOpen(true);
   };
 
@@ -1098,7 +1101,7 @@ export function PegawaiClient({
       />
 
       <PegawaiFormDialog
-        key={editing?.id ?? "new"}
+        key={editing?.id ?? dialogKey}
         open={formOpen}
         onOpenChange={setFormOpen}
         editing={editing}

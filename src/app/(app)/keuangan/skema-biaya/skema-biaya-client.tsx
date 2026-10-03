@@ -138,11 +138,13 @@ export function SkemaBiayaClient({
   const [editingCategory, setEditingCategory] = useState<FeeCategory | null>(null);
   const [viewingCategory, setViewingCategory] = useState<FeeCategory | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<FeeCategory | null>(null);
+  const [categoryFormKey, setCategoryFormKey] = useState(0);
 
   const [structureFormOpen, setStructureFormOpen] = useState(false);
   const [editingStructure, setEditingStructure] = useState<FeeStructure | null>(null);
   const [viewingStructure, setViewingStructure] = useState<FeeStructure | null>(null);
   const [deletingStructure, setDeletingStructure] = useState<FeeStructure | null>(null);
+  const [structureFormKey, setStructureFormKey] = useState(0);
 
   const categoryNameById = useMemo(
     () => new Map(feeCategories.map((category) => [category.id, category.name])),
@@ -168,24 +170,28 @@ export function SkemaBiayaClient({
   const openCreateCategory = () => {
     setBanner(null);
     setEditingCategory(null);
+    setCategoryFormKey((k) => k + 1);
     setCategoryFormOpen(true);
   };
 
   const openEditCategory = (category: FeeCategory) => {
     setBanner(null);
     setEditingCategory(category);
+    setCategoryFormKey((k) => k + 1);
     setCategoryFormOpen(true);
   };
 
   const openCreateStructure = () => {
     setBanner(null);
     setEditingStructure(null);
+    setStructureFormKey((k) => k + 1);
     setStructureFormOpen(true);
   };
 
   const openEditStructure = (structure: FeeStructure) => {
     setBanner(null);
     setEditingStructure(structure);
+    setStructureFormKey((k) => k + 1);
     setStructureFormOpen(true);
   };
 
@@ -305,7 +311,7 @@ export function SkemaBiayaClient({
       {canManage ? (
         <>
           <CategoryFormDialog
-            key={editingCategory?.id ?? "new-category"}
+            key={`category-form-${editingCategory?.id ?? "new"}-${categoryFormKey}`}
             open={categoryFormOpen}
             onOpenChange={setCategoryFormOpen}
             editing={editingCategory}
@@ -316,7 +322,7 @@ export function SkemaBiayaClient({
           />
 
           <StructureFormDialog
-            key={editingStructure?.id ?? "new-structure"}
+            key={`structure-form-${editingStructure?.id ?? "new"}-${structureFormKey}`}
             open={structureFormOpen}
             onOpenChange={setStructureFormOpen}
             editing={editingStructure}
@@ -1376,7 +1382,7 @@ function CategoryFormDialog({
             </div>
           </div>
 
-          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px]">
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 pt-[15px] pb-7">
             <div className="flex w-full justify-end gap-2">
               <Button
                 type="button"
@@ -1612,7 +1618,7 @@ function StructureFormDialog({
             </div>
           </div>
 
-          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px]">
+          <DialogFooter className="rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 pt-[15px] pb-7">
             <div className="flex w-full justify-end gap-2">
               <Button
                 type="button"

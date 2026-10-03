@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +82,7 @@ const DEFAULTS: SekolahProfileInput = {
   website: "",
   email: "",
   dinas: "",
+  has_double_sessions: false,
 };
 
 function buildDefaults(school: SchoolWithCounts | null): SekolahProfileInput {
@@ -100,6 +102,7 @@ function buildDefaults(school: SchoolWithCounts | null): SekolahProfileInput {
     website: school.website ?? "",
     email: school.email ?? "",
     dinas: school.dinas ?? "",
+    has_double_sessions: school.has_double_sessions ?? false,
   };
 }
 
@@ -151,7 +154,7 @@ function SchoolProfileFormBody({
     }
   }, [school]);
 
-  const update = (field: keyof SekolahProfileInput, value: string) => {
+  const update = (field: keyof SekolahProfileInput, value: string | boolean) => {
     setValues((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -240,6 +243,25 @@ function SchoolProfileFormBody({
                   )}
                 />
               </div>
+            </div>
+
+            {/* Pengaturan */}
+            <div className="flex items-center gap-2.5">
+              <Checkbox
+                id="has_double_sessions"
+                checked={Boolean(values.has_double_sessions)}
+                onCheckedChange={(checked) =>
+                  update("has_double_sessions", checked === true)
+                }
+                disabled={readOnly}
+                className="rounded-[4px] border-[#c0cfc6] data-[state=checked]:bg-[#185743] data-[state=checked]:border-[#185743] text-white"
+              />
+              <Label
+                htmlFor="has_double_sessions"
+                className="text-xs font-bold text-[#4c6a5e]"
+              >
+                Aktifkan sesi ganda (pagi / siang)
+              </Label>
             </div>
 
             <Separator className="border-[#e3ece6]" />

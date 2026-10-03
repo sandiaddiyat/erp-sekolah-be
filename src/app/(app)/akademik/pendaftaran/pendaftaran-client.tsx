@@ -44,7 +44,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } from "@/lib/types";
-import { fetchAvailableStudents, fetchEditModalStudents, deleteEnrollment, saveBulkEnrollment, saveBulkEnrollmentEdit } from "../actions";
+import { fetchAvailableStudents, fetchEditModalStudents, deleteEnrollment, deleteBulkEnrollment, saveBulkEnrollment, saveBulkEnrollmentEdit } from "../actions";
 import type { EditModalStudent } from "@/features/akademik/service";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 
@@ -104,7 +104,7 @@ export function PendaftaranClient({
 }) {
   const [query, setQuery] = useState("");
   const [viewing, setViewing] = useState<StudentEnrollment | null>(null);
-  const [deleting, setDeleting] = useState<StudentEnrollment | null>(null);
+  const [deleting, setDeleting] = useState<{ className: string; rows: StudentEnrollment[] } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
@@ -266,11 +266,6 @@ export function PendaftaranClient({
   const activeFilterCount = [filterYear, filterClass, filterStatus].filter(Boolean).length;
   const hasActiveFilters = activeFilterCount > 0;
 
-  const classOptions = useMemo(
-    () => classes.map((c) => ({ value: c.id, label: c.name })),
-    [classes]
-  );
-
   const toggleColumn = (key: ColumnKey) => {
     setVisibleColumns((prev) => {
       const next = new Set(prev);
@@ -312,8 +307,9 @@ export function PendaftaranClient({
     const target = deleting;
     startTransition(async () => {
       const formData = new FormData();
-      formData.append("id", target.id);
-      const result = await deleteEnrollment(undefined, formData);
+      formData.append("ids", JSON.stringify(target.rows.map(r => r.id)));
+      formData.append("className", target.className);
+      const result = await deleteBulkEnrollment(undefined, formData);
       if (result?.error) toast.error(result.error);
       else if (result?.success) setBanner(result.success);
       setDeleting(null);
@@ -605,7 +601,7 @@ export function PendaftaranClient({
                                               {canManage ? (
                                                 <div className="flex justify-end gap-1.5">
                                                   <Button variant="ghost" size="icon-sm" aria-label={`Edit penempatan kelas ${classGroup.name}`} className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => openBulkEdit(classGroup.rows[0])}><PencilIcon className="size-4" /></Button>
-                                                  <Button variant="ghost" size="icon-sm" aria-label={`Hapus pendaftaran kelas ${classGroup.name}`} className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeleting(classGroup.rows[0])}><Trash2Icon className="size-4" /></Button>
+                                                  <Button variant="ghost" size="icon-sm" aria-label={`Hapus pendaftaran kelas ${classGroup.name}`} className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeleting({ className: classGroup.name, rows: classGroup.rows })}><Trash2Icon className="size-4" /></Button>
                                                 </div>
                                               ) : <span className="block text-right text-[10px] text-[#82978e]">{classGroup.rows.length} siswa</span>}
                                             </TableCell>
@@ -725,7 +721,7 @@ export function PendaftaranClient({
             open={bulkOpen}
             onOpenChange={setBulkOpen}
             academicYears={activeYears}
-            classOptions={classOptions}
+            classes={classes}
             onReset={() => {
               setExpandedGroups({});
             }}
@@ -742,7 +738,7 @@ export function PendaftaranClient({
                 <AlertDialogTitle>Hapus pendaftaran ini?</AlertDialogTitle>
                 <AlertDialogDescription>
                   {deleting
-                    ? `Pendaftaran ${studentName(deleting.student_id)} akan dihapus permanen.`
+                    ? `Seluruh pendaftaran siswa di kelas ${deleting.className} (${deleting.rows.length} siswa) akan dihapus permanen.`
                     : ""}
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -843,7 +839,7 @@ function BulkEnrollmentDialog({
   open,
   onOpenChange,
   academicYears,
-  classOptions,
+  classes,
   onReset,
   onSaved,
   initialData,
@@ -851,7 +847,7 @@ function BulkEnrollmentDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   academicYears: AcademicYear[];
-  classOptions: { value: string; label: string }[];
+  classes: SchoolClass[];
   onReset: () => void;
   onSaved: (message: string) => void;
   initialData: { academic_year_id: string; class_id: string } | null;
@@ -876,6 +872,16 @@ function BulkEnrollmentDialog({
 
   const watchedYear = bulkForm.watch("academic_year_id");
   const selectedYear = academicYears.find((year) => year.id === watchedYear);
+
+  const filteredClassOptions = useMemo(
+    () =>
+      watchedYear
+        ? classes
+            .filter((c) => c.academic_year_id === watchedYear)
+            .map((c) => ({ value: c.id, label: c.name }))
+        : [],
+    [classes, watchedYear]
+  );
   const [availableStudents, setAvailableStudents] = useState<EditModalStudent[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -910,6 +916,13 @@ function BulkEnrollmentDialog({
       active = false;
     };
   }, [watchedYear, bulkForm, initialData]);
+
+  useEffect(() => {
+    const currentClassId = bulkForm.getValues("class_id");
+    if (!currentClassId) return;
+    if (filteredClassOptions.some((opt) => opt.value === currentClassId)) return;
+    bulkForm.setValue("class_id", "");
+  }, [watchedYear, filteredClassOptions, bulkForm]);
 
   useEffect(() => {
     if (selectedYear) {
@@ -1117,7 +1130,7 @@ function BulkEnrollmentDialog({
                   required
                 >
                   <option value="">- pilih kelas -</option>
-                  {classOptions.map((opt) => (
+                  {filteredClassOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
