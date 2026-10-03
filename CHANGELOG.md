@@ -20,6 +20,12 @@ Format penulisan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.
   - `TESTING.md`: Panduan implementasi tes (Vitest dan React Testing Library).
 - Pembaruan `AGENTS.md` untuk menyertakan ringkasan perintah esensial (`npm run dev`, `build`) serta 7 aturan wajib (*golden rules*).
 - Pembuatan file `CHANGELOG.md` ini untuk menyimpan catatan lintas-sesi.
+- **Penempatan Siswa ke Kelas (Issue #104)**: Halaman baru `/akademik/penempatan` untuk menempatkan siswa dengan tiga mode:
+  - **Mode Manual**: tempatkan siswa satu per satu; server menolak bila kelas sudah penuh, kelas tidak sesuai tahun ajaran, atau siswa sudah terdaftar.
+  - **Mode Semi-otomatis**: `generateDraftPlacement` membagikan siswa yang belum ditempatkan ke kelas secara round-robin dan melewati kelas yang penuh, menghasilkan baris berstatus `draft`.
+  - **Finalisasi Draft**: `finalizePlacementRecord` mengubah seluruh draft pada tahun ajaran terpilih menjadi `final`.
+  - Migration `0043_placement.sql` menambahkan kolom `student_enrollments.placement_status` (`draft`/`final`, default `final`) beserta check constraint dan index.
+  - Validasi dan service baru di `src/features/akademik/` (`savePlacementSchema`, `generateDraftPlacementSchema`, `savePlacementRecord`, `fetchUnplacedStudents`, `generateDraftPlacement`, `finalizePlacementRecord`) dengan Server Actions dilindungi `guardAction()`.
 
 ### Changed (Diubah)
 - *(Belum ada perubahan kode yang dicatat)*

@@ -186,6 +186,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "referensi",
   },
   {
+    title: "Penempatan Siswa",
+    href: "/akademik/penempatan",
+    icon: "siswa",
+    permission: PERMISSIONS.academicsView,
+    group: "referensi",
+  },
+  {
     title: "User",
     href: "/users",
     icon: "users",

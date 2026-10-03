@@ -25,6 +25,10 @@ import {
   fetchAvailableStudentsForAcademicYear,
   fetchClassRoster,
   fetchClassRosterWithAvailable,
+  savePlacementRecord,
+  fetchUnplacedStudents,
+  generateDraftPlacement,
+  finalizePlacementRecord,
 } from "@/features/akademik/service";
 import {
   readSaveAcademicYearInput,
@@ -35,6 +39,8 @@ import {
   readSaveClassInput,
   readSaveEnrollmentInput,
   readBulkEnrollmentInput,
+  readSavePlacementInput,
+  readGenerateDraftPlacementInput,
 } from "@/features/akademik/schema";
 import type { FormState } from "@/lib/types";
 
@@ -347,4 +353,76 @@ export async function fetchEditModalStudents(academicYearId: string, classId: st
   if (!schoolId) return { ok: false as const, error: "Sekolah tidak ditemukan." };
   const supabase = await createClient();
   return fetchClassRosterWithAvailable({ supabase }, schoolId, academicYearId, classId);
+}
+
+// ===== Class Placement (Issue #104) =====
+
+export async function savePlacement(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const command = readSavePlacementInput(formData);
+  if (!command.ok) return { error: command.error };
+
+  const supabase = await createClient();
+  const result = await savePlacementRecord({ supabase }, guard.user, command.command);
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  return { success: result.message };
+}
+
+export async function fetchUnplaced(academicYearId: string) {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { ok: false as const, error: guard.error };
+  if (!z.uuid().safeParse(academicYearId).success) {
+    return { ok: false as const, error: "Tahun ajaran tidak valid." };
+  }
+
+  const schoolId = guard.user.profile.school_id;
+  if (!schoolId) return { ok: false as const, error: "Sekolah tidak ditemukan." };
+  const supabase = await createClient();
+  return fetchUnplacedStudents({ supabase }, schoolId, academicYearId);
+}
+
+export async function generateDraft(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const command = readGenerateDraftPlacementInput(formData);
+  if (!command.ok) return { error: command.error };
+
+  const supabase = await createClient();
+  const result = await generateDraftPlacement(
+    { supabase },
+    guard.user,
+    command.command.academic_year_id,
+    command.command.grade_id
+  );
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  return {
+    success:
+      result.unplaced > 0
+        ? `${result.created} siswa ditempatkan sebagai draft, ${result.unplaced} siswa belum mendapat kelas.`
+        : `${result.created} siswa ditempatkan sebagai draft.`,
+  };
+}
+
+export async function finalizePlacement(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const academicYearId = String(formData.get("academic_year_id") ?? "").trim();
+  if (!z.uuid().safeParse(academicYearId).success) {
+    return { error: "Tahun ajaran tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const result = await finalizePlacementRecord({ supabase }, guard.user, academicYearId);
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  return { success: result.message };
 }

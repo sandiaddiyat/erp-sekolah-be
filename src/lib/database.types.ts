@@ -1385,6 +1385,7 @@ export interface Database {
           enrollment_date: string;
           exit_date: string | null;
           status: string;
+          placement_status: string;
           created_at: string;
           updated_at: string;
         };
@@ -1397,6 +1398,7 @@ export interface Database {
           enrollment_date: string;
           exit_date?: string | null;
           status?: string;
+          placement_status?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -1409,6 +1411,7 @@ export interface Database {
           enrollment_date?: string;
           exit_date?: string | null;
           status?: string;
+          placement_status?: string;
           created_at?: string;
           updated_at?: string;
         };

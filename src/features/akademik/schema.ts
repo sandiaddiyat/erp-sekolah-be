@@ -439,3 +439,101 @@ export function readBulkEnrollmentInput(
 
   return { ok: true, command: parsed.data };
 }
+
+// ===== Class Placement (Issue #104) =====
+
+export const savePlacementSchema = z.object({
+  id: optionalUuid,
+  student_id: z
+    .string()
+    .trim()
+    .min(1, "Siswa wajib dipilih")
+    .refine((v) => z.uuid().safeParse(v).success, "Siswa tidak valid."),
+  academic_year_id: z
+    .string()
+    .trim()
+    .min(1, "Tahun ajaran wajib dipilih")
+    .refine((v) => z.uuid().safeParse(v).success, "Tahun ajaran tidak valid."),
+  class_id: z
+    .string()
+    .trim()
+    .min(1, "Kelas wajib dipilih")
+    .refine((v) => z.uuid().safeParse(v).success, "Kelas tidak valid."),
+  enrollment_date: z
+    .string()
+    .trim()
+    .min(1, "Tanggal pendaftaran wajib diisi")
+    .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v), "Format tanggal tidak valid."),
+  exit_date: optionalDate,
+  status: z.enum(["active", "keluar", "pindah", "lulus"]).default("active"),
+  placement_status: z.enum(["draft", "final"]).default("final"),
+});
+
+export type SavePlacementInput = z.infer<typeof savePlacementSchema>;
+
+export type SavePlacementParseResult =
+  | { ok: true; command: SavePlacementInput }
+  | { ok: false; error: string };
+
+export function readSavePlacementInput(
+  formData: FormData
+): SavePlacementParseResult {
+  const parsed = savePlacementSchema.safeParse({
+    id: formData.get("id") ?? "",
+    student_id: formData.get("student_id") ?? "",
+    academic_year_id: formData.get("academic_year_id") ?? "",
+    class_id: formData.get("class_id") ?? "",
+    enrollment_date: formData.get("enrollment_date") ?? "",
+    exit_date: formData.get("exit_date") ?? "",
+    status: formData.get("status") ?? "active",
+    placement_status: formData.get("placement_status") ?? "final",
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
+    };
+  }
+
+  return { ok: true, command: parsed.data };
+}
+
+export const generateDraftPlacementSchema = z.object({
+  academic_year_id: z
+    .string()
+    .trim()
+    .min(1, "Tahun ajaran wajib dipilih")
+    .refine((v) => z.uuid().safeParse(v).success, "Tahun ajaran tidak valid."),
+  grade_id: z
+    .string()
+    .trim()
+    .min(1, "Tingkat wajib dipilih")
+    .refine((v) => z.uuid().safeParse(v).success, "Tingkat tidak valid."),
+});
+
+export type GenerateDraftPlacementInput = z.infer<
+  typeof generateDraftPlacementSchema
+>;
+
+export type GenerateDraftPlacementParseResult =
+  | { ok: true; command: GenerateDraftPlacementInput }
+  | { ok: false; error: string };
+
+export function readGenerateDraftPlacementInput(
+  formData: FormData
+): GenerateDraftPlacementParseResult {
+  const parsed = generateDraftPlacementSchema.safeParse({
+    academic_year_id: formData.get("academic_year_id") ?? "",
+    grade_id: formData.get("grade_id") ?? "",
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
+    };
+  }
+
+  return { ok: true, command: parsed.data };
+}
