@@ -1393,3 +1393,96 @@ export async function finalizePlacementRecord(
   if (error) return handleInsertError(error, "Gagal memfinalisasi penempatan.");
   return okResult("Data penempatan berhasil difinalisasi.");
 }
+
+/**
+ * Penempatan otomatis langsung berstatus final: distribute seluruh siswa aktif
+ * yang belum terdaftar pada tahun ajaran ke semua kelas yang tersedia.
+ */
+export async function generateAutomaticPlacementRecord(
+  deps: AkademikMutationsDeps,
+  current: CurrentUser,
+  academicYearId: string
+): Promise<MutationResult> {
+  const schoolId = current.profile.school_id;
+  if (!schoolId) {
+    return errResult("Hanya admin sekolah yang dapat mengelola data akademik.");
+  }
+
+  const { supabase } = deps;
+
+  const { data: classes } = await supabase
+    .from("classes")
+    .select("id, capacity")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId);
+  if (!classes || classes.length === 0) {
+    return errResult("Tidak ada kelas yang tersedia di tahun ajaran ini.");
+  }
+
+  const unplaced = await fetchUnplacedStudents(deps, schoolId, academicYearId);
+  if (!unplaced.ok) return errResult(unplaced.error);
+  if (unplaced.data.length === 0) {
+    return okResult("Semua siswa aktif sudah ditempatkan.");
+  }
+
+  const { data: currentEnrollments } = await supabase
+    .from("student_enrollments")
+    .select("class_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId)
+    .eq("status", "active");
+
+  const classCounts = new Map<string, number>();
+  for (const row of currentEnrollments ?? []) {
+    if (!row.class_id) continue;
+    classCounts.set(row.class_id, (classCounts.get(row.class_id) ?? 0) + 1);
+  }
+
+  const availableClasses = classes.map((c) => ({
+    id: c.id,
+    capacity: c.capacity ?? 30,
+    enrolled: classCounts.get(c.id) ?? 0,
+  }));
+
+  const newEnrollments: Database["public"]["Tables"]["student_enrollments"]["Insert"][] = [];
+  let classIndex = 0;
+  let studentsPlaced = 0;
+
+  for (const student of unplaced.data) {
+    let placed = false;
+    let attempts = 0;
+    while (attempts < availableClasses.length) {
+      const targetClass = availableClasses[classIndex];
+      if (targetClass.enrolled < targetClass.capacity) {
+        newEnrollments.push({
+          school_id: schoolId,
+          academic_year_id: academicYearId,
+          class_id: targetClass.id,
+          student_id: student.id,
+          enrollment_date: new Date().toISOString().slice(0, 10),
+          status: "active",
+          placement_status: "final",
+        });
+        targetClass.enrolled += 1;
+        placed = true;
+        studentsPlaced += 1;
+        classIndex = (classIndex + 1) % availableClasses.length;
+        break;
+      }
+      classIndex = (classIndex + 1) % availableClasses.length;
+      attempts += 1;
+    }
+    if (!placed) break;
+  }
+
+  if (newEnrollments.length === 0) {
+    return errResult("Kapasitas seluruh kelas sudah penuh.");
+  }
+
+  const { error } = await supabase.from("student_enrollments").insert(newEnrollments);
+  if (error) {
+    return handleInsertError(error, "Gagal menyimpan penempatan otomatis.");
+  }
+
+  return okResult(`Berhasil menempatkan ${studentsPlaced} siswa secara otomatis.`);
+}

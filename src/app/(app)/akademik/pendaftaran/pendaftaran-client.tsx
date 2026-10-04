@@ -47,6 +47,8 @@ import type { StudentEnrollment, AcademicYear, Class as SchoolClass, Siswa } fro
 import { fetchAvailableStudents, fetchEditModalStudents, deleteEnrollment, deleteBulkEnrollment, saveBulkEnrollment, saveBulkEnrollmentEdit } from "../actions";
 import type { EditModalStudent } from "@/features/akademik/service";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
+import { EnrollmentFormDialog } from "./form-dialog";
+import { AutoPlacementDialog } from "./auto-placement-dialog";
 
 type FormState = { error?: string; success?: string } | undefined;
 
@@ -104,6 +106,7 @@ export function PendaftaranClient({
 }) {
   const [query, setQuery] = useState("");
   const [viewing, setViewing] = useState<StudentEnrollment | null>(null);
+  const [editingSingle, setEditingSingle] = useState<StudentEnrollment | null>(null);
   const [deleting, setDeleting] = useState<{ className: string; rows: StudentEnrollment[] } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -120,6 +123,7 @@ export function PendaftaranClient({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [autoPlacementOpen, setAutoPlacementOpen] = useState(false);
   const [bulkEditTarget, setBulkEditTarget] = useState<{
     academic_year_id: string;
     class_id: string;
@@ -327,13 +331,22 @@ export function PendaftaranClient({
           </p>
         </div>
         {canManage ? (
-          <Button
-            className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
-            onClick={openBulk}
-          >
-            <PlusIcon data-icon="inline-start" className="size-4" />
-            Tambah Data
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              className="h-9 rounded-[9px] border border-[#e1ebe4] bg-white px-4 text-[11px] font-bold text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+              onClick={() => setAutoPlacementOpen(true)}
+              variant="outline"
+            >
+              Penempatan Otomatis
+            </Button>
+            <Button
+              className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] hover:bg-[#124936]"
+              onClick={openBulk}
+            >
+              <PlusIcon data-icon="inline-start" className="size-4 mr-2" />
+              Tambah Data
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -713,7 +726,39 @@ export function PendaftaranClient({
         classById={classById}
         yearById={yearById}
         onClose={() => setViewing(null)}
+        canManage={canManage}
+        onEdit={(p) => {
+          setViewing(null);
+          setEditingSingle(p);
+        }}
       />
+
+      {canManage ? (
+        <EnrollmentFormDialog
+          open={Boolean(editingSingle)}
+          onOpenChange={(open) => !open && setEditingSingle(null)}
+          pendaftaran={editingSingle}
+          studentName={studentName}
+          academicYears={activeYears}
+          classes={classes}
+          onSaved={(message) => {
+            setBanner(message);
+            setEditingSingle(null);
+          }}
+        />
+      ) : null}
+
+      {canManage ? (
+        <AutoPlacementDialog
+          open={autoPlacementOpen}
+          onOpenChange={setAutoPlacementOpen}
+          academicYears={activeYears}
+          onSaved={(message) => {
+            setBanner(message);
+            setAutoPlacementOpen(false);
+          }}
+        />
+      ) : null}
 
       {canManage ? (
         <>
@@ -780,12 +825,16 @@ function DetailDialog({
   classById,
   yearById,
   onClose,
+  canManage,
+  onEdit,
 }: {
   pendaftaran: StudentEnrollment | null;
   studentName: (id: string) => string;
   classById: Map<string, string>;
   yearById: Map<string, string>;
   onClose: () => void;
+  canManage?: boolean;
+  onEdit?: (p: StudentEnrollment) => void;
 }) {
   return (
     <Dialog open={Boolean(pendaftaran)} onOpenChange={(open) => !open && onClose()}>
@@ -827,6 +876,17 @@ function DetailDialog({
               <DetailRow label="Status" value={STATUS_LABELS[pendaftaran.status]} />
             </dl>
           </div>
+        ) : null}
+        {pendaftaran && canManage && onEdit ? (
+          <DialogFooter className="shrink-0 border-t border-[#f0f5f1] bg-[#fdfefd] px-7 py-5">
+            <Button
+              type="button"
+              onClick={() => onEdit(pendaftaran)}
+              className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-5 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] transition-colors hover:bg-[#124936]"
+            >
+              Edit Pendaftaran
+            </Button>
+          </DialogFooter>
         ) : null}
       </DialogContent>
     </Dialog>
