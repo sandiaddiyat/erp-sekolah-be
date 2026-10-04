@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { PERMISSIONS, can } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
-import { NoSchool } from "./profil-sekolah-client";
-import { SchoolProfilePageForm } from "../sekolah/_components/school-profile-form";
+import { NoSchool, SchoolProfilePageView } from "./profil-sekolah-client";
 import type { School } from "@/lib/types";
 
 export const metadata = { title: "Profil Sekolah" };
@@ -47,25 +46,5 @@ export default async function ProfilSekolahPage({
 
   const school = data as School;
 
-  return (
-    <div className="mx-auto max-w-[1190px] w-full space-y-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-[#4c9a77]">
-          Profil Sekolah
-        </p>
-        <h1 className="font-heading text-2xl font-bold text-[#183d32]">
-          {user.isSuperAdmin ? "Kelola Profil Sekolah" : "Profil Sekolah"}
-        </h1>
-        <p className="mt-1 text-sm text-[#82978d]">
-          {user.isSuperAdmin
-            ? `Mengelola data profil ${school.name}.`
-            : "Perbarui data identitas dan kontak sekolah Anda."}
-        </p>
-      </div>
-
-      <div className="rounded-[17px] border border-[#dbe8df] bg-[#fbfdfb] shadow-[0_3px_7px_#1c443305] ring-1 ring-[#dbe8df]">
-        <SchoolProfilePageForm school={school} />
-      </div>
-    </div>
-  );
+  return <SchoolProfilePageView school={school} isSuperAdmin={user.isSuperAdmin} />;
 }

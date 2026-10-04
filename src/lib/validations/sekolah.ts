@@ -30,12 +30,6 @@ export const sekolahProfileSchema = z
         path: ["kota"],
         message: "Minimal diisi salah satu: Kota/Kabupaten, Kecamatan, atau Kelurahan/Desa.",
       });
-    } else if (filled > 1) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["kota"],
-        message: "Hanya boleh diisi salah satu: Kota/Kabupaten, Kecamatan, atau Kelurahan/Desa.",
-      });
     }
   });
 
