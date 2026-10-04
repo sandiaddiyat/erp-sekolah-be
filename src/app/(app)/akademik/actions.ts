@@ -28,6 +28,7 @@ import {
   savePlacementRecord,
   fetchUnplacedStudents,
   generateDraftPlacement,
+  generateAutomaticPlacementRecord,
   finalizePlacementRecord,
 } from "@/features/akademik/service";
 import {
@@ -455,6 +456,23 @@ export async function finalizePlacement(_prevState: FormState, formData: FormDat
 
   const supabase = await createClient();
   const result = await finalizePlacementRecord({ supabase }, guard.user, academicYearId);
+  if (!result.ok) return { error: result.error };
+
+  revalidateAkademik();
+  return { success: result.message };
+}
+
+export async function generateAutomaticPlacement(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await requireAkademikManage();
+  if ("error" in guard) return { error: guard.error };
+
+  const academicYearId = String(formData.get("academic_year_id") ?? "").trim();
+  if (!z.uuid().safeParse(academicYearId).success) {
+    return { error: "Tahun ajaran tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const result = await generateAutomaticPlacementRecord({ supabase }, guard.user, academicYearId);
   if (!result.ok) return { error: result.error };
 
   revalidateAkademik();
