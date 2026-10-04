@@ -38,6 +38,7 @@ function Field({
       <Input
         {...props}
         readOnly={readOnly}
+        placeholder={readOnly ? "" : props.placeholder}
         className={cn(
           "border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10",
           readOnly && "bg-[#f6faf7] text-[#5c7268] cursor-default"
@@ -58,6 +59,7 @@ function TextAreaField({
       <Textarea
         {...props}
         readOnly={readOnly}
+        placeholder={readOnly ? "" : props.placeholder}
         className={cn(
           "border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10",
           readOnly && "bg-[#f6faf7] text-[#5c7268] cursor-default"
@@ -234,7 +236,7 @@ function SchoolProfileFormBody({
                   name="name"
                   value={values.name}
                   onChange={(e) => update("name", e.target.value)}
-                  placeholder="Contoh: SMP Nurul Huda"
+                  placeholder={readOnly ? "" : "Contoh: SMP Nurul Huda"}
                   required
                   readOnly={readOnly}
                   className={cn(
@@ -291,7 +293,7 @@ function SchoolProfileFormBody({
                   name="website"
                   value={values.website}
                   onChange={(e) => update("website", e.target.value)}
-                  placeholder="https://sekolah.sch.id"
+                  placeholder={readOnly ? "" : "https://sekolah.sch.id"}
                   readOnly={readOnly}
                   className={cn(
                     "border-[#dfeae3] text-[#284a3d] placeholder-[#91a49a] focus:border-[#78ad8a] focus:ring-[#4f9970]/10",
