@@ -17,7 +17,7 @@ export const saveDiscountTypeSchema = z.object({
   id: optionalUuid,
   code: z.string().trim().min(1, "Kode wajib diisi"),
   name: z.string().trim().min(2, "Nama minimal 2 karakter"),
-  calc_type: z.enum(["percent", "nominal"]),
+  calc_type: z.enum(["percent", "fixed"]),
   is_system: z.boolean().default(false),
 });
 

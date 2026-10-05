@@ -155,10 +155,24 @@ export function DiskonClient({
       )}
 
       <Dialog open={Boolean(viewingType)} onOpenChange={(open) => !open && setViewingType(null)}>
-        <DialogContent className="border-0 ring-1 ring-[#dbe8df] sm:max-w-[520px] rounded-[17px] bg-[#fbfdfb] p-0">
-          <DialogHeader className="border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6"><DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">Detail Jenis Diskon</DialogTitle><DialogDescription>{viewingType?.name ?? "-"}</DialogDescription></DialogHeader>
-          {viewingType ? <dl className="grid grid-cols-2 gap-4 px-7 py-6"><DetailItem label="Kode" value={viewingType.code} /><DetailItem label="Perhitungan" value={viewingType.calc_type === "percent" ? "Persen" : "Nominal"} /><DetailItem label="Jenis" value={viewingType.is_system ? "Sistem" : "Kustom"} /></dl> : null}
-          <DialogFooter className="border-t border-[#e3ece6] bg-white px-7 py-[15px]"><Button variant="outline" onClick={() => setViewingType(null)}>Tutup</Button></DialogFooter>
+        <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden rounded-[17px] border-0 bg-[#fbfdfb] p-0 shadow-[0_24px_70px_rgb(13_50_35/22%)] ring-1 ring-[#dbe8df] sm:max-w-[560px]">
+          <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">Pengelolaan biaya siswa</span>
+            <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">Detail Jenis Diskon</DialogTitle>
+            <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">{viewingType?.name ?? "-"}</DialogDescription>
+          </DialogHeader>
+          {viewingType ? (
+            <div className="flex-1 overflow-y-auto px-7 pt-[22px] pb-[25px]">
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <DetailItem label="Kode" value={viewingType.code} />
+                <DetailItem label="Perhitungan" value={viewingType.calc_type === "percent" ? "Persen" : "Nominal"} />
+                <DetailItem label="Jenis" value={viewingType.is_system ? "Sistem" : "Kustom"} />
+              </dl>
+            </div>
+          ) : null}
+          <DialogFooter className="mx-0 mb-0 shrink-0 justify-end gap-2 rounded-none border-t border-[#e3ece6] bg-white px-7 py-[15px]">
+            <Button type="button" onClick={() => setViewingType(null)} className="h-8 rounded-[9px] border border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]">Tutup</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -292,7 +306,7 @@ function DiscountTypeFormDialog({
               <SelectTrigger id="calc_type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="percent">Persen (%)</SelectItem>
-                <SelectItem value="nominal">Nominal (Rp)</SelectItem>
+                <SelectItem value="fixed">Nominal (Rp)</SelectItem>
               </SelectContent>
             </Select>
           </div>
