@@ -63,7 +63,6 @@ export const saveStudentDiscountSchema = z.object({
     .refine((v) => Number.isFinite(v) && v >= 0, "Nilai tidak valid."),
   start_date: z.string().trim().min(1, "Tanggal mulai wajib diisi"),
   end_date: z.string().trim().min(1, "Tanggal selesai wajib diisi"),
-  status: z.enum(["draft", "disetujui", "ditolak", "kadaluarsa"]).default("draft"),
 });
 
 export type SaveStudentDiscountInput = z.infer<typeof saveStudentDiscountSchema>;
@@ -71,6 +70,28 @@ export type SaveStudentDiscountInput = z.infer<typeof saveStudentDiscountSchema>
 export type SaveStudentDiscountParseResult =
   | { ok: true; command: SaveStudentDiscountInput }
   | { ok: false; error: string };
+
+export const approveStudentDiscountSchema = z.object({
+  id: z.string().trim().uuid("ID diskon tidak valid."),
+  decision: z.enum(["disetujui", "ditolak"]),
+});
+
+export type ApproveStudentDiscountInput = z.infer<typeof approveStudentDiscountSchema>;
+
+export function readApproveStudentDiscountInput(formData: FormData):
+  | { ok: true; command: ApproveStudentDiscountInput }
+  | { ok: false; error: string } {
+  const parsed = approveStudentDiscountSchema.safeParse({
+    id: formData.get("id") ?? "",
+    decision: formData.get("decision") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Data persetujuan tidak valid." };
+  }
+
+  return { ok: true, command: parsed.data };
+}
 
 export function readSaveStudentDiscountInput(formData: FormData): SaveStudentDiscountParseResult {
   const parsed = saveStudentDiscountSchema.safeParse({
@@ -80,7 +101,6 @@ export function readSaveStudentDiscountInput(formData: FormData): SaveStudentDis
     value: formData.get("value") ?? "",
     start_date: formData.get("start_date") ?? "",
     end_date: formData.get("end_date") ?? "",
-    status: formData.get("status") ?? "draft",
   });
 
   if (!parsed.success) {
