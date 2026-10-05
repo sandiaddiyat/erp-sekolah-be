@@ -1354,39 +1354,39 @@ export interface Database {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "classes_academic_year_id_fkey";
-            columns: ["academic_year_id"];
+            foreignKeyName: "classes_academic_year_tenant_fkey";
+            columns: ["academic_year_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "academic_years";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
           {
-            foreignKeyName: "classes_grade_id_fkey";
-            columns: ["grade_id"];
+            foreignKeyName: "classes_grade_tenant_fkey";
+            columns: ["grade_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "grades";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
           {
-            foreignKeyName: "classes_major_id_fkey";
-            columns: ["major_id"];
+            foreignKeyName: "classes_major_tenant_fkey";
+            columns: ["major_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "majors";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
           {
-            foreignKeyName: "classes_room_id_fkey";
-            columns: ["room_id"];
+            foreignKeyName: "classes_room_tenant_fkey";
+            columns: ["room_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "rooms";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
           {
-            foreignKeyName: "classes_homeroom_teacher_id_fkey";
-            columns: ["homeroom_teacher_id"];
+            foreignKeyName: "classes_teacher_tenant_fkey";
+            columns: ["homeroom_teacher_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "pegawai";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
         ];
       };
@@ -1439,25 +1439,25 @@ export interface Database {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "student_enrollments_student_id_fkey";
-            columns: ["student_id"];
+            foreignKeyName: "student_enrollments_student_tenant_fkey";
+            columns: ["student_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "students";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
           {
-            foreignKeyName: "student_enrollments_academic_year_id_fkey";
-            columns: ["academic_year_id"];
+            foreignKeyName: "student_enrollments_year_tenant_fkey";
+            columns: ["academic_year_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "academic_years";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
           {
-            foreignKeyName: "student_enrollments_class_id_fkey";
-            columns: ["class_id"];
+            foreignKeyName: "student_enrollments_class_tenant_fkey";
+            columns: ["class_id", "school_id"];
             isOneToOne: false;
             referencedRelation: "classes";
-            referencedColumns: ["id"];
+            referencedColumns: ["id", "school_id"];
           },
         ];
       };

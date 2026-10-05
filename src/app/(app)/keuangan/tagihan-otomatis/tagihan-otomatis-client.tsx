@@ -200,7 +200,7 @@ export function TagihanOtomatisClient({
             </form>
           )}
         </CardHeader>
-        <CardContent className="px-0">
+        <CardContent className="px-0 pt-6">
           {invoices.length === 0 ? (
             <div className="px-6 py-10 text-center">
               <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
@@ -215,6 +215,8 @@ export function TagihanOtomatisClient({
               rowKey={(invoice) => invoice.id}
               search={query}
               onSearchChange={setQuery}
+              showColumnToggle={false}
+              toolbarClassName="px-6"
               emptyLabel="Belum ada tagihan. Jalankan job generate tagihan untuk membuat tagihan otomatis."
               filteredEmptyLabel="Tidak ada tagihan yang cocok dengan pencarian."
               columns={[

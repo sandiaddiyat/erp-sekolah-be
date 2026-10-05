@@ -33,6 +33,8 @@ export function FinanceDataTable<T>({
   selectable,
   selectedKeys,
   onSelectedKeysChange,
+  showColumnToggle = true,
+  toolbarClassName,
 }: {
   rows: T[];
   columns: FinanceTableColumn<T>[];
@@ -46,6 +48,8 @@ export function FinanceDataTable<T>({
   selectable?: boolean;
   selectedKeys?: Set<string>;
   onSelectedKeysChange?: (keys: Set<string>) => void;
+  showColumnToggle?: boolean;
+  toolbarClassName?: string;
 }) {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(() => new Set(columns.map((column) => column.key)));
   const [sortKey, setSortKey] = useState(columns[0]?.key ?? "");
@@ -98,8 +102,8 @@ export function FinanceDataTable<T>({
 
   return (
     <div>
-      {onSearchChange ? (
-        <div className="relative mb-4 flex justify-end">
+      <div className={`mb-4 flex flex-wrap items-center justify-end gap-3 ${toolbarClassName ?? ""}`}>
+        {onSearchChange ? (
           <div className="relative w-full sm:w-72">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-[#91a49a]" />
             <Input
@@ -122,18 +126,17 @@ export function FinanceDataTable<T>({
               </div>
             ) : null}
           </div>
-        </div>
-      ) : null}
-
-      <div className="mb-3 flex justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[#e2ece5] bg-white px-2.5 text-xs font-medium text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5]">
-            <Columns3Icon className="size-4 text-[#4d8669]" /> Kolom
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 border-[#e2ece5] bg-white">
-            {columns.map((column) => <DropdownMenuCheckboxItem key={column.key} checked={visibleKeys.has(column.key)} onCheckedChange={() => toggleColumn(column.key)}>{column.label}</DropdownMenuCheckboxItem>)}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        ) : null}
+        {showColumnToggle ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[#e2ece5] bg-white px-2.5 text-xs font-medium text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5]">
+              <Columns3Icon className="size-4 text-[#4d8669]" /> Kolom
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 border-[#e2ece5] bg-white">
+              {columns.map((column) => <DropdownMenuCheckboxItem key={column.key} checked={visibleKeys.has(column.key)} onCheckedChange={() => toggleColumn(column.key)}>{column.label}</DropdownMenuCheckboxItem>)}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto" style={SCROLLBAR_HIDDEN_STYLE}>
