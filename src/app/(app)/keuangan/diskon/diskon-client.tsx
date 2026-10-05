@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useActionState } from "react";
+import { useCallback, useEffect, useState, useActionState } from "react";
 import { toast } from "sonner";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { FinanceDataTable } from "@/components/finance/finance-data-table";
@@ -51,6 +51,9 @@ export function DiskonClient({
   const [dialogKeyType, setDialogKeyType] = useState(0);
   const [dialogKeyDisc, setDialogKeyDisc] = useState(0);
   const [deletingDisc, setDeletingDisc] = useState<StudentDiscount | null>(null);
+
+  const closeTypeForm = useCallback(() => setTypeFormOpen(false), []);
+  const closeStudentDiscountForm = useCallback(() => setDiscFormOpen(false), []);
 
   const studentOptions = students.map((s) => ({ value: s.id, label: `${s.nama_lengkap} (${s.nisn ?? s.id})` }));
   const typeOptions = discountTypes.map((t) => ({ value: t.id, label: `${t.code} - ${t.name} (${t.calc_type})` }));
@@ -109,6 +112,7 @@ export function DiskonClient({
               rowKey={(item) => item.id}
               search={query}
               onSearchChange={setQuery}
+              toolbarClassName="px-6"
               emptyLabel="Belum ada jenis diskon. Tambahkan jenis diskon pertama."
               filteredEmptyLabel="Tidak ada jenis diskon yang cocok dengan pencarian."
               columns={[
@@ -167,7 +171,7 @@ export function DiskonClient({
       </Dialog>
 
       <DiscountTypeFormDialog
-        key={editingType?.id ?? dialogKeyType}
+        key={`type-${editingType?.id ?? dialogKeyType}`}
         open={typeFormOpen}
         onOpenChange={(open) => {
           if (open) {
@@ -177,11 +181,11 @@ export function DiskonClient({
           setTypeFormOpen(open);
         }}
         editing={editingType}
-        onSaved={() => setTypeFormOpen(false)}
+        onSaved={closeTypeForm}
       />
 
       <StudentDiscountFormDialog
-        key={editingDisc?.id ?? dialogKeyDisc}
+        key={`student-discount-${editingDisc?.id ?? dialogKeyDisc}`}
         open={discFormOpen}
         onOpenChange={(open) => {
           if (open) {
@@ -193,7 +197,7 @@ export function DiskonClient({
         editing={editingDisc}
         studentOptions={studentOptions}
         typeOptions={typeOptions}
-        onSaved={() => setDiscFormOpen(false)}
+        onSaved={closeStudentDiscountForm}
       />
 
       {/* Delete Type Alert */}
@@ -261,12 +265,14 @@ function DiscountTypeFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[650px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="flex min-h-0 flex-col">
           <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
-            <DialogTitle className="text-[21px] font-semibold tracking-[-.05em] text-[#183d32]">{isEdit ? "Ubah Jenis Diskon" : "Tambah Jenis Diskon"}</DialogTitle>
-            <DialogDescription>Definisikan jenis diskon yang tersedia.</DialogDescription>
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">Pengelolaan biaya siswa</span>
+            <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">{isEdit ? "Ubah Jenis Diskon" : "Tambah Jenis Diskon"}</DialogTitle>
+            <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">Definisikan jenis diskon yang tersedia.</DialogDescription>
           </DialogHeader>
 
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px]">
           {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
 
           <div className="grid grid-cols-2 gap-4">
@@ -295,10 +301,11 @@ function DiscountTypeFormDialog({
             <Checkbox id="is_system" name="is_system" defaultChecked={Boolean(editing?.is_system)} disabled />
             <FieldLabel htmlFor="is_system" required>Jenis sistem (hanya bisa diedit admin)</FieldLabel>
           </div>
+          </div>
 
           <DialogFooter className="mx-0 mb-0 shrink-0 justify-end gap-2 rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px] sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>
+            <Button type="button" onClick={() => onOpenChange(false)} className="h-8 rounded-[9px] border border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]">Batal</Button>
+            <Button type="submit" disabled={isSubmitting} className="h-8 rounded-[9px] border border-[#185743] bg-[#185743] px-3 text-[10px] font-bold text-white shadow-none hover:border-[#124936] hover:bg-[#124936]">{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -336,13 +343,15 @@ function StudentDiscountFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[650px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="flex min-h-0 flex-col">
           <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-7 pb-5 pt-6">
-            <DialogTitle className="text-[21px] font-semibold tracking-[-.05em] text-[#183d32]">{isEdit ? "Ubah Diskon Siswa" : "Tambah Diskon Siswa"}</DialogTitle>
-            <DialogDescription>Berikan diskon kepada siswa tertentu.</DialogDescription>
+            <span className="mb-2 block text-[10px] font-bold tracking-[.1em] text-[#4d9775] uppercase">Pengelolaan biaya siswa</span>
+            <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]">{isEdit ? "Ubah Diskon Siswa" : "Tambah Diskon Siswa"}</DialogTitle>
+            <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">Berikan diskon kepada siswa tertentu.</DialogDescription>
           </DialogHeader>
 
-          {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px]">
+            {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
 
           <div className="space-y-2">
             <FieldLabel htmlFor="student_id" required>Siswa</FieldLabel>
@@ -396,10 +405,11 @@ function StudentDiscountFormDialog({
               </SelectContent>
             </Select>
           </div>
+          </div>
 
           <DialogFooter className="mx-0 mb-0 shrink-0 justify-end gap-2 rounded-none border-t border-[#e3ece6] bg-white p-0 px-7 py-[15px] sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>
+            <Button type="button" onClick={() => onOpenChange(false)} className="h-8 rounded-[9px] border border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] shadow-none hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#537467]">Batal</Button>
+            <Button type="submit" disabled={isSubmitting} className="h-8 rounded-[9px] border border-[#185743] bg-[#185743] px-3 text-[10px] font-bold text-white shadow-none hover:border-[#124936] hover:bg-[#124936]">{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

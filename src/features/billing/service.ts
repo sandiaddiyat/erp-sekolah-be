@@ -81,7 +81,7 @@ export async function generateInvoices(
     // 3. Ambil semua enrollment aktif di tahun ajaran ini + siswa + kelas
     const { data: enrollments, error: enrollError } = await supabase
       .from("student_enrollments")
-      .select("*, students:students!student_enrollments_student_id_fkey!inner(*), classes:classes!student_enrollments_class_id_fkey!inner(grade_id, major_id)")
+      .select("*, students:students!student_enrollments_student_tenant_fkey!inner(*), classes:classes!student_enrollments_class_tenant_fkey!inner(grade_id, major_id)")
       .eq("school_id", schoolId)
       .eq("academic_year_id", academic_year_id)
       .eq("status", "active");

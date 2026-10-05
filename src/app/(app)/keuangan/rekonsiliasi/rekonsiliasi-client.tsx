@@ -282,7 +282,7 @@ export function RekonsiliasiClient({
       </Dialog>
 
       <PaymentMethodDialog
-        key={editingMethod?.id ?? dialogKeyMethod}
+        key={`method-${editingMethod?.id ?? dialogKeyMethod}`}
         open={methodOpen}
         onOpenChange={(open) => {
           if (open) {
@@ -296,7 +296,7 @@ export function RekonsiliasiClient({
       />
 
       <BankAccountDialog
-        key={editingBank?.id ?? dialogKeyBank}
+        key={`bank-${editingBank?.id ?? dialogKeyBank}`}
         open={bankOpen}
         onOpenChange={(open) => {
           if (open) {
@@ -310,7 +310,7 @@ export function RekonsiliasiClient({
       />
 
       <RecordPaymentDialog
-        key={payingInvoice?.id ?? dialogKeyPay}
+        key={`payment-${payingInvoice?.id ?? dialogKeyPay}`}
         open={payOpen}
         onOpenChange={(open) => {
           if (open) {
