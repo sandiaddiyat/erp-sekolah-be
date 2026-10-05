@@ -35,7 +35,11 @@ const HIGHLIGHTS = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; loggedOut?: string }>;
+  searchParams: Promise<{
+    next?: string;
+    loggedOut?: string;
+    reason?: string;
+  }>;
 }) {
   if (!isSupabaseConfigured()) {
     return <SetupNotice />;
@@ -43,7 +47,17 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : "/dashboard";
-  const notice = params.loggedOut ? "Anda telah keluar." : undefined;
+
+  let notice: string | undefined;
+  if (params.loggedOut) {
+    notice = "Anda telah keluar.";
+  } else if (params.reason === "inactivity") {
+    notice =
+      "Sesi Anda telah berakhir karena tidak ada aktivitas selama 24 jam. Silakan login kembali.";
+  } else if (params.reason === "expired") {
+    notice =
+      "Sesi Anda telah berakhir karena sudah mencapai batas 7 hari. Silakan login kembali.";
+  }
 
   return (
     <main className="grid min-h-svh bg-[#f7f9f6] lg:grid-cols-[minmax(420px,46%)_1fr] dark:bg-[#0b1512]">

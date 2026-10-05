@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
 import { requireEnv } from "@/lib/env";
+import { withSessionCookieLimit } from "@/lib/supabase/session-timeout";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -17,7 +18,7 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, withSessionCookieLimit(options))
             );
           } catch {
             // Dipanggil dari Server Component: tidak bisa set cookie, abaikan.

@@ -39,6 +39,7 @@ type TestCookieAdapter = {
 };
 
 let getUser: ReturnType<typeof vi.fn>;
+let signOut: ReturnType<typeof vi.fn>;
 let cookieAdapter: TestCookieAdapter;
 
 function setAuthResult(
@@ -52,13 +53,19 @@ function setAuthResult(
   });
 }
 
-function refreshSession() {
+function refreshSession(
+  options: Record<string, unknown> = {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+  }
+) {
   cookieAdapter.setAll(
     [
       {
         name: "sb-auth-token",
         value: "refreshed-token",
-        options: { httpOnly: true, path: "/", sameSite: "lax" },
+        options,
       },
     ],
     {
@@ -71,6 +78,7 @@ function refreshSession() {
 
 beforeEach(() => {
   getUser = vi.fn();
+  signOut = vi.fn().mockResolvedValue({ error: null });
   cookieAdapter = {
     getAll: vi.fn(() => []),
     setAll: vi.fn(),
@@ -78,7 +86,7 @@ beforeEach(() => {
   mocks.createServerClient.mockReset();
   mocks.createServerClient.mockImplementation((_url, _key, options) => {
     cookieAdapter = options.cookies as TestCookieAdapter;
-    return { auth: { getUser } };
+    return { auth: { getUser, signOut } };
   });
 });
 
@@ -173,6 +181,158 @@ describe("updateSession", () => {
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(response.headers.get("expires")).toBe("0");
     expect(response.headers.get("pragma")).toBe("no-cache");
+  });
+});
+
+describe("updateSession — session timeout", () => {
+  it("memaksa logout saat inaktivitas melebihi 24 jam", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+    request.cookies.set(
+      "erp_last_active",
+      String(Date.now() - 25 * 60 * 60 * 1000)
+    );
+
+    const response = await updateSession(request);
+    const location = new URL(getRedirectUrl(response) ?? "");
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(location.pathname).toBe("/login");
+    expect(location.searchParams.get("reason")).toBe("inactivity");
+    expect(response.cookies.get("erp_last_active")?.value).toBe("");
+    expect(response.cookies.get("erp_session_start")?.value).toBe("");
+  });
+
+  it("memperbarui cookie erp_last_active saat aktivitas masih fresh", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+    request.cookies.set("erp_last_active", String(Date.now() - 60 * 60 * 1000));
+
+    const response = await updateSession(request);
+
+    expect(getRedirectUrl(response)).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+    const lastActive = Number(response.cookies.get("erp_last_active")?.value);
+    expect(Number.isFinite(lastActive)).toBe(true);
+    expect(Math.abs(lastActive - Date.now())).toBeLessThan(5000);
+  });
+
+  it("menyetel erp_last_active dan erp_session_start untuk sesi baru", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+
+    const response = await updateSession(request);
+
+    expect(getRedirectUrl(response)).toBeNull();
+    const lastActive = Number(response.cookies.get("erp_last_active")?.value);
+    const sessionStart = Number(
+      response.cookies.get("erp_session_start")?.value
+    );
+    expect(Math.abs(lastActive - Date.now())).toBeLessThan(5000);
+    expect(Math.abs(sessionStart - Date.now())).toBeLessThan(5000);
+  });
+
+  it("memaksa logout saat sesi melebihi batas 7 hari meski aktif", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    request.cookies.set("erp_last_active", String(Date.now()));
+    request.cookies.set("erp_session_start", String(eightDaysAgo));
+
+    const response = await updateSession(request);
+    const location = new URL(getRedirectUrl(response) ?? "");
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(location.searchParams.get("reason")).toBe("expired");
+  });
+
+  it("tidak memaksa logout saat sesi belum mencapai 7 hari", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+    const sixDaysAgo = Date.now() - 6 * 24 * 60 * 60 * 1000;
+    request.cookies.set("erp_last_active", String(Date.now()));
+    request.cookies.set("erp_session_start", String(sixDaysAgo));
+
+    const response = await updateSession(request);
+
+    expect(getRedirectUrl(response)).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+    // Cookie awal sesi sengaja tidak disentuh — tetap bertahan di browser.
+    expect(response.cookies.get("erp_session_start")).toBeUndefined();
+  });
+
+  it("mengabaikan cookie pelacak dengan nilai bukan timestamp", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+    request.cookies.set("erp_last_active", "bukan-timestamp");
+    request.cookies.set("erp_session_start", "juga-bukan-timestamp");
+
+    const response = await updateSession(request);
+
+    expect(getRedirectUrl(response)).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("menghapus cookie sesi Supabase saat timeout inaktivitas", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/dashboard");
+    request.cookies.set("sb-auth-token", "stale-token");
+    request.cookies.set(
+      "erp_last_active",
+      String(Date.now() - 25 * 60 * 60 * 1000)
+    );
+
+    const response = await updateSession(request);
+
+    expect(response.cookies.get("sb-auth-token")?.value).toBe("");
+  });
+
+  it("membatasi maxAge cookie sesi maksimal 7 hari", async () => {
+    setAuthResult({ id: "user-1" }, null, () =>
+      refreshSession({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        maxAge: 400 * 24 * 60 * 60,
+      })
+    );
+    const request = new NextRequest("https://app.test/dashboard");
+
+    const response = await updateSession(request);
+
+    expect(response.cookies.get("sb-auth-token")?.maxAge).toBe(604800);
+  });
+
+  it("mempertahankan maxAge 0 untuk penghapusan cookie", async () => {
+    setAuthResult({ id: "user-1" }, null, () =>
+      refreshSession({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        maxAge: 0,
+      })
+    );
+    const request = new NextRequest("https://app.test/dashboard");
+
+    const response = await updateSession(request);
+
+    expect(response.cookies.get("sb-auth-token")?.maxAge).toBe(0);
+  });
+
+  it("tetap mengizinkan halaman login saat timeout inaktivitas", async () => {
+    setAuthResult({ id: "user-1" });
+    const request = new NextRequest("https://app.test/login");
+    request.cookies.set(
+      "erp_last_active",
+      String(Date.now() - 25 * 60 * 60 * 1000)
+    );
+
+    const response = await updateSession(request);
+    const location = new URL(getRedirectUrl(response) ?? "");
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(location.pathname).toBe("/login");
+    expect(location.searchParams.get("reason")).toBe("inactivity");
   });
 });
 
