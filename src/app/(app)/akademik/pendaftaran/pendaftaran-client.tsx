@@ -52,14 +52,12 @@ import { AutoPlacementDialog } from "./auto-placement-dialog";
 
 type FormState = { error?: string; success?: string } | undefined;
 
-type ColumnKey = "student" | "class" | "year" | "enrollment_date" | "exit_date" | "status";
+type ColumnKey = "student" | "class" | "year" | "status";
 
 const allColumns: { key: ColumnKey; label: string }[] = [
   { key: "student", label: "Nama Siswa" },
   { key: "class", label: "Kelas" },
   { key: "year", label: "Tahun Ajaran" },
-  { key: "enrollment_date", label: "Tanggal Daftar" },
-  { key: "exit_date", label: "Tanggal Keluar" },
   { key: "status", label: "Status" },
 ];
 
@@ -89,6 +87,21 @@ function formatDate(value: string | null | undefined): string {
   return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function hitungUmur(tanggalLahir: string | null | undefined): number | null {
+  if (!tanggalLahir) return null;
+  const lahir = new Date(tanggalLahir);
+  if (Number.isNaN(lahir.getTime())) return null;
+  const hariIni = new Date();
+  let umur = hariIni.getFullYear() - lahir.getFullYear();
+  if (
+    hariIni.getMonth() < lahir.getMonth() ||
+    (hariIni.getMonth() === lahir.getMonth() && hariIni.getDate() < lahir.getDate())
+  ) {
+    umur -= 1;
+  }
+  return umur;
+}
+
 export function PendaftaranClient({
   enrollments,
   academicYears,
@@ -113,7 +126,7 @@ export function PendaftaranClient({
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     () => new Set(allColumns.map((col) => col.key))
   );
-  const [sortColumn] = useState<ColumnKey>("enrollment_date");
+  const [sortColumn] = useState<ColumnKey>("student");
   const [sortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -166,6 +179,10 @@ export function PendaftaranClient({
     () => new Map(students.map((s) => [s.id, s.nama_lengkap])),
     [students]
   );
+  const studentRecordById = useMemo(
+    () => new Map(students.map((s) => [s.id, s])),
+    [students]
+  );
   const classById = useMemo(
     () => new Map(classes.map((c) => [c.id, c.name])),
     [classes]
@@ -206,10 +223,6 @@ export function PendaftaranClient({
           return classById.get(item.class_id) ?? "";
         case "year":
           return yearById.get(item.academic_year_id) ?? "";
-        case "enrollment_date":
-          return item.enrollment_date;
-        case "exit_date":
-          return item.exit_date ?? "";
         case "status":
           return STATUS_LABELS[item.status];
       }
@@ -224,7 +237,7 @@ export function PendaftaranClient({
     const groups = new Map<string, {
       key: string;
       name: string;
-      classes: Map<string, { key: string; name: string; rows: StudentEnrollment[]; enrollment_date: string; exit_date: string | null; status: StudentEnrollment["status"] }>;
+      classes: Map<string, { key: string; name: string; rows: StudentEnrollment[]; status: StudentEnrollment["status"]; maleCount: number; femaleCount: number }>;
     }>();
     for (const item of sorted) {
       let yearGroup = groups.get(item.academic_year_id);
@@ -238,15 +251,16 @@ export function PendaftaranClient({
           key: `${item.academic_year_id}::${item.class_id}`,
           name: classById.get(item.class_id) ?? "-",
           rows: [],
-          enrollment_date: item.enrollment_date,
-          exit_date: item.exit_date ?? null,
           status: item.status,
+          maleCount: 0,
+          femaleCount: 0,
         };
         yearGroup.classes.set(item.class_id, classGroup);
       }
       classGroup.rows.push(item);
-      if (item.enrollment_date < classGroup.enrollment_date) classGroup.enrollment_date = item.enrollment_date;
-      if (item.exit_date && (!classGroup.exit_date || item.exit_date > classGroup.exit_date)) classGroup.exit_date = item.exit_date;
+      const jenisKelamin = studentRecordById.get(item.student_id)?.jenis_kelamin;
+      if (jenisKelamin === "L") classGroup.maleCount += 1;
+      if (jenisKelamin === "P") classGroup.femaleCount += 1;
       if (item.status === "active") classGroup.status = "active";
       else if (classGroup.status !== "active") classGroup.status = item.status;
     }
@@ -255,7 +269,7 @@ export function PendaftaranClient({
       classes: Array.from(year.classes.values()).sort((a, b) => a.name.localeCompare(b.name, "id", { numeric: true })),
       studentCount: Array.from(year.classes.values()).reduce((count, group) => count + group.rows.length, 0),
     }));
-  }, [sorted, yearById, classById]);
+  }, [sorted, yearById, classById, studentRecordById]);
 
   const safeTotalPages = Math.max(1, Math.ceil(yearGroups.length / pageSize));
   const safePage = Math.min(page, safeTotalPages);
@@ -582,8 +596,6 @@ export function PendaftaranClient({
                                     <TableRow className="border-b border-[#e5eee8] bg-[#fbfdfb] hover:bg-[#fbfdfb]">
                                       <TableHead className="w-12 px-3 py-2.5" />
                                       <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Kelas</TableHead>
-                                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Tanggal Pendaftaran</TableHead>
-                                      <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Tanggal Keluar</TableHead>
                                       <TableHead className="px-3 py-2.5 text-[10px] font-bold text-[#6c8279]">Status</TableHead>
                                       <TableHead className="px-3 py-2.5 text-right text-[10px] font-bold text-[#6c8279]">Aksi</TableHead>
                                     </TableRow>
@@ -606,9 +618,14 @@ export function PendaftaranClient({
                                                 {classExpanded ? <ChevronDownIcon className="size-3.5" /> : <ChevronUpIcon className="size-3.5" />}
                                               </button>
                                             </TableCell>
-                                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">{classGroup.name}</TableCell>
-                                            <TableCell className="px-3 py-2.5 text-xs whitespace-nowrap text-[#3e5c50]">{formatDate(classGroup.enrollment_date) || "-"}</TableCell>
-                                            <TableCell className="px-3 py-2.5 text-xs whitespace-nowrap text-[#3e5c50]">{classGroup.exit_date ? formatDate(classGroup.exit_date) : "-"}</TableCell>
+                                            <TableCell className="px-3 py-2.5 text-xs font-semibold text-[#2b493e]">
+                                              <div>{classGroup.name}</div>
+                                              <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-medium text-[#537467]">
+                                                <span className="rounded-[6px] bg-[#eef6f0] px-2 py-0.5">Total: {classGroup.rows.length}</span>
+                                                <span className="rounded-[6px] bg-[#eef6f0] px-2 py-0.5">L: {classGroup.maleCount}</span>
+                                                <span className="rounded-[6px] bg-[#eef6f0] px-2 py-0.5">P: {classGroup.femaleCount}</span>
+                                              </div>
+                                            </TableCell>
                                             <TableCell className="px-3 py-2.5"><Badge className={`rounded-[5px] border-transparent px-2 py-1 text-[9px] font-bold ${STATUS_COLORS[classGroup.status]}`}>{STATUS_LABELS[classGroup.status]}</Badge></TableCell>
                                             <TableCell className="px-3 py-2.5">
                                               {canManage ? (
@@ -629,17 +646,20 @@ export function PendaftaranClient({
                                                         <TableHead className="w-12 px-3 py-2 text-right text-[10px] font-bold text-[#6c8279]">No</TableHead>
                                                         <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">NIS</TableHead>
                                                         <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">Nama Siswa</TableHead>
+                                                        <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">Umur</TableHead>
                                                         <TableHead className="px-3 py-2 text-[10px] font-bold text-[#6c8279]">Jenis Kelamin</TableHead>
                                                       </TableRow>
                                                     </TableHeader>
                                                     <TableBody>
                                                       {classGroup.rows.map((item, index) => {
-                                                        const student = students.find((entry) => entry.id === item.student_id);
+                                                        const student = studentRecordById.get(item.student_id);
+                                                        const umur = hitungUmur(student?.tanggal_lahir);
                                                         return (
                                                           <TableRow key={item.id} className="cursor-pointer border-b border-[#f0f5f1] last:border-0 hover:bg-[#f6fbf7]" onClick={() => setViewing(item)}>
                                                             <TableCell className="px-3 py-2.5 text-right text-xs tabular-nums text-[#82978e]">{index + 1}</TableCell>
                                                             <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{student?.nis ?? "-"}</TableCell>
                                                             <TableCell className="px-3 py-2.5 text-xs font-medium text-[#2b493e]">{studentName(item.student_id)}</TableCell>
+                                                            <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{umur != null ? `${umur} tahun` : "-"}</TableCell>
                                                             <TableCell className="px-3 py-2.5 text-xs text-[#3e5c50]">{genderLabel(student?.jenis_kelamin)}</TableCell>
                                                           </TableRow>
                                                         );
@@ -726,11 +746,6 @@ export function PendaftaranClient({
         classById={classById}
         yearById={yearById}
         onClose={() => setViewing(null)}
-        canManage={canManage}
-        onEdit={(p) => {
-          setViewing(null);
-          setEditingSingle(p);
-        }}
       />
 
       {canManage ? (
@@ -825,16 +840,12 @@ function DetailDialog({
   classById,
   yearById,
   onClose,
-  canManage,
-  onEdit,
 }: {
   pendaftaran: StudentEnrollment | null;
   studentName: (id: string) => string;
   classById: Map<string, string>;
   yearById: Map<string, string>;
   onClose: () => void;
-  canManage?: boolean;
-  onEdit?: (p: StudentEnrollment) => void;
 }) {
   return (
     <Dialog open={Boolean(pendaftaran)} onOpenChange={(open) => !open && onClose()}>
@@ -876,17 +887,6 @@ function DetailDialog({
               <DetailRow label="Status" value={STATUS_LABELS[pendaftaran.status]} />
             </dl>
           </div>
-        ) : null}
-        {pendaftaran && canManage && onEdit ? (
-          <DialogFooter className="shrink-0 border-t border-[#f0f5f1] bg-[#fdfefd] px-7 py-5">
-            <Button
-              type="button"
-              onClick={() => onEdit(pendaftaran)}
-              className="h-9 rounded-[9px] border border-[#185743] bg-[#185743] px-5 text-[11px] font-bold text-white shadow-[0_5px_12px_#18574326] transition-colors hover:bg-[#124936]"
-            >
-              Edit Pendaftaran
-            </Button>
-          </DialogFooter>
         ) : null}
       </DialogContent>
     </Dialog>

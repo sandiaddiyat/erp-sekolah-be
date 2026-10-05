@@ -26,7 +26,7 @@ export default async function PendaftaranPage() {
     supabase.from("classes").select("id, name, academic_year_id").eq("school_id", schoolId).order("name"),
     supabase
       .from("students")
-      .select("id, school_id, nis, nisn, nama_lengkap, jenis_kelamin, status")
+      .select("id, school_id, nis, nisn, nama_lengkap, jenis_kelamin, tanggal_lahir, status")
       .eq("school_id", schoolId)
       .eq("status", "aktif")
       .order("nama_lengkap"),
