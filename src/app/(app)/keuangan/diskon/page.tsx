@@ -33,6 +33,7 @@ export default async function DiskonPage() {
       studentDiscounts={(discountsResult.data ?? []) as unknown as StudentDiscount[]}
       students={(studentsResult.data ?? []) as unknown as Siswa[]}
       canManage={can(current.permissions, PERMISSIONS.discountManage, current.isSuperAdmin)}
+      canApprove={can(current.permissions, PERMISSIONS.discountApprove, current.isSuperAdmin)}
     />
   );
 }

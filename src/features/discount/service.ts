@@ -82,25 +82,46 @@ export async function saveStudentDiscountRecord(
   if (!schoolId) return errResult("Hanya admin sekolah yang dapat mengelola diskon.");
 
   const { supabase } = deps;
-  const { id, student_id, discount_type_id, value, start_date, end_date, status } = payload;
-
-  const values = {
-    school_id: schoolId, student_id, discount_type_id, value, start_date, end_date, status,
-  };
+  const { id, student_id, discount_type_id, value, start_date, end_date } = payload;
 
   if (id) {
     const { error } = await supabase
       .from("student_discounts")
-      .update(values)
+      .update({ student_id, discount_type_id, value, start_date, end_date, status: "pending", approved_by: null, approved_at: null })
       .eq("id", id)
       .eq("school_id", schoolId);
     if (error) return handleError(error, "Gagal memperbarui diskon.");
-    return okResult("Diskon siswa berhasil diperbarui.");
+    return okResult("Diskon siswa berhasil diperbarui dan menunggu persetujuan.");
   }
 
-  const { error } = await supabase.from("student_discounts").insert(values);
+  const { error } = await supabase.from("student_discounts").insert({
+    school_id: schoolId, student_id, discount_type_id, value, start_date, end_date, status: "pending",
+  });
   if (error) return handleError(error, "Gagal menambahkan diskon siswa.");
-  return okResult("Diskon siswa berhasil ditambahkan.");
+  return okResult("Diskon siswa berhasil diajukan untuk persetujuan.");
+}
+
+export async function approveStudentDiscountRecord(
+  deps: DiscountMutationsDeps,
+  current: CurrentUser,
+  id: string,
+  decision: "disetujui" | "ditolak"
+): Promise<MutationResult> {
+  const schoolId = ensureSchoolId(current);
+  if (!schoolId) return errResult("Hanya admin sekolah yang dapat menyetujui diskon.");
+
+  const { data, error } = await deps.supabase
+    .from("student_discounts")
+    .update({ status: decision, approved_by: current.profile.id, approved_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("school_id", schoolId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (error) return handleError(error, "Gagal memproses persetujuan diskon.");
+  if (!data) return errResult("Diskon tidak ditemukan atau sudah diproses.");
+  return okResult(decision === "disetujui" ? "Diskon berhasil disetujui." : "Diskon berhasil ditolak.");
 }
 
 export async function deleteStudentDiscountRecord(

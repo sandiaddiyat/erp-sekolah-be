@@ -8,9 +8,10 @@ import {
   saveDiscountTypeRecord,
   deleteDiscountTypeRecord,
   saveStudentDiscountRecord,
+  approveStudentDiscountRecord,
   deleteStudentDiscountRecord,
 } from "@/features/discount/service";
-import { readSaveDiscountTypeInput, readSaveStudentDiscountInput } from "@/features/discount/schema";
+import { readApproveStudentDiscountInput, readSaveDiscountTypeInput, readSaveStudentDiscountInput } from "@/features/discount/schema";
 import type { FormState } from "@/lib/types";
 
 export type { FormState };
@@ -70,6 +71,24 @@ export async function saveStudentDiscount(_prevState: FormState, formData: FormD
 
   const supabase = await createClient();
   const result = await saveStudentDiscountRecord({ supabase }, guard.user, command.command);
+  if (!result.ok) return { error: result.error };
+
+  revalidateDiscount();
+  return { success: result.message };
+}
+
+export async function approveStudentDiscount(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const guard = await guardAction({
+    permission: PERMISSIONS.discountApprove,
+    deniedMessage: "Anda tidak punya izin menyetujui diskon.",
+  });
+  if ("error" in guard) return { error: guard.error };
+
+  const command = readApproveStudentDiscountInput(formData);
+  if (!command.ok) return { error: command.error };
+
+  const supabase = await createClient();
+  const result = await approveStudentDiscountRecord({ supabase }, guard.user, command.command.id, command.command.decision);
   if (!result.ok) return { error: result.error };
 
   revalidateDiscount();
