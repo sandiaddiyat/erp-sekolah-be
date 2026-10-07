@@ -20,7 +20,7 @@ function revalidateSchoolPages() {
 }
 
 export async function saveSchoolProfile(
-  input: import("@/lib/validations/sekolah").SekolahProfileInput
+  input: import("@/lib/validations/sekolah").SekolahProfileInput & { logo_url?: string }
 ): Promise<FormState> {
   const guard = await guardAction({
     permission: PERMISSIONS.schoolsUpdate,

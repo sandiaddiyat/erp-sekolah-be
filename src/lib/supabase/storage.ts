@@ -79,3 +79,30 @@ export async function uploadPegawaiPhoto(
   const { data } = supabase.storage.from("pegawai-photos").getPublicUrl(path);
   return data.publicUrl ?? null;
 }
+
+export async function uploadSchoolLogo(
+  supabase: SupabaseClient<Database>,
+  schoolId: string,
+  file: File
+): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+
+  if (!MIME_EXT[file.type] || !file.type.startsWith("image/")) {
+    throw new Error("Logo sekolah harus berupa gambar JPG, PNG, WebP, atau GIF.");
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw new Error("Ukuran logo sekolah maksimal 2 MB.");
+  }
+
+  const path = `${schoolId}/${crypto.randomUUID()}.${MIME_EXT[file.type]}`;
+  const { error } = await supabase.storage
+    .from("school-logos")
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+
+  if (error) {
+    throw new Error(`Gagal mengunggah logo sekolah: ${error.message}`);
+  }
+
+  const { data } = supabase.storage.from("school-logos").getPublicUrl(path);
+  return data.publicUrl ?? null;
+}

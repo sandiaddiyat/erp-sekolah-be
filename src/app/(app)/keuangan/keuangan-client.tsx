@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, SearchIcon, WalletIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, WalletIcon, PrinterIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -306,6 +306,17 @@ export function KeuanganClient({
                       >
                         <WalletIcon data-icon="inline-start" className="size-3.5" />
                         Bayar
+                      </Button>
+                    ) : null}
+                    {lunas ? (
+                      <Button
+                        variant="outline"
+                        className={SECONDARY_BUTTON}
+                        aria-label="Cetak kuitansi"
+                        onClick={() => window.open(`/keuangan/kuitansi/${lunas.id}/print`, "_blank", "noopener,noreferrer")}
+                      >
+                        <PrinterIcon className="size-3.5" />
+                        Cetak
                       </Button>
                     ) : null}
                     {permissions.verify && menunggu ? (

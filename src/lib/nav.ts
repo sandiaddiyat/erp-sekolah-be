@@ -137,6 +137,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "keuangan",
   },
   {
+    title: "Pengaturan Kuitansi",
+    href: "/keuangan/pengaturan-kuitansi",
+    icon: "keuangan",
+    permission: PERMISSIONS.financeReceiptTemplateView,
+    group: "keuangan",
+  },
+  {
     title: "Akademik",
     href: "/akademik/tahun-ajaran",
     icon: "siswa",

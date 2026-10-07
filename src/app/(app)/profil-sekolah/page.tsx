@@ -46,5 +46,5 @@ export default async function ProfilSekolahPage({
 
   const school = data as School;
 
-  return <SchoolProfilePageView school={school} isSuperAdmin={user.isSuperAdmin} />;
+  return <SchoolProfilePageView school={school} />;
 }

@@ -16,11 +16,11 @@ import {
   Copy,
   PhoneCall,
   Contact2,
-  Building,
   Hash,
   Landmark,
   Save,
   Shield,
+  Upload,
 } from "lucide-react";
 import type { School } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { saveSchoolProfile } from "../sekolah/profile-actions";
+import { uploadSchoolLogoAction } from "./upload-logo-action";
 
 /**
  * Ditampilkan ketika pengguna tidak punya sekolah (atau, untuk super admin,
@@ -143,10 +144,30 @@ export function SchoolProfileEditView({
     email: school.email ?? "",
     dinas: school.dinas ?? "",
     has_double_sessions: school.has_double_sessions ?? false,
+    logo_url: school.logo_url ?? "",
   });
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const update = (field: string, value: string | boolean) => {
     setValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleLogoChange = async (file: File | undefined) => {
+    if (!file) return;
+    setIsUploadingLogo(true);
+    const formData = new FormData();
+    formData.set("school_id", school.id);
+    formData.set("logo", file);
+    const result = await uploadSchoolLogoAction(formData);
+    setIsUploadingLogo(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    if (result.url) {
+      update("logo_url", result.url);
+      toast.success("Logo berhasil diunggah.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,8 +190,33 @@ export function SchoolProfileEditView({
       {/* HEADER CARD */}
       <div className="flex items-center justify-between rounded-[16px] border border-[#e2e8f0] bg-[#ffffff] p-6 shadow-[0_1px_3px_0_rgba(15,118,110,0.04)]">
         <div className="flex items-center gap-5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#0f766e] text-white">
-            <GraduationCap className="h-8 w-8" />
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#0f766e] text-white">
+              {values.logo_url ? (
+                <span
+                  role="img"
+                  aria-label="Logo sekolah"
+                  className="h-full w-full bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${values.logo_url})` }}
+                />
+              ) : (
+                <GraduationCap className="h-8 w-8" />
+              )}
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[10px] font-semibold text-[#0f766e] hover:text-[#115e59]">
+              <Upload className="h-3 w-3" />
+              {isUploadingLogo ? "Mengunggah..." : "Ubah logo"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="sr-only"
+                disabled={isUploadingLogo || isSubmitting}
+                onChange={(event) => {
+                  void handleLogoChange(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
           </div>
           <div>
             <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2 py-0.5 text-[11px] font-semibold text-[#065f46]">
@@ -466,13 +512,7 @@ export function SchoolProfileEditView({
   );
 }
 
-export function SchoolProfilePageView({
-  school,
-  isSuperAdmin,
-}: {
-  school: School;
-  isSuperAdmin: boolean;
-}) {
+export function SchoolProfilePageView({ school }: { school: School }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
