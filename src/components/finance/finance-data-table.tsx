@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, Columns3Icon, SearchIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { TablePaginationControls } from "@/components/ui/table-pagination";
 
 export type FinanceTableColumn<T> = {
   key: string;
@@ -210,11 +210,7 @@ export function FinanceDataTable<T>({
             Menampilkan {rangeStart}–{rangeEnd} dari {sortedRows.length}
             <label className="flex items-center gap-1.5 text-[10px] font-bold text-[#6c8279]">Baris<select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="h-8 rounded-[9px] border border-[#e2ece5] bg-white px-2 text-xs text-[#284a3d]">{[5, 10, 20, 30].map((size) => <option key={size} value={size}>{size}</option>)}</select></label>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467]">Sebelumnya</Button>
-            <span className="px-1.5 text-xs font-semibold text-[#537467]">{safePage} / {totalPages}</span>
-            <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467]">Berikutnya</Button>
-          </div>
+          <TablePaginationControls page={safePage} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </div>
     </div>

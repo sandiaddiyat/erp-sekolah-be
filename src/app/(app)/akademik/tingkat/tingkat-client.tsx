@@ -15,6 +15,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TablePaginationControls } from "@/components/ui/table-pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -519,29 +520,7 @@ export function TingkatClient({
                   </select>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={safePage <= 1}
-                  onClick={() => setPage(safePage - 1)}
-                  className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
-                >
-                  Sebelumnya
-                </Button>
-                <span className="px-1.5 text-xs font-semibold text-[#537467]">
-                  {safePage} / {safeTotalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={safePage >= safeTotalPages}
-                  onClick={() => setPage(safePage + 1)}
-                  className="h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
-                >
-                  Berikutnya
-                </Button>
-              </div>
+              <TablePaginationControls page={safePage} totalPages={safeTotalPages} onPageChange={setPage} />
             </div>
           </div>
         </CardContent>
