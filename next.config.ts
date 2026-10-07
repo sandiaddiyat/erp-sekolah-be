@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // 1. Ini akan mengizinkan Anda mengakses aplikasi lewat IP LAN tanpa diblokir
-  allowedDevOrigins: ["192.168.1.129", "192.168.1.120", "10.191.123.190", "10.60.200.112", "localhost"],
+  allowedDevOrigins: ["192.168.1.145", "localhost"],
 
   async headers() {
     return [
