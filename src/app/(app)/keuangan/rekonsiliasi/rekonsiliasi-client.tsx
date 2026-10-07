@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useActionState } from "react";
+import { useCallback, useEffect, useMemo, useState, useActionState } from "react";
 import { toast } from "sonner";
 import { PlusIcon, Banknote, PencilIcon, Trash2Icon } from "lucide-react";
 import { FinanceDataTable } from "@/components/finance/finance-data-table";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,7 +73,6 @@ export function RekonsiliasiClient({
   const [payingInvoice, setPayingInvoice] = useState<InvoiceRow | null>(null);
   const [dialogKeyMethod, setDialogKeyMethod] = useState(0);
   const [dialogKeyBank, setDialogKeyBank] = useState(0);
-  const [dialogKeyPay, setDialogKeyPay] = useState(0);
 
   const statusFilteredInvoices = useMemo(
     () => invoices.filter((invoice) => statusFilter === "all" || invoice.status === statusFilter),
@@ -99,6 +99,25 @@ export function RekonsiliasiClient({
     setPayingInvoice(invoice);
     setPayOpen(true);
   };
+
+  const openMethodForm = () => {
+    setEditingMethod(null);
+    setDialogKeyMethod((k) => k + 1);
+    setMethodOpen(true);
+  };
+  const closeMethodForm = useCallback(() => setMethodOpen(false), []);
+
+  const openBankForm = () => {
+    setEditingBank(null);
+    setDialogKeyBank((k) => k + 1);
+    setBankOpen(true);
+  };
+  const closeBankForm = useCallback(() => setBankOpen(false), []);
+
+  const closePayForm = useCallback(() => {
+    setPayOpen(false);
+    setPayingInvoice(null);
+  }, []);
 
   return (
     <div className="mx-auto w-full max-w-[1190px] space-y-6">
@@ -180,6 +199,7 @@ export function RekonsiliasiClient({
                 rowKey={(invoice) => invoice.id}
                 search={query}
                 onSearchChange={setQuery}
+                toolbarClassName="px-6"
                 emptyLabel="Belum ada tagihan."
                 filteredEmptyLabel="Tidak ada tagihan yang cocok dengan pencarian."
                 columns={[
@@ -202,7 +222,7 @@ export function RekonsiliasiClient({
 
         <TabsContent value="methods" className="space-y-4">
           {canManage && (
-            <Button size="sm" onClick={() => setMethodOpen(true)} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
+            <Button size="sm" onClick={openMethodForm} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
               <PlusIcon className="size-4" />
               Tambah Metode
             </Button>
@@ -223,13 +243,14 @@ export function RekonsiliasiClient({
                   rowKey={(method) => method.id}
                   search={query}
                   onSearchChange={setQuery}
+                  toolbarClassName="px-6"
                   emptyLabel="Belum ada metode pembayaran."
                   columns={[
                     { key: "name", label: "Nama Metode", searchable: true, searchValue: (method) => method.name, sortValue: (method) => method.name, sticky: true, render: (method) => <span className="text-xs font-semibold text-[#2b493e]">{method.name}</span> },
                     { key: "cash", label: "Tunai", sortValue: (method) => Number(method.is_cash), render: (method) => <span className="text-xs text-[#3e5c50]">{method.is_cash ? "Ya" : "Tidak"}</span> },
                     { key: "gateway", label: "Gateway", sortValue: (method) => Number(method.is_gateway), render: (method) => <span className="text-xs text-[#3e5c50]">{method.is_gateway ? "Ya" : "Tidak"}</span> },
                   ]}
-                  actions={canManage ? (method) => <div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="Ubah metode pembayaran" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => setEditingMethod(method)}><PencilIcon className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Hapus metode pembayaran" className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeletingMethod(method)}><Trash2Icon className="size-4" /></Button></div> : undefined}
+                  actions={canManage ? (method) => <div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="Ubah metode pembayaran" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => { setEditingMethod(method); setMethodOpen(true); }}><PencilIcon className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Hapus metode pembayaran" className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeletingMethod(method)}><Trash2Icon className="size-4" /></Button></div> : undefined}
                 />
               )}
             </CardContent>
@@ -238,7 +259,7 @@ export function RekonsiliasiClient({
 
         <TabsContent value="banks" className="space-y-4">
           {canManage && (
-            <Button size="sm" onClick={() => setBankOpen(true)} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
+            <Button size="sm" onClick={openBankForm} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
               <PlusIcon className="size-4" />
               Tambah Rekening
             </Button>
@@ -259,13 +280,14 @@ export function RekonsiliasiClient({
                   rowKey={(bank) => bank.id}
                   search={query}
                   onSearchChange={setQuery}
+                  toolbarClassName="px-6"
                   emptyLabel="Belum ada rekening sekolah."
                   columns={[
                     { key: "bank", label: "Bank", searchable: true, searchValue: (bank) => bank.bank_name, sortValue: (bank) => bank.bank_name, sticky: true, render: (bank) => <span className="text-xs font-semibold text-[#2b493e]">{bank.bank_name}</span> },
                     { key: "account", label: "Nomor Rekening", searchable: true, searchValue: (bank) => bank.account_number, sortValue: (bank) => bank.account_number, render: (bank) => <span className="text-xs text-[#3e5c50]">{bank.account_number}</span> },
                     { key: "holder", label: "Pemilik", searchable: true, searchValue: (bank) => bank.account_holder, sortValue: (bank) => bank.account_holder, render: (bank) => <span className="text-xs text-[#3e5c50]">{bank.account_holder}</span> },
                   ]}
-                  actions={canManage ? (bank) => <div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="Ubah rekening" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => setEditingBank(bank)}><PencilIcon className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Hapus rekening" className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeletingBank(bank)}><Trash2Icon className="size-4" /></Button></div> : undefined}
+                  actions={canManage ? (bank) => <div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="Ubah rekening" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => { setEditingBank(bank); setBankOpen(true); }}><PencilIcon className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Hapus rekening" className="border border-[#e1ebe4] bg-white text-[#ad685d] hover:border-[#e8bcb4] hover:bg-[#fff7f5] hover:text-[#ad685d]" onClick={() => setDeletingBank(bank)}><Trash2Icon className="size-4" /></Button></div> : undefined}
                 />
               )}
             </CardContent>
@@ -297,41 +319,23 @@ export function RekonsiliasiClient({
       <PaymentMethodDialog
         key={`method-${editingMethod?.id ?? dialogKeyMethod}`}
         open={methodOpen}
-        onOpenChange={(open) => {
-          if (open) {
-            setEditingMethod(null);
-            setDialogKeyMethod(k => k + 1);
-          }
-          setMethodOpen(open);
-        }}
+        onOpenChange={setMethodOpen}
         editing={editingMethod}
-        onSaved={() => setMethodOpen(false)}
+        onSaved={closeMethodForm}
       />
 
       <BankAccountDialog
         key={`bank-${editingBank?.id ?? dialogKeyBank}`}
         open={bankOpen}
-        onOpenChange={(open) => {
-          if (open) {
-            setEditingBank(null);
-            setDialogKeyBank(k => k + 1);
-          }
-          setBankOpen(open);
-        }}
+        onOpenChange={setBankOpen}
         editing={editingBank}
-        onSaved={() => setBankOpen(false)}
+        onSaved={closeBankForm}
       />
 
       <RecordPaymentDialog
-        key={`payment-${payingInvoice?.id ?? dialogKeyPay}`}
+        key={`payment-${payingInvoice?.id ?? "closed"}`}
         open={payOpen}
-        onOpenChange={(open) => {
-          if (open) {
-            setPayingInvoice(null);
-            setDialogKeyPay(k => k + 1);
-          }
-          setPayOpen(open);
-        }}
+        onOpenChange={setPayOpen}
         invoice={payingInvoice}
         studentName={payingInvoice ? students.find((s) => s.id === payingInvoice.student_id)?.nama_lengkap : undefined}
         remaining={
@@ -340,10 +344,7 @@ export function RekonsiliasiClient({
             : 0
         }
         methods={methods}
-        onSaved={() => {
-          setPayOpen(false);
-          setPayingInvoice(null);
-        }}
+        onSaved={closePayForm}
       />
 
       {/* Delete Dialogs */}
@@ -545,19 +546,24 @@ function RecordPaymentDialog({
           <div className="flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-2">
               <FieldLabel htmlFor="payment_method_id" required>Metode Pembayaran</FieldLabel>
-              <Select name="payment_method_id" required>
-                <SelectTrigger id="payment_method_id" className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"><SelectValue placeholder="Pilih metode" /></SelectTrigger>
-                <SelectContent>
-                  {methods.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                id="payment_method_id"
+                name="payment_method_id"
+                required
+                className="h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10"
+              >
+                <option value="">- Pilih metode -</option>
+                {methods.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
               <FieldLabel htmlFor="nominal" required>Nominal Bayar</FieldLabel>
-              <Input id="nominal" name="nominal" type="number" min={1} defaultValue={invoice ? remaining : ""} required className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10" />
+              <CurrencyInput id="nominal" name="nominal" defaultValue={invoice ? remaining : ""} required className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10" />
             </div>
 
             <div className="space-y-2">

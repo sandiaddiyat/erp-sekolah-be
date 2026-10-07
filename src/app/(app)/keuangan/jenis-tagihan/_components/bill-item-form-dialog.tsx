@@ -7,6 +7,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import type { FormState } from "@/lib/types";
 import { saveBillItem } from "../actions";
@@ -76,7 +77,7 @@ export function BillItemFormDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="item_nominal" required>Nominal (Rp)</FieldLabel>
-                <Input
+                <CurrencyInput
                   id="item_nominal"
                   name="nominal"
                   placeholder="150000"

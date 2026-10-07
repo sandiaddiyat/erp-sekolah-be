@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import type { BillItem, Payment } from "@/lib/types";
 import type { BillWithStudent, PaymentMetode } from "@/lib/types";
@@ -501,23 +502,22 @@ function BillFormDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="nominal" required>Nominal (Rp)</FieldLabel>
-                <Input
+                <CurrencyInput
                   id="nominal"
                   name="nominal"
                   placeholder="150000"
-                  value={nominal}
-                  onChange={(event) => setNominal(event.target.value)}
+                  defaultValue={nominal}
+                  onChange={(val) => setNominal(val)}
                   className={INPUT_CLASS}
                   required
                 />
               </div>
               <div className="space-y-2">
                 <FieldLabel htmlFor="diskon" optional>Diskon (Rp)</FieldLabel>
-                <Input
+                <CurrencyInput
                   id="diskon"
                   name="diskon"
                   placeholder="0"
-                  inputMode="numeric"
                   className={INPUT_CLASS}
                 />
               </div>
@@ -625,7 +625,7 @@ function PaymentFormDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="pay_nominal" required>Nominal Bayar (Rp)</FieldLabel>
-                <Input
+                <CurrencyInput
                   id="pay_nominal"
                   name="nominal"
                   defaultValue={bill ? String(Math.max(sisa, 0)) : ""}
