@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, Banknote, PencilIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, Banknote, PencilIcon, Trash2Icon, PrinterIcon } from "lucide-react";
 import { FinanceDataTable } from "@/components/finance/finance-data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,7 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
 export function RekonsiliasiClient({
   invoices,
   paidByInvoice,
+  latestPaymentByInvoice,
   methods,
   banks,
   students,
@@ -48,6 +49,7 @@ export function RekonsiliasiClient({
 }: {
   invoices: InvoiceRow[];
   paidByInvoice: Record<string, number>;
+  latestPaymentByInvoice: Record<string, string>;
   methods: PaymentMethod[];
   banks: BankAccount[];
   students: Siswa[];
@@ -211,10 +213,11 @@ export function RekonsiliasiClient({
                   { key: "status", label: "Status", sortValue: (invoice) => invoice.status, render: (invoice) => <Badge variant={STATUS_VARIANT[invoice.status]}>{STATUS_LABELS[invoice.status]}</Badge> },
                 ]}
                 onRowClick={setViewingInvoice}
-                actions={canManage ? (invoice) => {
+                actions={(invoice) => {
                   const remaining = Math.max(0, Number(invoice.total_amount) - (paidByInvoice[invoice.id] ?? 0));
-                  return remaining > 0 ? <Button variant="ghost" size="icon-sm" aria-label="Catat pembayaran" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={() => openPaymentDialog(invoice)}><Banknote className="size-4" /></Button> : null;
-                } : undefined}
+                  const paymentId = latestPaymentByInvoice[invoice.id];
+                  return <div className="flex items-center justify-end gap-1">{canManage && remaining > 0 && <Button variant="ghost" size="icon-sm" aria-label="Catat pembayaran" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); openPaymentDialog(invoice); }}><Banknote className="size-4" /></Button>}{paymentId && <Button variant="ghost" size="icon-sm" aria-label="Cetak kuitansi" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); window.open(`/keuangan/kuitansi/${paymentId}/print`, "_blank", "noopener,noreferrer"); }}><PrinterIcon className="size-4" /></Button>}</div>;
+                }}
               />
             </CardContent>
           </Card>

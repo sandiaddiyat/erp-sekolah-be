@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-muted-foreground max-w-sm text-sm">
         Halaman yang Anda cari tidak ditemukan atau telah dipindahkan.
       </p>
-      <Button render={<Link href="/dashboard" />}>
+      <Button render={<Link href="/dashboard" />} nativeButton={false}>
         Kembali ke Dashboard
       </Button>
     </div>

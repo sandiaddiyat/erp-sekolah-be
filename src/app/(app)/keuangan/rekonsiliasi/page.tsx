@@ -23,7 +23,7 @@ export default async function RekonsiliasiPage() {
       .order("due_date", { ascending: false }),
     supabase
       .from("payments")
-      .select("invoice_id, nominal, status")
+       .select("id, invoice_id, nominal, status, created_at")
       .eq("school_id", schoolId)
       .eq("status", "terverifikasi"),
     supabase
@@ -56,9 +56,9 @@ export default async function RekonsiliasiPage() {
 
   const invoices = (invoicesResult.data ?? []) as unknown as InvoiceRow[];
   const payments = (
-    (paymentsResult.data ?? []) as { invoice_id: string | null; nominal: number; status: string }[]
+    (paymentsResult.data ?? []) as { id: string; invoice_id: string | null; nominal: number; status: string; created_at: string }[]
   ).filter(
-    (payment): payment is { invoice_id: string; nominal: number; status: string } =>
+    (payment): payment is { id: string; invoice_id: string; nominal: number; status: string; created_at: string } =>
       typeof payment.invoice_id === "string"
   );
   const methods = (methodsResult.data ?? []) as PaymentMethod[];
@@ -66,8 +66,13 @@ export default async function RekonsiliasiPage() {
   const students = (studentsResult.data ?? []) as unknown as Siswa[];
 
   const paidByInvoice = new Map<string, number>();
+  const latestPaymentByInvoice = new Map<string, { id: string; created_at: string }>();
   for (const p of payments) {
     paidByInvoice.set(p.invoice_id, (paidByInvoice.get(p.invoice_id) ?? 0) + Number(p.nominal));
+    const previous = latestPaymentByInvoice.get(p.invoice_id);
+    if (!previous || previous.created_at < p.created_at) {
+      latestPaymentByInvoice.set(p.invoice_id, { id: p.id, created_at: p.created_at });
+    }
   }
 
   const summary: Record<InvoiceStatus, { count: number; total: number }> = {
@@ -87,6 +92,7 @@ export default async function RekonsiliasiPage() {
     <RekonsiliasiClient
       invoices={invoices}
       paidByInvoice={Object.fromEntries(paidByInvoice)}
+      latestPaymentByInvoice={Object.fromEntries([...latestPaymentByInvoice].map(([invoiceId, payment]) => [invoiceId, payment.id]))}
       methods={methods}
       banks={banks}
       students={students}
