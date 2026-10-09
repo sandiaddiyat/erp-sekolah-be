@@ -8,24 +8,33 @@ import { RekonsiliasiClient } from "./rekonsiliasi-client";
 
 export const metadata = { title: "Rekonsiliasi Pembayaran" };
 
-type InvoiceRow = Invoice & { siswa?: { nama_lengkap: string } | null };
+type InvoiceRow = Invoice & { siswa?: { nama_lengkap: string } | null; is_legacy_bill?: boolean };
 
 export default async function RekonsiliasiPage() {
   const current = await requirePermission(PERMISSIONS.billingView);
   const supabase = await createClient();
   const schoolId = current.profile.school_id ?? "";
 
-  const [invoicesResult, paymentsResult, methodsResult, banksResult, studentsResult] = await Promise.all([
+  const [invoicesResult, billsResult, paymentsResult, paymentInvoicesResult, methodsResult, banksResult, studentsResult] = await Promise.all([
     supabase
       .from("invoices")
       .select("*, students!invoices_student_tenant_fkey!inner(nama_lengkap)")
       .eq("school_id", schoolId)
       .order("due_date", { ascending: false }),
     supabase
+      .from("bills")
+      .select("*, students(nama_lengkap)")
+      .eq("school_id", schoolId)
+      .order("jatuh_tempo", { ascending: false }),
+    supabase
       .from("payments")
-       .select("id, invoice_id, nominal, status, created_at")
+       .select("id, invoice_id, bill_id, nominal, status, created_at")
       .eq("school_id", schoolId)
       .eq("status", "terverifikasi"),
+    supabase
+      .from("payment_invoices")
+      .select("payment_id, invoice_id, amount, created_at")
+      .eq("school_id", schoolId),
     supabase
       .from("payment_methods")
       .select("*")
@@ -45,33 +54,67 @@ export default async function RekonsiliasiPage() {
 
   if (
     invoicesResult.error ||
+    billsResult.error ||
     paymentsResult.error ||
+    paymentInvoicesResult.error ||
     methodsResult.error ||
     banksResult.error ||
     studentsResult.error
   ) {
-    console.error("[rekonsiliasi]", invoicesResult.error ?? paymentsResult.error ?? methodsResult.error ?? banksResult.error ?? studentsResult.error);
-    return <DataError message="Gadal memuat data rekonsiliasi." />;
+    console.error("[rekonsiliasi]", invoicesResult.error ?? billsResult.error ?? paymentsResult.error ?? paymentInvoicesResult.error ?? methodsResult.error ?? banksResult.error ?? studentsResult.error);
+    return <DataError message="Gagal memuat data rekonsiliasi." />;
   }
 
-  const invoices = (invoicesResult.data ?? []) as unknown as InvoiceRow[];
-  const payments = (
-    (paymentsResult.data ?? []) as { id: string; invoice_id: string | null; nominal: number; status: string; created_at: string }[]
-  ).filter(
-    (payment): payment is { id: string; invoice_id: string; nominal: number; status: string; created_at: string } =>
-      typeof payment.invoice_id === "string"
-  );
+  const rawInvoices = (invoicesResult.data ?? []) as unknown as InvoiceRow[];
+  const mappedBills = (billsResult.data ?? []).map((b: any) => ({
+    id: b.id,
+    school_id: b.school_id,
+    student_id: b.student_id,
+    guardian_id: null,
+    academic_year_id: null,
+    period_label: b.deskripsi,
+    issue_date: b.created_at,
+    due_date: b.jatuh_tempo,
+    total_amount: Number(b.nominal) - Number(b.diskon || 0),
+    status: b.status,
+    created_at: b.created_at,
+    updated_at: b.updated_at,
+    students: b.students,
+    is_legacy_bill: true,
+  })) as unknown as InvoiceRow[];
+
+  const invoices = [...rawInvoices, ...mappedBills];
+
+  const paymentsRaw = (paymentsResult.data ?? []) as { id: string; invoice_id: string | null; bill_id: string | null; nominal: number; status: string; created_at: string }[];
+  const paymentInvoices = (paymentInvoicesResult.data ?? []) as { payment_id: string; invoice_id: string; amount: number; created_at: string }[];
+
   const methods = (methodsResult.data ?? []) as PaymentMethod[];
   const banks = (banksResult.data ?? []) as BankAccount[];
   const students = (studentsResult.data ?? []) as unknown as Siswa[];
 
+  const validPaymentIds = new Set(paymentsRaw.map(p => p.id));
   const paidByInvoice = new Map<string, number>();
   const latestPaymentByInvoice = new Map<string, { id: string; created_at: string }>();
-  for (const p of payments) {
-    paidByInvoice.set(p.invoice_id, (paidByInvoice.get(p.invoice_id) ?? 0) + Number(p.nominal));
-    const previous = latestPaymentByInvoice.get(p.invoice_id);
-    if (!previous || previous.created_at < p.created_at) {
-      latestPaymentByInvoice.set(p.invoice_id, { id: p.id, created_at: p.created_at });
+
+  // Tagihan Manual / Bills
+  for (const p of paymentsRaw) {
+    if (p.bill_id) {
+      paidByInvoice.set(p.bill_id, (paidByInvoice.get(p.bill_id) ?? 0) + Number(p.nominal));
+      const previous = latestPaymentByInvoice.get(p.bill_id);
+      if (!previous || previous.created_at < p.created_at) {
+        latestPaymentByInvoice.set(p.bill_id, { id: p.id, created_at: p.created_at });
+      }
+    }
+  }
+
+  // Tagihan Otomatis / Invoices
+  for (const pi of paymentInvoices) {
+    if (!validPaymentIds.has(pi.payment_id)) continue; // ignore unverified payments
+    const key = pi.invoice_id;
+    paidByInvoice.set(key, (paidByInvoice.get(key) ?? 0) + Number(pi.amount));
+    const previous = latestPaymentByInvoice.get(key);
+    if (!previous || previous.created_at < pi.created_at) {
+      latestPaymentByInvoice.set(key, { id: pi.payment_id, created_at: pi.created_at });
     }
   }
 

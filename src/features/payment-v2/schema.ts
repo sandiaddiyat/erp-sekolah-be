@@ -80,11 +80,9 @@ const nominal = (label: string) =>
     .refine((v) => Number.isFinite(v) && v > 0, `${label} harus lebih dari 0`);
 
 export const recordPaymentSchema = z.object({
-  invoice_id: z
-    .string()
-    .trim()
-    .min(1, "Tagihan tidak valid.")
-    .refine((v) => z.uuid().safeParse(v).success, "Tagihan tidak valid."),
+  invoice_ids: z
+    .array(z.string().trim().refine((v) => z.uuid().safeParse(v).success, "Tagihan tidak valid."))
+    .min(1, "Pilih minimal 1 tagihan untuk dibayar"),
   payment_method_id: z
     .string()
     .trim()
@@ -106,8 +104,14 @@ export type RecordPaymentParseResult =
   | { ok: false; error: string };
 
 export function readRecordPaymentInput(formData: FormData): RecordPaymentParseResult {
+  const invoiceIds = formData.getAll("invoice_ids").map((id) => id.toString());
+  // Jika frontend lama masih mengirim invoice_id tunggal, kita masukkan ke array
+  if (invoiceIds.length === 0 && formData.get("invoice_id")) {
+    invoiceIds.push(formData.get("invoice_id")!.toString());
+  }
+
   const parsed = recordPaymentSchema.safeParse({
-    invoice_id: formData.get("invoice_id") ?? "",
+    invoice_ids: invoiceIds,
     payment_method_id: formData.get("payment_method_id") ?? "",
     nominal: formData.get("nominal") ?? "",
     catatan: formData.get("catatan") ?? "",

@@ -2040,6 +2040,51 @@ export interface Database {
           },
         ];
       };
+      payment_invoices: {
+        Row: {
+          id: string;
+          school_id: string;
+          payment_id: string;
+          invoice_id: string;
+          amount: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          payment_id: string;
+          invoice_id: string;
+          amount: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          payment_id?: string;
+          invoice_id?: string;
+          amount?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_invoices_payment_tenant_fkey";
+            columns: ["payment_id", "school_id"];
+            isOneToOne: false;
+            referencedRelation: "payments";
+            referencedColumns: ["id", "school_id"];
+          },
+          {
+            foreignKeyName: "payment_invoices_invoice_tenant_fkey";
+            columns: ["invoice_id", "school_id"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id", "school_id"];
+          },
+        ];
+      };
       receipt_templates: {
         Row: {
           id: string;

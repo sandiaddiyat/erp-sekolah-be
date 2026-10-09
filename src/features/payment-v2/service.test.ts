@@ -23,6 +23,11 @@ class QueryMock implements PromiseLike<Row> {
     return this;
   }
 
+  in(column: string, values: unknown[]) {
+    this.calls.push(`in:${column}=${values.join(",")}`);
+    return this;
+  }
+
   eq(column: string, value: unknown) {
     this.calls.push(`eq:${column}=${String(value)}`);
     return this;
@@ -92,20 +97,22 @@ function makeSupabase(options: {
   method?: { id: string } | null;
   payments?: { nominal: number }[];
 }) {
-  const invoiceRead = new QueryMock(
+  const invoiceRead = new QueryMock([
     options.invoice ?? {
       id: invoiceId,
       total_amount: 150000,
       status: "sebagian",
       school_id: "school-1",
-    }
-  );
+    },
+  ]);
   const methodRead = new QueryMock(options.method === undefined ? { id: paymentMethodId } : options.method);
-  const paymentsRead = new QueryMock(options.payments ?? []);
-  const paymentInsert = new QueryMock();
+  const paymentInvoiceRead = new QueryMock((options.payments ?? []).map((payment) => ({ invoice_id: invoiceId, amount: payment.nominal })));
+  const paymentInsert = new QueryMock({ id: "payment-1" });
+  const paymentInvoiceInsert = new QueryMock();
   const invoiceUpdate = new QueryMock();
   let invoiceCalls = 0;
   let paymentCalls = 0;
+  let paymentInvoiceCalls = 0;
 
   const supabase = {
     from(table: string) {
@@ -113,10 +120,14 @@ function makeSupabase(options: {
         invoiceCalls += 1;
         return invoiceCalls === 1 ? invoiceRead : invoiceUpdate;
       }
+      if (table === "payment_invoices") {
+        paymentInvoiceCalls += 1;
+        return paymentInvoiceCalls === 1 ? paymentInvoiceRead : paymentInvoiceInsert;
+      }
       if (table === "payment_methods") return methodRead;
       if (table === "payments") {
         paymentCalls += 1;
-        return paymentCalls === 1 ? paymentsRead : paymentInsert;
+        return paymentInsert;
       }
       throw new Error(`unexpected table ${table}`);
     },
@@ -125,19 +136,20 @@ function makeSupabase(options: {
   return {
     supabase,
     paymentInsert,
+    paymentInvoiceInsert,
     invoiceUpdate,
   };
 }
 
 describe("recordInvoicePayment", () => {
   it("mencatat pembayaran invoice dengan metode dan tenant yang benar", async () => {
-    const { supabase, paymentInsert, invoiceUpdate } = makeSupabase({});
+    const { supabase, paymentInsert, paymentInvoiceInsert, invoiceUpdate } = makeSupabase({});
 
     const result = await recordInvoicePayment(
       { supabase },
       makeUser(),
       {
-        invoice_id: invoiceId,
+        invoice_ids: [invoiceId],
         payment_method_id: paymentMethodId,
         nominal: 50000,
         catatan: "Transfer BCA",
@@ -145,20 +157,25 @@ describe("recordInvoicePayment", () => {
     );
 
     expect(result.ok).toBe(true);
-    const insertCall = paymentInsert.calls.find((call) => call.startsWith("insert:"));
-    expect(insertCall).toBeDefined();
-    const payload = JSON.parse(insertCall!.slice("insert:".length));
-    expect(payload).toMatchObject({
+    const paymentCall = paymentInsert.calls.find((call) => call.startsWith("insert:"));
+    expect(paymentCall).toBeDefined();
+    const payment = JSON.parse(paymentCall!.slice("insert:".length));
+    expect(payment).toMatchObject({
       school_id: "school-1",
-      invoice_id: invoiceId,
       payment_method_id: paymentMethodId,
       nominal: 50000,
       status: "terverifikasi",
       dicatat_oleh: "user-1",
       diverifikasi_oleh: "user-1",
     });
-    expect(payload.bill_id).toBeUndefined();
-    expect(payload.metode).toBeUndefined();
+    expect(payment.bill_id).toBeUndefined();
+    expect(payment.metode).toBeUndefined();
+
+    const allocationCall = paymentInvoiceInsert.calls.find((call) => call.startsWith("insert:"));
+    expect(allocationCall).toBeDefined();
+    expect(JSON.parse(allocationCall!.slice("insert:".length))).toEqual([
+      { school_id: "school-1", payment_id: "payment-1", invoice_id: invoiceId, amount: 50000 },
+    ]);
     expect(invoiceUpdate.calls.some((call) => call === "eq:school_id=school-1")).toBe(true);
   });
 
@@ -169,7 +186,7 @@ describe("recordInvoicePayment", () => {
       { supabase },
       makeUser(),
       {
-        invoice_id: invoiceId,
+        invoice_ids: [invoiceId],
         payment_method_id: paymentMethodId,
         nominal: 50000,
         catatan: undefined,
@@ -196,7 +213,7 @@ describe("recordInvoicePayment", () => {
       { supabase },
       makeUser(),
       {
-        invoice_id: invoiceId,
+        invoice_ids: [invoiceId],
         payment_method_id: paymentMethodId,
         nominal: 30000,
         catatan: undefined,
