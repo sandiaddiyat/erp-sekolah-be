@@ -182,24 +182,40 @@ export async function getReceiptRecord(
     base.student = { name: student?.nama_lengkap ?? "", number: student?.nis ?? student?.nisn ?? "", className };
     base.payment.method = payment.metode ?? "";
     base.lines = [{ description: bill.deskripsi, amount: Number(bill.nominal) - Number(bill.diskon ?? 0) }];
-  } else if (payment.invoice_id) {
-    const [{ data: invoice }, { data: method }] = await Promise.all([
-      supabase.from("invoices").select("student_id,total_amount,period_label").eq("id", payment.invoice_id).eq("school_id", schoolId).maybeSingle(),
-      supabase.from("payment_methods").select("name").eq("id", payment.payment_method_id ?? "").eq("school_id", schoolId).maybeSingle(),
+  } else {
+    const { data: method } = await supabase.from("payment_methods").select("name").eq("id", payment.payment_method_id ?? "").eq("school_id", schoolId).maybeSingle();
+    
+    const { data: paymentItems } = await supabase
+      .from("payment_invoices")
+      .select("invoice_id, amount, invoices(student_id, total_amount, period_label)")
+      .eq("payment_id", payment.id)
+      .eq("school_id", schoolId);
+
+    if (!paymentItems || paymentItems.length === 0) return null;
+
+    const firstItem = paymentItems[0];
+    // Supabase JS types for joined table can be an array or object depending on relationship (many-to-one is object)
+    const inv = Array.isArray(firstItem.invoices) ? firstItem.invoices[0] : firstItem.invoices;
+    const studentId = inv?.student_id;
+    if (!studentId) return null;
+
+    const [{ data: student }, className] = await Promise.all([
+      supabase.from("students").select("nama_lengkap,nis,nisn").eq("id", studentId).eq("school_id", schoolId).maybeSingle(),
+      getStudentClassName(supabase, schoolId, studentId),
     ]);
-    if (!invoice) return null;
-    const [{ data: student }, { data: details }, className] = await Promise.all([
-      supabase.from("students").select("nama_lengkap,nis,nisn").eq("id", invoice.student_id).eq("school_id", schoolId).maybeSingle(),
-      supabase.from("invoice_details").select("description,final_amount").eq("invoice_id", payment.invoice_id).eq("school_id", schoolId).order("created_at"),
-      getStudentClassName(supabase, schoolId, invoice.student_id),
-    ]);
+    
     base.source = "invoice";
     base.student = { name: student?.nama_lengkap ?? "", number: student?.nis ?? student?.nisn ?? "", className };
     base.payment.method = method?.name ?? "";
-    base.lines = (details ?? []).map((detail) => ({ description: detail.description, amount: Number(detail.final_amount) }));
-    if (!base.lines.length) base.lines = [{ description: invoice.period_label, amount: Number(invoice.total_amount) }];
-  } else {
-    return null;
+    
+    // Rincian pembayaran adalah tiap invoice yang dibayar di transaksi ini beserta nominal alokasinya.
+    base.lines = paymentItems.map((item) => {
+      const invoiceData = Array.isArray(item.invoices) ? item.invoices[0] : item.invoices;
+      return {
+        description: invoiceData?.period_label ?? "Tagihan",
+        amount: Number(item.amount),
+      };
+    });
   }
 
   return base;

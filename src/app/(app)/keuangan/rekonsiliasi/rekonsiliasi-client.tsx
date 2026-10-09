@@ -21,7 +21,7 @@ import { savePaymentMethod, deletePaymentMethod, saveBankAccount, deleteBankAcco
 
 type FormState = { error?: string; success?: string } | undefined;
 
-type InvoiceRow = Invoice & { siswa?: { nama_lengkap: string } | null };
+type InvoiceRow = Invoice & { siswa?: { nama_lengkap: string } | null; is_legacy_bill?: boolean };
 
 const STATUS_VARIANT: Record<InvoiceStatus, "default" | "secondary" | "outline" | "destructive"> = {
   belum_bayar: "destructive",
@@ -72,7 +72,7 @@ export function RekonsiliasiClient({
 
   // Record payment state
   const [payOpen, setPayOpen] = useState(false);
-  const [payingInvoice, setPayingInvoice] = useState<InvoiceRow | null>(null);
+  const [payingInvoices, setPayingInvoices] = useState<InvoiceRow[]>([]);
   const [dialogKeyMethod, setDialogKeyMethod] = useState(0);
   const [dialogKeyBank, setDialogKeyBank] = useState(0);
 
@@ -80,6 +80,8 @@ export function RekonsiliasiClient({
     () => invoices.filter((invoice) => statusFilter === "all" || invoice.status === statusFilter),
     [invoices, statusFilter]
   );
+
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
 
   const handleDeleteMethod = (target: PaymentMethod) => {
     if (!canManage) return;
@@ -97,8 +99,10 @@ export function RekonsiliasiClient({
     setDeletingBank(null);
   };
 
-  const openPaymentDialog = (invoice: InvoiceRow) => {
-    setPayingInvoice(invoice);
+  const openPaymentDialog = (invoicesToPay: InvoiceRow[]) => {
+    if (invoicesToPay.length === 0) return;
+    // Hapus pengecekan siswa yang sama agar bisa membayar tagihan secara bulk
+    setPayingInvoices(invoicesToPay);
     setPayOpen(true);
   };
 
@@ -118,7 +122,8 @@ export function RekonsiliasiClient({
 
   const closePayForm = useCallback(() => {
     setPayOpen(false);
-    setPayingInvoice(null);
+    setPayingInvoices([]);
+    setSelectedInvoiceIds(new Set());
   }, []);
 
   return (
@@ -177,17 +182,30 @@ export function RekonsiliasiClient({
         </TabsList>
 
         <TabsContent value="invoices" className="space-y-4">
-          <div className="flex justify-end">
-            <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as InvoiceStatus | "all"); setQuery(""); }}>
-              <SelectTrigger className="w-48 border-[#e2ece5] text-xs"><SelectValue placeholder="Filter status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="belum_bayar">Belum Bayar</SelectItem>
-                <SelectItem value="sebagian">Sebagian</SelectItem>
-                <SelectItem value="lunas">Lunas</SelectItem>
-                <SelectItem value="batal">Batal</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex justify-between items-center">
+            <div>
+              {selectedInvoiceIds.size > 0 && canManage && (
+                <Button size="sm" onClick={() => {
+                  const selectedInvoices = invoices.filter(i => selectedInvoiceIds.has(i.id));
+                  openPaymentDialog(selectedInvoices);
+                }} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
+                  <Banknote className="size-4" />
+                  Bayar {selectedInvoiceIds.size} Terpilih
+                </Button>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as InvoiceStatus | "all"); setQuery(""); }}>
+                <SelectTrigger className="w-48 border-[#e2ece5] text-xs"><SelectValue placeholder="Filter status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="belum_bayar">Belum Bayar</SelectItem>
+                  <SelectItem value="sebagian">Sebagian</SelectItem>
+                  <SelectItem value="lunas">Lunas</SelectItem>
+                  <SelectItem value="batal">Batal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Card className="rounded-[15px] border-[#e2ece5] shadow-[0_3px_7px_#1c443302]">
@@ -201,6 +219,9 @@ export function RekonsiliasiClient({
                 rowKey={(invoice) => invoice.id}
                 search={query}
                 onSearchChange={setQuery}
+                selectable={canManage}
+                selectedKeys={selectedInvoiceIds}
+                onSelectedKeysChange={setSelectedInvoiceIds}
                 toolbarClassName="px-6"
                 emptyLabel="Belum ada tagihan."
                 filteredEmptyLabel="Tidak ada tagihan yang cocok dengan pencarian."
@@ -216,7 +237,23 @@ export function RekonsiliasiClient({
                 actions={(invoice) => {
                   const remaining = Math.max(0, Number(invoice.total_amount) - (paidByInvoice[invoice.id] ?? 0));
                   const paymentId = latestPaymentByInvoice[invoice.id];
-                  return <div className="flex items-center justify-end gap-1">{canManage && remaining > 0 && <Button variant="ghost" size="icon-sm" aria-label="Catat pembayaran" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); openPaymentDialog(invoice); }}><Banknote className="size-4" /></Button>}{paymentId && <Button variant="ghost" size="icon-sm" aria-label="Cetak kuitansi" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); window.open(`/keuangan/kuitansi/${paymentId}/print`, "_blank", "noopener,noreferrer"); }}><PrinterIcon className="size-4" /></Button>}</div>;
+                  return (
+                    <div className="flex items-center justify-end gap-1">
+                      {canManage && remaining > 0 && !invoice.is_legacy_bill && (
+                        <Button variant="ghost" size="icon-sm" aria-label="Catat pembayaran" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); openPaymentDialog([invoice]); }}>
+                          <Banknote className="size-4" />
+                        </Button>
+                      )}
+                      {invoice.is_legacy_bill && (
+                        <span className="text-[9px] text-[#8b9f95] mr-2">Via SPP & Keuangan</span>
+                      )}
+                      {paymentId && (
+                        <Button variant="ghost" size="icon-sm" aria-label="Cetak kuitansi" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); window.open(`/keuangan/kuitansi/${paymentId}/print`, "_blank", "noopener,noreferrer"); }}>
+                          <PrinterIcon className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  );
                 }}
               />
             </CardContent>
@@ -336,14 +373,20 @@ export function RekonsiliasiClient({
       />
 
       <RecordPaymentDialog
-        key={`payment-${payingInvoice?.id ?? "closed"}`}
+        key={`payment-${payingInvoices.map(i => i.id).join("-") || "closed"}`}
         open={payOpen}
         onOpenChange={setPayOpen}
-        invoice={payingInvoice}
-        studentName={payingInvoice ? students.find((s) => s.id === payingInvoice.student_id)?.nama_lengkap : undefined}
+        invoices={payingInvoices}
+        studentName={
+          payingInvoices.length > 0
+            ? payingInvoices.every((i) => i.student_id === payingInvoices[0].student_id)
+              ? students.find((s) => s.id === payingInvoices[0].student_id)?.nama_lengkap
+              : "Beberapa Siswa"
+            : undefined
+        }
         remaining={
-          payingInvoice
-            ? Math.max(0, Number(payingInvoice.total_amount) - (paidByInvoice[payingInvoice.id] ?? 0))
+          payingInvoices.length > 0
+            ? payingInvoices.reduce((sum, inv) => sum + Math.max(0, Number(inv.total_amount) - (paidByInvoice[inv.id] ?? 0)), 0)
             : 0
         }
         methods={methods}
@@ -515,7 +558,7 @@ function BankAccountDialog({
 function RecordPaymentDialog({
   open,
   onOpenChange,
-  invoice,
+  invoices,
   studentName,
   remaining,
   methods,
@@ -523,7 +566,7 @@ function RecordPaymentDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  invoice: InvoiceRow | null;
+  invoices: InvoiceRow[];
   studentName?: string;
   remaining: number;
   methods: PaymentMethod[];
@@ -540,11 +583,13 @@ function RecordPaymentDialog({
             <span className="mb-2 block text-[10px] font-bold tracking-[.1em] uppercase text-[#4d9775]">Keuangan</span>
             <DialogTitle className="text-[23px] font-semibold tracking-[-.055em] text-[#183d32]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Catat Pembayaran</DialogTitle>
             <DialogDescription className="mt-[7px] text-[11px] text-[#83988e]">
-              {studentName} · {invoice?.period_label} · Sisa: {formatRupiah(remaining)}
+              {studentName} · {invoices.length} Tagihan · Sisa: {formatRupiah(remaining)}
             </DialogDescription>
           </DialogHeader>
 
-          {invoice ? <input type="hidden" name="invoice_id" value={invoice.id} /> : null}
+          {invoices.map(inv => (
+            <input key={inv.id} type="hidden" name="invoice_ids" value={inv.id} />
+          ))}
 
           <div className="flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-2">
@@ -566,7 +611,7 @@ function RecordPaymentDialog({
 
             <div className="space-y-2">
               <FieldLabel htmlFor="nominal" required>Nominal Bayar</FieldLabel>
-              <CurrencyInput id="nominal" name="nominal" defaultValue={invoice ? remaining : ""} required className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10" />
+              <CurrencyInput id="nominal" name="nominal" defaultValue={invoices.length > 0 ? remaining : ""} required className="h-10 rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors placeholder:text-[#a8b7b0] focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10" />
             </div>
 
             <div className="space-y-2">

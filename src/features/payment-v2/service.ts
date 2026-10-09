@@ -124,26 +124,29 @@ export async function recordInvoicePayment(
   if (!schoolId) return errResult("Hanya admin sekolah yang dapat mencatat pembayaran.");
 
   const { supabase } = deps;
-  const { invoice_id, payment_method_id, nominal, catatan } = payload;
+  const { invoice_ids, payment_method_id, nominal, catatan } = payload;
 
-  // Ambil invoice
-  const invoiceResult = await supabase
+  if (!invoice_ids || invoice_ids.length === 0) {
+    return errResult("Pilih minimal 1 tagihan.");
+  }
+
+  // 1. Ambil semua invoice
+  const invoicesResult = await supabase
     .from("invoices")
-    .select("id, total_amount, status, school_id")
-    .eq("id", invoice_id)
-    .eq("school_id", schoolId)
-    .single();
+    .select("id, student_id, total_amount, status")
+    .in("id", invoice_ids)
+    .eq("school_id", schoolId);
 
-  if (invoiceResult.error || !invoiceResult.data) {
+  if (invoicesResult.error || !invoicesResult.data || invoicesResult.data.length === 0) {
     return errResult("Tagihan tidak ditemukan.");
   }
+  const invoices = invoicesResult.data;
 
-  const invoice = invoiceResult.data as { id: string; total_amount: number; status: string };
-  if (invoice.status === "batal") {
-    return errResult("Tagihan ini sudah dibatalkan.");
-  }
-  if (invoice.status === "lunas") {
-    return errResult("Tagihan ini sudah lunas.");
+  // Hapus pengecekan siswa yang sama agar bisa membayar beberapa tagihan untuk siswa berbeda sekaligus.
+
+  // Pastikan tidak ada yang batal atau lunas
+  if (invoices.some((inv) => inv.status === "batal" || inv.status === "lunas")) {
+    return errResult("Terdapat tagihan yang sudah lunas atau dibatalkan.");
   }
 
   const methodResult = await supabase
@@ -156,31 +159,40 @@ export async function recordInvoicePayment(
     return errResult("Metode pembayaran tidak valid.");
   }
 
-  // Hitung total sudah dibayar
+  // 2. Hitung sisa per tagihan
   const paymentsResult = await supabase
-    .from("payments")
-    .select("nominal")
-    .eq("invoice_id", invoice_id)
+    .from("payment_invoices")
+    .select("invoice_id, amount, payments!inner(status)")
+    .in("invoice_id", invoice_ids)
     .eq("school_id", schoolId)
-    .eq("status", "terverifikasi");
+    .eq("payments.status", "terverifikasi");
+
   if (paymentsResult.error) {
     return errResult("Gagal memuat riwayat pembayaran.");
   }
 
-  const totalTerverifikasi = ((paymentsResult.data ?? []) as { nominal: number }[])
-    .reduce((sum, p) => sum + Number(p.nominal), 0);
+  const paidMap: Record<string, number> = {};
+  for (const p of paymentsResult.data) {
+    paidMap[p.invoice_id] = (paidMap[p.invoice_id] ?? 0) + Number(p.amount);
+  }
 
-  const sisa = Number(invoice.total_amount) - totalTerverifikasi;
-  if (nominal > sisa) {
+  let totalSisa = 0;
+  const invoiceSisa = invoices.map((inv) => {
+    const paid = paidMap[inv.id] ?? 0;
+    const sisa = Number(inv.total_amount) - paid;
+    totalSisa += sisa;
+    return { ...inv, sisa };
+  });
+
+  if (nominal > totalSisa) {
     return errResult(
-      `Nominal melebihi sisa tagihan. Sisa: ${sisa.toLocaleString("id-ID")}.`
+      `Nominal melebihi sisa tagihan. Sisa: ${totalSisa.toLocaleString("id-ID")}.`
     );
   }
 
-  // Catat pembayaran
-  const { error: insertError } = await supabase.from("payments").insert({
+  // 3. Catat pembayaran header (payments)
+  const { data: insertedPayment, error: insertError } = await supabase.from("payments").insert({
     school_id: schoolId,
-    invoice_id,
     payment_method_id,
     nominal,
     catatan: catatan ?? null,
@@ -188,26 +200,44 @@ export async function recordInvoicePayment(
     dicatat_oleh: current.id,
     diverifikasi_oleh: current.id,
     diverifikasi_pada: new Date().toISOString(),
-  });
+  }).select("id").single();
 
-  if (insertError) return handleError(insertError, "Gagal mencatat pembayaran.");
+  if (insertError || !insertedPayment) return handleError(insertError, "Gagal mencatat pembayaran.");
 
-  // Rekonsiliasi status invoice
-  const totalBaru = totalTerverifikasi + nominal;
-  const statusBaru = totalBaru >= Number(invoice.total_amount) ? "lunas" : "sebagian";
+  // 4. Distribusi nominal ke tagihan dan simpan payment_invoices
+  let sisaBayar = nominal;
+  const paymentItems = [];
+  const invoicesToUpdate = [];
 
-  const { error: invoiceUpdateError } = await supabase
-    .from("invoices")
-    .update({ status: statusBaru })
-    .eq("id", invoice_id)
-    .eq("school_id", schoolId);
-  if (invoiceUpdateError) {
-    return handleError(invoiceUpdateError, "Pembayaran tercatat namun status tagihan gagal diperbarui.");
+  for (const inv of invoiceSisa) {
+    if (sisaBayar <= 0) break;
+    if (inv.sisa <= 0) continue;
+
+    const alokasi = Math.min(sisaBayar, inv.sisa);
+    sisaBayar -= alokasi;
+
+    paymentItems.push({
+      school_id: schoolId,
+      payment_id: insertedPayment.id,
+      invoice_id: inv.id,
+      amount: alokasi,
+    });
+
+    const newPaid = (paidMap[inv.id] ?? 0) + alokasi;
+    const newStatus = newPaid >= Number(inv.total_amount) ? "lunas" : "sebagian";
+    
+    invoicesToUpdate.push({ id: inv.id, status: newStatus });
   }
 
-  return okResult(
-    statusBaru === "lunas"
-      ? "Pembayaran berhasil. Tagihan telah lunas."
-      : `Pembayaran berhasil. Sisa: ${(sisa - nominal).toLocaleString("id-ID")}.`
-  );
+  const { error: itemsError } = await supabase.from("payment_invoices").insert(paymentItems);
+  if (itemsError) {
+    return handleError(itemsError, "Gagal mencatat rincian pembayaran.");
+  }
+
+  // 5. Update status tagihan
+  for (const invUpdate of invoicesToUpdate) {
+    await supabase.from("invoices").update({ status: invUpdate.status }).eq("id", invUpdate.id).eq("school_id", schoolId);
+  }
+
+  return okResult("Pembayaran berhasil dicatat.");
 }
