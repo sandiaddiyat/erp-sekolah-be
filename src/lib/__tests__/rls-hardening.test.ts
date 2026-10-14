@@ -4,13 +4,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migrations = ["0029", "0030", "0031", "0032", "0033"].map((name) => {
+const migrations = ["0029", "0030", "0031", "0032", "0033", "0050"].map((name) => {
   const fileName = {
     "0029": "0029_rls_hardening.sql",
     "0030": "0030_rls_relations_payments.sql",
     "0031": "0031_rls_payment_corrections.sql",
     "0032": "0032_payment_reference_integrity.sql",
     "0033": "0033_complete_tenant_foreign_keys.sql",
+    "0050": "0050_fix_multi_invoice_payment_rls.sql",
   }[name]!;
   return [name, readFileSync(path.resolve(process.cwd(), "supabase/migrations", fileName), "utf8")] as const;
 });
@@ -80,6 +81,12 @@ describe("RLS migrations issue #63", () => {
     expect(migration["0031"]).toContain("create policy payments_insert on public.payments");
     expect(migration["0031"]).toContain("and invoice_id is null");
     expect(migration["0031"]).toContain("public.has_permission('billing.manage')");
+  });
+
+  it("mengizinkan header payment multi-invoice pada 0050", () => {
+    expect(migration["0050"]).toContain("invoice_id is null");
+    expect(migration["0050"]).toContain("payment_method_id is not null");
+    expect(migration["0050"]).toContain("public.has_permission('billing.manage')");
   });
 
   it("mengunci referensi payments pada 0032", () => {

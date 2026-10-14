@@ -1695,6 +1695,8 @@ export interface Database {
           due_date: string;
           total_amount: number;
           status: string;
+          is_manual: boolean;
+          legacy_bill_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1703,6 +1705,8 @@ export interface Database {
           school_id: string;
           student_id: string;
           guardian_id?: string | null;
+          is_manual?: boolean;
+          legacy_bill_id?: string | null;
           academic_year_id: string;
           period_label: string;
           issue_date: string;
@@ -1723,6 +1727,8 @@ export interface Database {
           due_date?: string;
           total_amount?: number;
           status?: string;
+          is_manual?: boolean;
+          legacy_bill_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1762,7 +1768,7 @@ export interface Database {
           id: string;
           school_id: string;
           invoice_id: string;
-          fee_structure_id: string;
+          fee_structure_id: string | null;
           description: string;
           base_amount: number;
           discount_amount: number;
@@ -1773,7 +1779,7 @@ export interface Database {
           id?: string;
           school_id: string;
           invoice_id: string;
-          fee_structure_id: string;
+          fee_structure_id: string | null;
           description: string;
           base_amount?: number;
           discount_amount?: number;
@@ -1784,7 +1790,7 @@ export interface Database {
           id?: string;
           school_id?: string;
           invoice_id?: string;
-          fee_structure_id?: string;
+          fee_structure_id?: string | null;
           description?: string;
           base_amount?: number;
           discount_amount?: number;

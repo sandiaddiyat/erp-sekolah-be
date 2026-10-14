@@ -5,13 +5,13 @@ import { guardAction } from "@/lib/action-guard";
 import { PERMISSIONS } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createBillRecord,
   deleteBillRecord,
   recordPaymentRecord,
   verifyPaymentRecord,
 } from "@/features/keuangan/service";
+import { createManualInvoiceRecord } from "@/features/invoices/service";
+import { readCreateManualInvoiceInput } from "@/features/invoices/schema";
 import {
-  readSaveBillInput,
   readSavePaymentInput,
   readVerifyPaymentInput,
 } from "@/features/keuangan/schema";
@@ -38,15 +38,18 @@ export async function createBill(
   });
   if ("error" in guard) return { error: guard.error };
 
-  const command = readSaveBillInput(formData);
-  if (!command.ok) return { error: command.error };
+  const parsed = readCreateManualInvoiceInput(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Data tagihan tidak valid." };
+  }
 
   const supabase = await createClient();
-  const result = await createBillRecord({ supabase }, guard.user, command.command);
+  const result = await createManualInvoiceRecord(supabase, guard.user, parsed.data);
 
   if (!result.ok) return { error: result.error };
 
   revalidateKeuanganPages();
+  revalidatePath("/keuangan/rekonsiliasi");
   return { success: result.message };
 }
 

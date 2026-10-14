@@ -101,7 +101,10 @@ export function RekonsiliasiClient({
 
   const openPaymentDialog = (invoicesToPay: InvoiceRow[]) => {
     if (invoicesToPay.length === 0) return;
-    // Hapus pengecekan siswa yang sama agar bisa membayar tagihan secara bulk
+    if (new Set(invoicesToPay.map((invoice) => invoice.student_id)).size !== 1) {
+      toast.error("Pilih tagihan milik siswa yang sama.");
+      return;
+    }
     setPayingInvoices(invoicesToPay);
     setPayOpen(true);
   };
@@ -186,7 +189,9 @@ export function RekonsiliasiClient({
             <div>
               {selectedInvoiceIds.size > 0 && canManage && (
                 <Button size="sm" onClick={() => {
-                  const selectedInvoices = invoices.filter(i => selectedInvoiceIds.has(i.id));
+                  const selectedInvoices = invoices.filter((invoice) =>
+                    selectedInvoiceIds.has(invoice.id) && !invoice.is_legacy_bill
+                  );
                   openPaymentDialog(selectedInvoices);
                 }} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
                   <Banknote className="size-4" />

@@ -28,7 +28,7 @@ import type { BillWithStudent, FeeStructureOption, PaymentMetode } from "@/lib/t
 import type { FormState } from "@/lib/types";
 import { formatRupiah } from "@/lib/utils";
 import { createBill, deleteBill, recordPayment, verifyPayment } from "./actions";
-import type { StudentOption } from "./page";
+import type { AcademicYearOption, StudentOption } from "./page";
 
 type BillPayment = Payment & {
   bill_id: string;
@@ -93,12 +93,14 @@ function statusPillClass(status: string): string {
 export function KeuanganClient({
   bills,
   feeStructures,
+  academicYear,
   students,
   payments,
   permissions,
 }: {
   bills: (BillWithStudent & { student_nama: string | null })[];
   feeStructures: FeeStructureOption[];
+  academicYear: AcademicYearOption | null;
   students: StudentOption[];
   payments: Payment[];
   permissions: Permissions;
@@ -351,6 +353,7 @@ export function KeuanganClient({
         onOpenChange={setBillOpen}
         students={students}
         feeStructures={feeStructures}
+        academicYear={academicYear}
       />
 
       <PaymentFormDialog
@@ -426,11 +429,13 @@ function BillFormDialog({
   onOpenChange,
   students,
   feeStructures,
+  academicYear,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   students: StudentOption[];
   feeStructures: FeeStructureOption[];
+  academicYear: AcademicYearOption | null;
 }) {
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
     createBill,
@@ -454,6 +459,7 @@ function BillFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={MODAL_CONTENT}>
         <form action={formAction}>
+          {academicYear ? <input type="hidden" name="academic_year_id" value={academicYear.id} /> : null}
           <div className={MODAL_HEADER}>
             <DialogTitle className="font-heading text-[20px] tracking-[-0.05em] text-[#183d32]">
               Buat Tagihan

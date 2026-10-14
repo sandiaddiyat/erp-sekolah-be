@@ -66,7 +66,9 @@ export default async function RekonsiliasiPage() {
   }
 
   const rawInvoices = (invoicesResult.data ?? []) as unknown as InvoiceRow[];
-  const mappedBills = (billsResult.data ?? []).map((b: any) => ({
+  const migratedBillIds = new Set(rawInvoices.map((invoice) => invoice.legacy_bill_id).filter((id): id is string => Boolean(id)));
+  const unmigratedBills = (billsResult.data ?? []).filter((bill) => !migratedBillIds.has(bill.id));
+  const mappedBills = unmigratedBills.map((b) => ({
     id: b.id,
     school_id: b.school_id,
     student_id: b.student_id,
@@ -96,13 +98,19 @@ export default async function RekonsiliasiPage() {
   const paidByInvoice = new Map<string, number>();
   const latestPaymentByInvoice = new Map<string, { id: string; created_at: string }>();
 
-  // Tagihan Manual / Bills
+  const invoiceIdByLegacyBillId = new Map(
+    rawInvoices.flatMap((invoice) => invoice.legacy_bill_id ? [[invoice.legacy_bill_id, invoice.id] as const] : [])
+  );
+  const paymentsWithAllocations = new Set(paymentInvoices.map((payment) => payment.payment_id));
+
+  // Fallback untuk deployment sebelum migration backfill pembayaran berjalan.
   for (const p of paymentsRaw) {
-    if (p.bill_id) {
-      paidByInvoice.set(p.bill_id, (paidByInvoice.get(p.bill_id) ?? 0) + Number(p.nominal));
-      const previous = latestPaymentByInvoice.get(p.bill_id);
+    if (p.bill_id && !paymentsWithAllocations.has(p.id)) {
+      const invoiceId = invoiceIdByLegacyBillId.get(p.bill_id) ?? p.bill_id;
+      paidByInvoice.set(invoiceId, (paidByInvoice.get(invoiceId) ?? 0) + Number(p.nominal));
+      const previous = latestPaymentByInvoice.get(invoiceId);
       if (!previous || previous.created_at < p.created_at) {
-        latestPaymentByInvoice.set(p.bill_id, { id: p.id, created_at: p.created_at });
+        latestPaymentByInvoice.set(invoiceId, { id: p.id, created_at: p.created_at });
       }
     }
   }

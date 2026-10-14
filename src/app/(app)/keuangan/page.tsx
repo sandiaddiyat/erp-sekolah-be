@@ -8,6 +8,7 @@ import { KeuanganClient } from "./keuangan-client";
 export const metadata = { title: "SPP & Keuangan" };
 
 export type StudentOption = { id: string; nama_lengkap: string };
+export type AcademicYearOption = { id: string; name: string };
 
 type FeeStructureOptionData = {
   id: string;
@@ -23,7 +24,7 @@ export default async function KeuanganPage() {
   const supabase = await createClient();
   const schoolId = current.profile.school_id ?? "";
 
-  const [billsResult, structuresResult, studentsResult, paymentsResult] =
+  const [billsResult, structuresResult, studentsResult, paymentsResult, yearResult] =
     await Promise.all([
       supabase
         .from("bills")
@@ -47,10 +48,11 @@ export default async function KeuanganPage() {
         .select("*")
         .eq("school_id", schoolId)
         .order("created_at", { ascending: false }),
+      supabase.from("academic_years").select("id, name").eq("school_id", schoolId).eq("status", "active").order("start_date", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
   const loadError =
-    billsResult.error ?? structuresResult.error ?? studentsResult.error ?? paymentsResult.error;
+    billsResult.error ?? structuresResult.error ?? studentsResult.error ?? paymentsResult.error ?? yearResult.error;
   if (loadError) {
     console.error("[keuangan]", loadError);
     return <DataError message="Gagal memuat data keuangan." />;
@@ -97,6 +99,7 @@ export default async function KeuanganPage() {
     <KeuanganClient
       bills={billsWithStudent}
       feeStructures={feeStructureOptions}
+      academicYear={yearResult.data as AcademicYearOption | null}
       students={students}
       payments={payments}
       permissions={{
