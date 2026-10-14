@@ -533,6 +533,8 @@ export type Invoice = {
   due_date: string;
   total_amount: number;
   status: InvoiceStatus;
+  is_manual?: boolean;
+  legacy_bill_id?: string | null;
   created_at: string;
   updated_at: string;
   students?: {

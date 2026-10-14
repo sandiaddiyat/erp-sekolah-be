@@ -142,7 +142,12 @@ export async function recordInvoicePayment(
   }
   const invoices = invoicesResult.data;
 
-  // Hapus pengecekan siswa yang sama agar bisa membayar beberapa tagihan untuk siswa berbeda sekaligus.
+  if (new Set(invoices.map((invoice) => invoice.student_id)).size !== 1) {
+    return errResult("Pilih tagihan milik siswa yang sama.");
+  }
+  if (invoices.length !== new Set(invoice_ids).size) {
+    return errResult("Tagihan tidak ditemukan.");
+  }
 
   // Pastikan tidak ada yang batal atau lunas
   if (invoices.some((inv) => inv.status === "batal" || inv.status === "lunas")) {

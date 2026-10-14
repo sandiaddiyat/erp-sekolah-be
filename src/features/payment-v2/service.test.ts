@@ -93,25 +93,28 @@ function makeUser(): CurrentUser {
 }
 
 function makeSupabase(options: {
-  invoice?: { id: string; total_amount: number; status: string; school_id: string };
+  invoice?: { id: string; total_amount: number; status: string; school_id: string; student_id?: string };
+  invoices?: { id: string; total_amount: number; status: string; school_id: string; student_id: string }[];
   method?: { id: string } | null;
   payments?: { nominal: number }[];
 }) {
-  const invoiceRead = new QueryMock([
-    options.invoice ?? {
-      id: invoiceId,
-      total_amount: 150000,
-      status: "sebagian",
-      school_id: "school-1",
-    },
-  ]);
+  const invoiceRead = new QueryMock(
+    options.invoices ?? [
+      options.invoice ?? {
+        id: invoiceId,
+        total_amount: 150000,
+        status: "sebagian",
+        school_id: "school-1",
+        student_id: "student-1",
+      },
+    ]
+  );
   const methodRead = new QueryMock(options.method === undefined ? { id: paymentMethodId } : options.method);
   const paymentInvoiceRead = new QueryMock((options.payments ?? []).map((payment) => ({ invoice_id: invoiceId, amount: payment.nominal })));
   const paymentInsert = new QueryMock({ id: "payment-1" });
   const paymentInvoiceInsert = new QueryMock();
   const invoiceUpdate = new QueryMock();
   let invoiceCalls = 0;
-  let paymentCalls = 0;
   let paymentInvoiceCalls = 0;
 
   const supabase = {
@@ -125,10 +128,7 @@ function makeSupabase(options: {
         return paymentInvoiceCalls === 1 ? paymentInvoiceRead : paymentInvoiceInsert;
       }
       if (table === "payment_methods") return methodRead;
-      if (table === "payments") {
-        paymentCalls += 1;
-        return paymentInsert;
-      }
+      if (table === "payments") return paymentInsert;
       throw new Error(`unexpected table ${table}`);
     },
   } as unknown as SupabaseClient<Database>;
@@ -177,6 +177,30 @@ describe("recordInvoicePayment", () => {
       { school_id: "school-1", payment_id: "payment-1", invoice_id: invoiceId, amount: 50000 },
     ]);
     expect(invoiceUpdate.calls.some((call) => call === "eq:school_id=school-1")).toBe(true);
+  });
+
+  it("menolak tagihan dari siswa berbeda dalam satu pembayaran", async () => {
+    const { supabase, paymentInsert } = makeSupabase({
+      invoices: [
+        { id: invoiceId, total_amount: 150000, status: "belum_bayar", school_id: "school-1", student_id: "student-1" },
+        { id: "33333333-3333-4333-8333-333333333333", total_amount: 150000, status: "belum_bayar", school_id: "school-1", student_id: "student-2" },
+      ],
+    });
+
+    const result = await recordInvoicePayment(
+      { supabase },
+      makeUser(),
+      {
+        invoice_ids: [invoiceId, "33333333-3333-4333-8333-333333333333"],
+        payment_method_id: paymentMethodId,
+        nominal: 50000,
+        catatan: undefined,
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("siswa yang sama");
+    expect(paymentInsert.calls.some((call) => call.startsWith("insert:"))).toBe(false);
   });
 
   it("menolak metode pembayaran yang tidak ditemukan di tenant", async () => {
