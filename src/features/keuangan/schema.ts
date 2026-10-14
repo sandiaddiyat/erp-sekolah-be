@@ -54,7 +54,7 @@ export const saveBillSchema = z.object({
     .trim()
     .min(1, "Pilih siswa terlebih dahulu")
     .refine((v) => z.uuid().safeParse(v).success, "Siswa tidak valid."),
-  bill_item_id: optionalUuid,
+  fee_structure_id: optionalUuid,
   deskripsi: z.string().trim().min(3, "Deskripsi minimal 3 karakter"),
   nominal: nominal("Nominal"),
   diskon: nominalNonNegatif("Diskon"),
@@ -71,7 +71,7 @@ export type SaveBillParseResult =
 export function readSaveBillInput(formData: FormData): SaveBillParseResult {
   const parsed = saveBillSchema.safeParse({
     student_id: formData.get("student_id") ?? "",
-    bill_item_id: formData.get("bill_item_id") ?? "",
+    fee_structure_id: formData.get("fee_structure_id") ?? "",
     deskripsi: formData.get("deskripsi") ?? "",
     nominal: formData.get("nominal") ?? "",
     diskon: formData.get("diskon") ?? "",
@@ -155,39 +155,6 @@ export function readVerifyPaymentInput(
   const parsed = verifyPaymentSchema.safeParse({
     payment_id: formData.get("payment_id") ?? "",
     keputusan: formData.get("keputusan") ?? "",
-  });
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
-    };
-  }
-
-  return { ok: true, command: parsed.data };
-}
-
-export const saveBillItemSchema = z.object({
-  id: optionalUuid,
-  nama_item: z.string().trim().min(3, "Nama jenis tagihan minimal 3 karakter"),
-  nominal: nominal("Nominal"),
-  frekuensi: z.enum(["sekali", "bulanan", "tahunan"], "Pilih frekuensi."),
-});
-
-export type SaveBillItemInput = z.infer<typeof saveBillItemSchema>;
-
-export type SaveBillItemParseResult =
-  | { ok: true; command: SaveBillItemInput }
-  | { ok: false; error: string };
-
-export function readSaveBillItemInput(
-  formData: FormData
-): SaveBillItemParseResult {
-  const parsed = saveBillItemSchema.safeParse({
-    id: formData.get("id") ?? "",
-    nama_item: formData.get("nama_item") ?? "",
-    nominal: formData.get("nominal") ?? "",
-    frekuensi: formData.get("frekuensi") ?? "",
   });
 
   if (!parsed.success) {

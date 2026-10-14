@@ -51,8 +51,6 @@ export const PERMISSIONS = {
   financePaymentCreate: "finance.payment_create",
   financePaymentVerify: "finance.payment_verify",
   financeReportView: "finance.report_view",
-  financeBillItemView: "finance.bill_item_view",
-  financeBillItemManage: "finance.bill_item_manage",
 
   academicsView: "academics.view",
   academicsManage: "academics.manage",

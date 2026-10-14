@@ -4,6 +4,16 @@ const nextConfig: NextConfig = {
   // 1. Ini akan mengizinkan Anda mengakses aplikasi lewat IP LAN tanpa diblokir
   allowedDevOrigins: ["192.168.1.145", "localhost"],
 
+  async redirects() {
+    return [
+      {
+        source: "/keuangan/jenis-tagihan",
+        destination: "/keuangan/skema-biaya",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {

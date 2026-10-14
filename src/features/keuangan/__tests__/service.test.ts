@@ -3,15 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import {
   createBillRecord,
-  deleteBillItemRecord,
   deleteBillRecord,
   recordPaymentRecord,
-  saveBillItemRecord,
   verifyPaymentRecord,
 } from "@/features/keuangan/service";
 import {
   readSaveBillInput,
-  readSaveBillItemInput,
   readSavePaymentInput,
 } from "@/features/keuangan/schema";
 import type { CurrentUser } from "@/lib/types";
@@ -136,6 +133,7 @@ function formData(entries: Record<string, string>): FormData {
 
 const VALID_BILL = {
   student_id: "22222222-2222-4222-8222-222222222222",
+  fee_structure_id: "11111111-1111-4111-8111-111111111111",
   deskripsi: "SPP Juli 2026",
   nominal: "150000",
 };
@@ -232,6 +230,7 @@ describe("createBillRecord (service)", () => {
     const payload = JSON.parse(insertCall!.slice("insert:".length));
     expect(payload.school_id).toBe("school-1");
     expect(payload.student_id).toBe(VALID_BILL.student_id);
+    expect(payload.fee_structure_id).toBe(VALID_BILL.fee_structure_id);
     expect(payload.nominal).toBe(150000);
   });
 
@@ -610,89 +609,5 @@ describe("deleteBillRecord (service)", () => {
     if (!result.ok) {
       expect(result.error).toContain("tidak dapat dihapus");
     }
-  });
-});
-
-describe("saveBillItemRecord (service)", () => {
-  const VALID_ITEM = {
-    nama_item: "SPP Bulanan",
-    nominal: "150000",
-    frekuensi: "bulanan",
-  };
-
-  it("menerima jenis tagihan lengkap", () => {
-    const result = readSaveBillItemInput(
-      formData(VALID_ITEM)
-    );
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.command.nominal).toBe(150000);
-      expect(result.command.frekuensi).toBe("bulanan");
-    }
-  });
-
-  it("menambahkan jenis tagihan dengan school_id dari user login", async () => {
-    const billItems = new QueryMock();
-    const supabase = makeSupabase({ bill_items: () => billItems });
-
-    const parsed = readSaveBillItemInput(formData(VALID_ITEM));
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
-
-    const result = await saveBillItemRecord({ supabase }, makeUser(), parsed.command);
-
-    expect(result.ok).toBe(true);
-    const insertCall = billItems.calls.find((c) => c.startsWith("insert:"));
-    expect(insertCall).toBeDefined();
-    const payload = JSON.parse(insertCall!.slice("insert:".length));
-    expect(payload.school_id).toBe("school-1");
-    expect(payload.nama_item).toBe("SPP Bulanan");
-  });
-
-  it("memperbarui jenis tagihan milik sekolah yang sedang login", async () => {
-    const billItems = new QueryMock();
-    const supabase = makeSupabase({ bill_items: () => billItems });
-
-    const parsed = readSaveBillItemInput(
-      formData({ ...VALID_ITEM, id: "44444444-4444-4444-8444-444444444444" })
-    );
-    if (!parsed.ok) throw new Error("parse gagal");
-
-    const result = await saveBillItemRecord({ supabase }, makeUser(), parsed.command);
-
-    expect(result.ok).toBe(true);
-    expect(billItems.calls.some((c) => c === "eq:id=44444444-4444-4444-8444-444444444444")).toBe(true);
-    expect(billItems.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
-  });
-
-  it("memberi pesan ramah saat nama jenis duplikat", async () => {
-    const billItems = new QueryMock(null, {
-      code: "23505",
-      message: 'duplicate key value violates unique constraint "uq_bill_items_tenant"',
-    });
-    const supabase = makeSupabase({ bill_items: () => billItems });
-
-    const parsed = readSaveBillItemInput(formData(VALID_ITEM));
-    if (!parsed.ok) throw new Error("parse gagal");
-
-    const result = await saveBillItemRecord({ supabase }, makeUser(), parsed.command);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("sudah ada");
-    }
-  });
-});
-
-describe("deleteBillItemRecord (service)", () => {
-  it("menghapus jenis tagihan dengan filter school_id", async () => {
-    const billItems = new QueryMock();
-    const supabase = makeSupabase({ bill_items: () => billItems });
-
-    const result = await deleteBillItemRecord({ supabase }, makeUser(), "item-1");
-
-    expect(result.ok).toBe(true);
-    expect(billItems.calls.some((c) => c === "eq:id=item-1")).toBe(true);
-    expect(billItems.calls.some((c) => c === "eq:school_id=school-1")).toBe(true);
   });
 });

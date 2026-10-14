@@ -931,6 +931,7 @@ export interface Database {
           school_id: string;
           student_id: string;
           bill_item_id: string | null;
+          fee_structure_id: string | null;
           deskripsi: string;
           nominal: number;
           diskon: number;
@@ -945,6 +946,7 @@ export interface Database {
           school_id: string;
           student_id: string;
           bill_item_id?: string | null;
+          fee_structure_id?: string | null;
           deskripsi: string;
           nominal: number;
           diskon?: number;
@@ -959,6 +961,7 @@ export interface Database {
           school_id?: string;
           student_id?: string;
           bill_item_id?: string | null;
+          fee_structure_id?: string | null;
           deskripsi?: string;
           nominal?: number;
           diskon?: number;
@@ -989,6 +992,13 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: "bill_items";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bills_fee_structure_tenant_fkey";
+            columns: ["fee_structure_id", "school_id"];
+            isOneToOne: false;
+            referencedRelation: "fee_structures";
+            referencedColumns: ["id", "school_id"];
           },
         ];
       };
