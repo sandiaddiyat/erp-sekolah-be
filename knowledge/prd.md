@@ -110,7 +110,6 @@ erp-sekolah/
 │   │   │   │   ├── kelas/
 │   │   │   │   └── pendaftaran/      # Penempatan kelas (enrollment)
 │   │   │   ├── keuangan/             # SPP, tagihan, pembayaran
-│   │   │   │   ├── jenis-tagihan/
 │   │   │   │   ├── skema-biaya/
 │   │   │   │   ├── tagihan-otomatis/
 │   │   │   │   ├── rekonsiliasi/
@@ -232,13 +231,13 @@ erp-sekolah/
               └────────────┘
 
   KEUANGAN:
-  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌──────────────┐
-  │bill_items│  │  bills   │  │ invoices  │  │  payments    │
-  └──────────┘  └──────────┘  └─────┬─────┘  └──────────────┘
-                                    │
-                              ┌─────▼─────────┐
-                              │invoice_details │──→ fee_structures
-                              └───────────────┘
+  ┌──────────────┐  ┌──────────┐  ┌───────────┐  ┌──────────────┐
+  │fee_structures│  │  bills   │  │ invoices  │  │  payments    │
+  └──────────────┘  └──────────┘  └─────┬─────┘  └──────────────┘
+                                     │
+                               ┌─────▼─────────┐
+                               │invoice_details │──→ fee_structures
+                               └───────────────┘
 
   LAINNYA:
   ┌────────────┐  ┌──────────────┐  ┌────────────────┐
@@ -271,20 +270,10 @@ erp-sekolah/
 | `rooms` | Ruangan | ✅ |
 | `classes` | Rombel per tahun ajaran | ✅ |
 | `student_enrollments` | Penempatan siswa ke kelas | ✅ |
-| `bill_items` | Jenis tagihan (SPP, uang bangunan, dll.) | ✅ |
-| `bills` | Tagihan individual per siswa (legacy) | ✅ |
-| `fee_categories` | Kategori biaya | ✅ |
+| `fee_categories` | Kategori biaya (SPP, uang bangunan, dll.) | ✅ |
 | `fee_structures` | Skema biaya per jenjang/tingkat/tahun ajaran | ✅ |
+| `bills` | Tagihan manual per siswa (legacy, refer ke fee_structures) | ✅ |
 | `families` | Data keluarga siswa | ✅ |
-| `guardians` | Wali/orang tua siswa | ✅ |
-| `invoices` | Invoice tagihan otomatis | ✅ |
-| `invoice_details` | Detail per item invoice | ✅ |
-| `payments` | Pembayaran (bill/invoice) | ✅ |
-| `discount_types` | Jenis diskon/beasiswa | ✅ |
-| `student_discounts` | Diskon per siswa | ✅ |
-| `billing_run_logs` | Log jalannya billing otomatis | ✅ |
-| `payment_methods` | Metode pembayaran | ✅ |
-| `bank_accounts` | Akun bank sekolah | ✅ |
 
 ### 5.3 Master Data (Global)
 
@@ -357,7 +346,7 @@ schools ──┬─ profiles ── user_roles ──┐
 | `students` | `view`, `create`, `update`, `delete`, `export`, `import` |
 | `teachers` | `view`, `create`, `update`, `delete` |
 | `classes` | `view`, `create`, `update`, `delete` |
-| `finance` | `view`, `bill_create`, `payment_create`, `payment_verify`, `report_view`, `bill_item_view`, `bill_item_manage` |
+| `finance` | `view`, `bill_create`, `payment_create`, `payment_verify`, `report_view` |
 | `fee_structure` | `view`, `manage` |
 | `academics` | `view`, `manage`, `attendance_manage`, `grade_manage`, `report_card_publish` |
 | `billing` | `view`, `manage` |
@@ -535,7 +524,7 @@ Menu sidebar dikelompokkan berdasarkan fungsi:
 | | Kelas | `academics.view` |
 | | Penempatan Kelas | `academics.view` |
 | **Keuangan** | SPP & Keuangan | `finance.view` |
-| | Jenis Tagihan | `finance.bill_item_view` |
+| | Skema Biaya | `fee_structure.view` |
 | **Tagihan Otomatis** | Skema Biaya | `fee_structure.view` |
 | | Tagihan Otomatis | `billing.view` |
 | | Rekonsiliasi | `billing.view` |

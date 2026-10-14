@@ -79,7 +79,6 @@ erp-sekolah/
 │   │           ├── page.tsx          # Halaman utama SPP
 │   │           ├── actions.ts        # Shared server actions
 │   │           ├── keuangan-client.tsx # Client component utama
-│   │           ├── jenis-tagihan/    # CRUD jenis tagihan
 │   │           ├── skema-biaya/      # CRUD skema biaya
 │   │           ├── tagihan-otomatis/ # Generate & kelola tagihan
 │   │           ├── rekonsiliasi/     # Rekonsiliasi pembayaran
@@ -341,8 +340,8 @@ src/features/<modul>/
 | `siswa/` | Siswa | `students` |
 | `master/` | Master data referensi | `agama`, `provinsi`, `jabatan_pegawai`, dll |
 | `akademik/` | Tahun ajaran, kelas | `academic_years`, `levels`, `grades`, `departments`, `rooms`, `classes`, `student_enrollments` |
-| `keuangan/` | SPP & pembayaran | `bill_items`, `student_bills`, `student_bill_details`, `payments` |
-| `fee-structure/` | Skema biaya | `fee_structures`, `fee_structure_items` |
+| `keuangan/` | SPP & pembayaran | `bills`, `fee_structures`, `payments` |
+| `fee-structure/` | Skema biaya | `fee_structures`, `fee_categories` |
 | `billing/` | Tagihan otomatis | `invoices`, `invoice_items` |
 | `discount/` | Diskon & beasiswa | `discounts`, `discount_assignments` |
 | `payment-v2/` | Pembayaran v2 | `payments_v2` |
@@ -404,7 +403,6 @@ graph TD
     end
 
     subgraph Finance["💰 Keuangan"]
-        BILL_ITEM["Jenis Tagihan<br/>bill_items"]
         FEE["Skema Biaya<br/>fee_structures"]
         INVOICE["Tagihan Otomatis<br/>invoices"]
         DISCOUNT["Diskon<br/>discounts"]
@@ -434,7 +432,6 @@ graph TD
     ENROLL --> SISWA
 
     %% Finance dependencies
-    FEE --> BILL_ITEM
     FEE --> KELAS
     INVOICE --> FEE
     INVOICE --> SISWA
@@ -459,8 +456,7 @@ graph TD
 | **Ruangan** | Auth | Kelas |
 | **Kelas** | Tahun Ajaran, Tingkat, Jurusan, Ruangan | Enrollment, Skema Biaya |
 | **Enrollment** | Kelas, Siswa | Invoice |
-| **Jenis Tagihan** | Auth | Skema Biaya |
-| **Skema Biaya** | Jenis Tagihan, Kelas | Invoice |
+| **Skema Biaya** | Kelas | Invoice, Tagihan Manual (bills) |
 | **Invoice (Tagihan)** | Skema Biaya, Siswa, Enrollment | Pembayaran |
 | **Diskon** | Siswa | Invoice (potongan) |
 | **Pembayaran** | Invoice | Rekonsiliasi |
@@ -482,12 +478,12 @@ Kelas = Tahun Ajaran + Tingkat + Jurusan + Ruangan
 ### 5.4 Alur Keuangan
 
 ```
-Jenis Tagihan (SPP, Uang Gedung, Seragam, ...)
-  └── Skema Biaya = Jenis Tagihan + Kelas + Nominal
-        └── Tagihan Otomatis = Skema + Siswa yang enrolled
-              ├── Diskon (potongan per siswa)
-              └── Pembayaran (cicilan / lunas)
-                    └── Rekonsiliasi (verifikasi admin)
+Skema Biaya (fee_structures)
+   ├── Tagihan Manual (bills)  → Pembayaran (manual)
+   └── Tagihan Otomatis (invoices)
+         ├── Diskon (potongan per siswa)
+         └── Pembayaran (cicilan / lunas)
+               └── Rekonsiliasi (verifikasi admin)
 ```
 
 ---

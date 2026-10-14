@@ -41,7 +41,10 @@ Format penulisan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.
   - Validasi dan service baru di `src/features/akademik/` (`savePlacementSchema`, `generateDraftPlacementSchema`, `savePlacementRecord`, `fetchUnplacedStudents`, `generateDraftPlacement`, `finalizePlacementRecord`) dengan Server Actions dilindungi `guardAction()`.
 
 ### Changed (Diubah)
-- *(Belum ada perubahan kode yang dicatat)*
+- **Unifikasi Skema Biaya (Issue #127)**: Form pembuatan tagihan manual di `/keuangan` kini merujuk langsung ke Skema Biaya (`fee_structures`) melalui kolom `fee_structure_id` pada tabel `bills` (migrasi `0048_unify_fee_structures.sql`). Dropdown "Jenis Tagihan" pada dialog tagihan manual diganti dengan "Skema Biaya" yang auto-fill nominal dan deskripsi. Kolom `bill_item_id` pada `bills` tetap ada (nullable) untuk backward compatibility data historis.
+
+### Removed (Dihapus)
+- **Jenis Tagihan (Issue #127)**: Halaman `/keuangan/jenis-tagihan` (beserta `jenis-tagihan-client.tsx`, `actions.ts`, `_components/bill-item-form-dialog.tsx`, `_components/bill-item-delete-dialog.tsx`) dihapus. Menu sidebar "Jenis Tagihan" dan permission `finance.bill_item_view` / `finance.bill_item_manage` di-`rbac.ts` dihapus. Redirect `301` dari `/keuangan/jenis-tagihan` → `/keuangan/skema-biaya` ditambahkan di `next.config.ts`. Schema `saveBillItemSchema`, `readSaveBillItemInput`, dan service `saveBillItemRecord`, `deleteBillItemRecord` dihapus dari `src/features/keuangan/`.
 
 ### Fixed (Diperbaiki)
 - *(Belum ada perbaikan bug yang dicatat)*

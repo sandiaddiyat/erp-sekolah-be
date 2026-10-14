@@ -95,13 +95,6 @@ export const MAIN_NAV: NavItem[] = [
     group: "keuangan",
   },
   {
-    title: "Jenis Tagihan",
-    href: "/keuangan/jenis-tagihan",
-    icon: "keuangan",
-    permission: PERMISSIONS.financeBillItemView,
-    group: "keuangan",
-  },
-  {
     title: "Skema Biaya",
     href: "/keuangan/skema-biaya",
     icon: "keuangan",

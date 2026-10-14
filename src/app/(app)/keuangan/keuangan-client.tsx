@@ -23,8 +23,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
-import type { BillItem, Payment } from "@/lib/types";
-import type { BillWithStudent, PaymentMetode } from "@/lib/types";
+import type { Payment } from "@/lib/types";
+import type { BillWithStudent, FeeStructureOption, PaymentMetode } from "@/lib/types";
 import type { FormState } from "@/lib/types";
 import { formatRupiah } from "@/lib/utils";
 import { createBill, deleteBill, recordPayment, verifyPayment } from "./actions";
@@ -92,13 +92,13 @@ function statusPillClass(status: string): string {
 
 export function KeuanganClient({
   bills,
-  billItems,
+  feeStructures,
   students,
   payments,
   permissions,
 }: {
   bills: (BillWithStudent & { student_nama: string | null })[];
-  billItems: BillItem[];
+  feeStructures: FeeStructureOption[];
   students: StudentOption[];
   payments: Payment[];
   permissions: Permissions;
@@ -350,7 +350,7 @@ export function KeuanganClient({
         open={billOpen}
         onOpenChange={setBillOpen}
         students={students}
-        billItems={billItems}
+        feeStructures={feeStructures}
       />
 
       <PaymentFormDialog
@@ -425,20 +425,21 @@ function BillFormDialog({
   open,
   onOpenChange,
   students,
-  billItems,
+  feeStructures,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   students: StudentOption[];
-  billItems: BillItem[];
+  feeStructures: FeeStructureOption[];
 }) {
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(
     createBill,
     undefined
   );
 
-  const [selectedItemId, setSelectedItemId] = useState("");
+  const [selectedStructureId, setSelectedStructureId] = useState("");
   const [nominal, setNominal] = useState("");
+  const [deskripsi, setDeskripsi] = useState("");
 
   useEffect(() => {
     if (state?.success) {
@@ -476,24 +477,28 @@ function BillFormDialog({
             </div>
 
             <div className="space-y-2">
-              <FieldLabel htmlFor="bill_item_id" optional>Jenis Tagihan</FieldLabel>
+              <FieldLabel htmlFor="fee_structure_id" optional>Skema Biaya</FieldLabel>
               <select
-                id="bill_item_id"
-                name="bill_item_id"
+                id="fee_structure_id"
+                name="fee_structure_id"
                 className={SELECT_CLASS}
-                value={selectedItemId}
+                value={selectedStructureId}
                 onChange={(event) => {
-                  const item = billItems.find((b) => b.id === event.target.value);
-                  setSelectedItemId(event.target.value);
+                  const selectedId = event.target.value;
+                  setSelectedStructureId(selectedId);
+                  const item = feeStructures.find((s) => s.id === selectedId);
                   if (item) {
-                    setNominal(String(Number(item.nominal)));
+                    setNominal(String(Number(item.amount)));
+                    if (!deskripsi) {
+                      setDeskripsi(`${item.category_name} - ${item.grade_name ?? "Umum"}`);
+                    }
                   }
                 }}
               >
-                <option value="">- tidak ada -</option>
-                {billItems.map((item) => (
+                <option value="">- pilih skema biaya (opsional) -</option>
+                {feeStructures.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.nama_item} ({formatRupiah(Number(item.nominal))})
+                    {item.category_name} ({item.grade_name ?? "Semua Tingkat"}) — {formatRupiah(Number(item.amount))}
                   </option>
                 ))}
               </select>
@@ -506,6 +511,8 @@ function BillFormDialog({
                 name="deskripsi"
                 placeholder="Contoh: SPP Juli 2026"
                 className={INPUT_CLASS}
+                value={deskripsi}
+                onChange={(e) => setDeskripsi(e.target.value)}
                 required
               />
             </div>

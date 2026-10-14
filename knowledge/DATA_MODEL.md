@@ -81,6 +81,7 @@ erDiagram
 |---|---|---|
 | `fee_categories` | Kategori biaya (SPP, Gedung). <br/> - `billing_cycle`: "bulanan" \| "semester" \| "tahunan" \| "sekali" | FK: `school_id` |
 | `fee_structures` | Setting nominal biaya per tingkat/kelas. | FK: `fee_category_id`, `grade_id`, `academic_year_id` |
+| `bills` | Tagihan manual per siswa (legacy, tetap dipakai untuk pembuatan tagihan manual di `/keuangan`). <br/> - `status`: "belum_bayar" \| "menunggu_verifikasi" \| "cicilan" \| "lunas" \| "batal" | FK: `student_id`, `fee_structure_id` → `fee_structures(id, school_id)` (composite tenant) |
 | `invoices` | Tagihan otomatis untuk siswa. <br/> - `status`: "belum_bayar" \| "sebagian" \| "lunas" \| "batal" | FK: `student_id`, `academic_year_id` |
 | `invoice_items` | Detail rincian per invoice. | FK: `invoice_id`, `fee_structure_id` |
 | `payments_v2` | Catatan pembayaran. <br/> - `status`: "menunggu" \| "terverifikasi" \| "ditolak" | FK: `invoice_id`, `payment_method_id` |

@@ -327,13 +327,24 @@ export type Bill = {
   id: string;
   school_id: string;
   student_id: string;
+  /** @deprecated Gunakan fee_structure_id; kolom ini dipertahankan untuk backward compatibility. */
   bill_item_id: string | null;
+  fee_structure_id: string | null;
   deskripsi: string;
   nominal: number;
   diskon: number;
   diskon_keterangan: string | null;
   jatuh_tempo: string | null;
   status: BillStatus;
+};
+
+export type FeeStructureOption = {
+  id: string;
+  category_name: string;
+  amount: number;
+  grade_name?: string | null;
+  academic_year_name?: string | null;
+  due_day?: number | null;
 };
 
 export type BillWithStudent = Bill & {
