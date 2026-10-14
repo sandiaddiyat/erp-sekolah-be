@@ -84,6 +84,8 @@ const BILLING_CYCLE_LABELS: Record<FeeCategory["billing_cycle"], string> = {
   semester: "Semester",
   tahunan: "Tahunan",
   sekali: "Sekali",
+  ganjil: "Ganjil",
+  genap: "Genap",
 };
 
 const SEARCH_SCOPE_CLASS =
