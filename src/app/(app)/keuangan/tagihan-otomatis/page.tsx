@@ -3,6 +3,9 @@ import { requirePermission } from "@/lib/auth";
 import { PERMISSIONS, can } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 import type { AcademicYear, Invoice, InvoiceDetail, BillingRunLog } from "@/lib/types";
+
+type FeeCategoryOption = { id: string; name: string; billing_cycle: string };
+type FeeStructureDueOption = { fee_category_id: string; due_day: number | null; due_date: string | null };
 import { TagihanOtomatisClient } from "./tagihan-otomatis-client";
 
 export const metadata = { title: "Tagihan Otomatis" };
@@ -12,7 +15,7 @@ export default async function TagihanOtomatisPage() {
   const supabase = await createClient();
   const schoolId = current.profile.school_id ?? "";
 
-  const [yearsResult, invoicesResult, detailsResult, logsResult, categoriesResult] = await Promise.all([
+  const [yearsResult, invoicesResult, detailsResult, logsResult, categoriesResult, structuresResult] = await Promise.all([
     supabase
       .from("academic_years")
       .select("id, name, status")
@@ -34,9 +37,13 @@ export default async function TagihanOtomatisPage() {
       .order("run_at", { ascending: false }),
     supabase
       .from("fee_categories")
-      .select("id, name")
+      .select("id, name, billing_cycle")
       .eq("school_id", schoolId)
       .order("name", { ascending: true }),
+    supabase
+      .from("fee_structures")
+      .select("fee_category_id, due_day, due_date")
+      .eq("school_id", schoolId),
   ]);
 
   const loadError =
@@ -44,7 +51,8 @@ export default async function TagihanOtomatisPage() {
     invoicesResult.error ??
     detailsResult.error ??
     logsResult.error ??
-    categoriesResult.error;
+    categoriesResult.error ??
+    structuresResult.error;
   if (loadError) {
     console.error("[tagihan-otomatis]", loadError);
     return <DataError message="Gagal memuat data tagihan otomatis." />;
@@ -65,7 +73,8 @@ export default async function TagihanOtomatisPage() {
   return (
     <TagihanOtomatisClient
       academicYears={(yearsResult.data ?? []) as AcademicYear[]}
-      feeCategories={(categoriesResult.data ?? []) as {id: string, name: string}[]}
+      feeCategories={(categoriesResult.data ?? []) as FeeCategoryOption[]}
+      feeStructures={(structuresResult.data ?? []) as FeeStructureDueOption[]}
       invoices={invoices}
       billingRuns={(logsResult.data ?? []) as BillingRunLog[]}
       canManage={can(current.permissions, PERMISSIONS.billingManage, current.isSuperAdmin)}

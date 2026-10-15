@@ -108,12 +108,14 @@ export async function saveFeeStructureRecord(
   }
 
   const { supabase } = deps;
-  const { id, academic_year_id, education_level_id, grade_id, major_id, fee_category_id, amount, due_day } = payload;
+  const { id, academic_year_id, education_level_id, grade_id, major_id, fee_category_id, amount, due_day, due_date } = payload;
+  const finalDueDay = due_date ? null : due_day;
+  const finalDueDate = due_day ? null : due_date;
 
   if (id) {
     const { error } = await supabase
       .from("fee_structures")
-      .update({ academic_year_id, education_level_id, grade_id, major_id, fee_category_id, amount, due_day })
+      .update({ academic_year_id, education_level_id, grade_id, major_id, fee_category_id, amount, due_day: finalDueDay, due_date: finalDueDate })
       .eq("id", id)
       .eq("school_id", schoolId);
     if (error) return handleError(error, "Gagal memperbarui skema biaya.");
@@ -128,7 +130,8 @@ export async function saveFeeStructureRecord(
     major_id,
     fee_category_id,
     amount,
-    due_day,
+    due_day: finalDueDay,
+    due_date: finalDueDate,
   });
   if (error) return handleError(error, "Gagal menambahkan skema biaya.");
   return okResult("Skema biaya berhasil ditambahkan.");

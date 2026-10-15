@@ -11,10 +11,6 @@ const optionalUuid = z
   .transform((v) => v || undefined)
   .refine((v) => !v || z.uuid().safeParse(v).success, "ID tidak valid.");
 
-function readCheckbox(value: FormDataEntryValue | null): boolean {
-  return value === "true" || value === "on" || value === "1";
-}
-
 // ===== Fee Categories =====
 
 export const saveFeeCategorySchema = z.object({
@@ -83,6 +79,12 @@ export const saveFeeStructureSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v && /^\d+$/.test(v) ? Number(v) : null)),
+  due_date: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v || null)
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Format tanggal jatuh tempo harus YYYY-MM-DD"),
 });
 
 export type SaveFeeStructureInput = z.infer<typeof saveFeeStructureSchema>;
@@ -101,6 +103,7 @@ export function readSaveFeeStructureInput(formData: FormData): SaveFeeStructureP
     fee_category_id: formData.get("fee_category_id") ?? "",
     amount: formData.get("amount") ?? "",
     due_day: formData.get("due_day") ?? "",
+    due_date: formData.get("due_date") ?? "",
   });
 
   if (!parsed.success) {
