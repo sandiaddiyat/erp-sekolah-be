@@ -345,6 +345,7 @@ export type FeeStructureOption = {
   grade_name?: string | null;
   academic_year_name?: string | null;
   due_day?: number | null;
+  due_date?: string | null;
 };
 
 export type BillWithStudent = Bill & {
@@ -494,6 +495,7 @@ export type FeeStructure = {
   fee_category_id: string;
   amount: number;
   due_day: number | null;
+  due_date: string | null;
   created_at: string;
   updated_at: string;
 };

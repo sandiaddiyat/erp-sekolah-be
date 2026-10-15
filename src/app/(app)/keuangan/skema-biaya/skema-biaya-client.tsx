@@ -105,6 +105,18 @@ const FORM_SELECT_CLASS =
   "h-10 w-full rounded-[9px] border border-[#dfeae3] bg-white px-3 text-[11px] text-[#36584a] outline-none transition-colors focus-visible:border-[#78ad8a] focus-visible:ring-3 focus-visible:ring-[#4f9970]/10";
 const SCROLLBAR_HIDDEN_STYLE = { scrollbarWidth: "none" } as const;
 
+function formatDueInfo(structure: Pick<FeeStructure, "due_day" | "due_date">): string {
+  if (structure.due_date) {
+    return new Date(`${structure.due_date}T00:00:00`).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  if (structure.due_day) return `Tanggal ${structure.due_day}`;
+  return "-";
+}
+
 const STICKY_FIRST_HEAD_CLASS =
   "sticky left-0 z-20 bg-white pl-6 shadow-[8px_0_8px_-8px_#1c44331a]";
 const STICKY_FIRST_CELL_CLASS =
@@ -663,7 +675,7 @@ function StructureSection({
         case "amount":
           return structure.amount;
         case "due_day":
-          return structure.due_day ?? 0;
+          return formatDueInfo(structure);
         default:
           return categoryNameById.get(structure.fee_category_id) ?? "";
       }
@@ -934,8 +946,8 @@ function StructureCell({
 
   return (
     <TableCell className={cellClass}>
-      <span className="block truncate text-xs text-[#3e5c50]">
-        {structure.due_day ? `Tanggal ${structure.due_day}` : "-"}
+      <span className="block truncate text-xs text-[#3e5c50]" title={formatDueInfo(structure)}>
+        {formatDueInfo(structure)}
       </span>
     </TableCell>
   );
@@ -1257,10 +1269,7 @@ function StructureDetailDialog({
               <DetailRow label="Jenjang" value={levelName ?? "-"} />
               <DetailRow label="Tingkat" value={gradeName ?? "-"} />
               <DetailRow label="Jurusan" value={majorName ?? "-"} />
-              <DetailRow
-                label="Jatuh Tempo"
-                value={structure.due_day ? `Tanggal ${structure.due_day}` : "-"}
-              />
+              <DetailRow label="Jatuh Tempo" value={formatDueInfo(structure)} />
             </dl>
           </div>
         ) : null}
@@ -1417,6 +1426,10 @@ function StructureFormDialog({
   const [levelId, setLevelId] = useState(editing?.education_level_id ?? "");
   const [gradeId, setGradeId] = useState(editing?.grade_id ?? "");
   const [majorId, setMajorId] = useState(editing?.major_id ?? "");
+  const [selectedCategoryId, setSelectedCategoryId] = useState(editing?.fee_category_id ?? "");
+
+  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const isMonthly = !selectedCategory || selectedCategory.billing_cycle === "bulanan";
 
   const levelGrades = useMemo(
     () => (levelId ? grades.filter((grade) => grade.education_level_id === levelId) : []),
@@ -1465,7 +1478,8 @@ function StructureFormDialog({
                 <select
                   id="fee_category_id"
                   name="fee_category_id"
-                  defaultValue={editing?.fee_category_id ?? ""}
+                  value={selectedCategoryId}
+                  onChange={(event) => setSelectedCategoryId(event.target.value)}
                   className={FORM_SELECT_CLASS}
                   required
                 >
@@ -1566,21 +1580,38 @@ function StructureFormDialog({
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <FieldLabel htmlFor="due_day" optional>
-                  Hari Jatuh Tempo
-                </FieldLabel>
-                <Input
-                  id="due_day"
-                  name="due_day"
-                  type="number"
-                  min={1}
-                  max={28}
-                  defaultValue={editing?.due_day?.toString() ?? ""}
-                  placeholder="1-28"
-                  className={FORM_INPUT_CLASS}
-                />
-              </div>
+              {isMonthly ? (
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="due_day" optional>
+                    Hari Jatuh Tempo (Bulanan)
+                  </FieldLabel>
+                  <Input
+                    id="due_day"
+                    name="due_day"
+                    type="number"
+                    min={1}
+                    max={28}
+                    defaultValue={editing?.due_day?.toString() ?? ""}
+                    placeholder="1-28 (contoh: 10)"
+                    className={FORM_INPUT_CLASS}
+                  />
+                  <p className="text-[10px] text-[#8b9f95]">Tagihan jatuh tempo pada tanggal ini setiap bulan.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="due_date" optional>
+                    Tanggal Jatuh Tempo
+                  </FieldLabel>
+                  <Input
+                    id="due_date"
+                    name="due_date"
+                    type="date"
+                    defaultValue={editing?.due_date?.slice(0, 10) ?? ""}
+                    className={FORM_INPUT_CLASS}
+                  />
+                  <p className="text-[10px] text-[#8b9f95]">Tanggal kalender untuk kategori biaya non-bulanan.</p>
+                </div>
+              )}
 
               <div className="space-y-2 sm:col-span-2">
                 <FieldLabel htmlFor="amount" required>

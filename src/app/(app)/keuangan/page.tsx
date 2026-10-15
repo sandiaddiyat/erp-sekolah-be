@@ -14,6 +14,7 @@ type FeeStructureOptionData = {
   id: string;
   amount: number;
   due_day: number | null;
+  due_date: string | null;
   fee_categories: { name: string } | null;
   grades: { name: string } | null;
   academic_years: { name: string } | null;
@@ -35,7 +36,7 @@ export default async function KeuanganPage() {
       supabase
         .from("fee_structures")
         .select(
-          "id, amount, due_day, fee_categories!fee_structures_category_tenant_fkey(name), grades!fee_structures_grade_tenant_fkey(name), academic_years!fee_structures_year_tenant_fkey(name)"
+          "id, amount, due_day, due_date, fee_categories!fee_structures_category_tenant_fkey(name), grades!fee_structures_grade_tenant_fkey(name), academic_years!fee_structures_year_tenant_fkey(name)"
         )
         .eq("school_id", schoolId)
         .order("created_at", { ascending: false }),
@@ -75,6 +76,7 @@ export default async function KeuanganPage() {
     grade_name: fs.grades?.name ?? null,
     academic_year_name: fs.academic_years?.name ?? null,
     due_day: fs.due_day ?? null,
+    due_date: fs.due_date ?? null,
   }));
 
   const billsWithStudent: BillWithStudent[] = bills.map((bill) => {

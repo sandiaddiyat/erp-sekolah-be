@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useActionState } from "react";
+import { startTransition, useEffect, useState, useActionState } from "react";
 import { toast } from "sonner";
 import { PlusIcon, FileText, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,20 @@ import { runGenerateInvoices, runDeleteInvoice, runBulkDeleteInvoice } from "./a
 import { FinanceDataTable } from "@/components/finance/finance-data-table";
 
 type FormState = { error?: string; success?: string } | undefined;
+type FeeCategoryOption = { id: string; name: string; billing_cycle: string };
+type FeeStructureDueOption = { fee_category_id: string; due_day: number | null; due_date: string | null };
+
+function suggestDueDate(categoryIds: string[], structures: FeeStructureDueOption[]): string {
+  const selectedStructures = structures.filter((structure) => categoryIds.includes(structure.fee_category_id));
+  const exactDate = selectedStructures.find((structure) => structure.due_date)?.due_date;
+  if (exactDate) return exactDate.slice(0, 10);
+
+  const monthlyStructure = selectedStructures.find((structure) => structure.due_day);
+  if (!monthlyStructure?.due_day) return "";
+
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(monthlyStructure.due_day).padStart(2, "0")}`;
+}
 
 const STATUS_VARIANT: Record<Invoice["status"], "default" | "secondary" | "destructive" | "outline"> = {
   belum_bayar: "default",
@@ -35,12 +49,14 @@ const STATUS_LABELS: Record<Invoice["status"], string> = {
 export function TagihanOtomatisClient({
   academicYears,
   feeCategories,
+  feeStructures,
   invoices,
   billingRuns,
   canManage,
 }: {
   academicYears: AcademicYear[];
-  feeCategories: { id: string; name: string }[];
+  feeCategories: FeeCategoryOption[];
+  feeStructures: FeeStructureDueOption[];
   invoices: Invoice[];
   billingRuns: BillingRunLog[];
   canManage: boolean;
@@ -59,8 +75,10 @@ export function TagihanOtomatisClient({
   useEffect(() => {
     if (bulkDeleteState?.success) {
       toast.success(bulkDeleteState.success);
-      setSelectedKeys(new Set());
-      setBulkDeleteConfirm(false);
+      startTransition(() => {
+        setSelectedKeys(new Set());
+        setBulkDeleteConfirm(false);
+      });
     } else if (bulkDeleteState?.error) {
       toast.error(bulkDeleteState.error);
     }
@@ -69,8 +87,10 @@ export function TagihanOtomatisClient({
   useEffect(() => {
     if (deleteState?.success) {
       toast.success(deleteState.success);
-      setViewingInvoice(null);
-      setDeleteConfirm(false);
+      startTransition(() => {
+        setViewingInvoice(null);
+        setDeleteConfirm(false);
+      });
     } else if (deleteState?.error) {
       toast.error(deleteState.error);
     }
@@ -107,6 +127,7 @@ export function TagihanOtomatisClient({
         onOpenChange={setRunOpen}
         yearOptions={yearOptions}
         feeCategories={feeCategories}
+        feeStructures={feeStructures}
         onSaved={() => setRunOpen(false)}
       />
 
@@ -352,15 +373,19 @@ function GenerateInvoicesDialog({
   onOpenChange,
   yearOptions,
   feeCategories,
+  feeStructures,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   yearOptions: AcademicYear[];
-  feeCategories: { id: string; name: string }[];
+  feeCategories: FeeCategoryOption[];
+  feeStructures: FeeStructureDueOption[];
   onSaved: () => void;
 }) {
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(runGenerateInvoices, undefined);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(() => feeCategories.map((category) => category.id));
+  const [dueDate, setDueDate] = useState(() => suggestDueDate(feeCategories.map((category) => category.id), feeStructures));
 
   useEffect(() => {
     if (state?.success) {
@@ -413,7 +438,16 @@ function GenerateInvoicesDialog({
 
             <div className="space-y-2">
               <FieldLabel htmlFor="due_date" required>Tanggal Jatuh Tempo</FieldLabel>
-              <Input id="due_date" name="due_date" type="date" required className={FORM_INPUT_CLASS} />
+              <Input
+                id="due_date"
+                name="due_date"
+                type="date"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+                required
+                className={FORM_INPUT_CLASS}
+              />
+              <p className="text-[10px] text-[#8b9f95]">Tanggal terisi otomatis dari skema biaya dan tetap dapat diubah.</p>
             </div>
 
             <div className="space-y-2">
@@ -428,7 +462,14 @@ function GenerateInvoicesDialog({
                         id={`cat-${cat.id}`} 
                         name="fee_category_ids" 
                         value={cat.id} 
-                        defaultChecked
+                        checked={selectedCategoryIds.includes(cat.id)}
+                        onCheckedChange={(checked) => {
+                          const next = checked
+                            ? [...selectedCategoryIds, cat.id]
+                            : selectedCategoryIds.filter((id) => id !== cat.id);
+                          setSelectedCategoryIds(next);
+                          setDueDate(suggestDueDate(next, feeStructures));
+                        }}
                         className="rounded-[4px] border-[#c0cfc6] data-[state=checked]:bg-[#185743] data-[state=checked]:border-[#185743] text-white h-4 w-4" 
                       />
                       <label htmlFor={`cat-${cat.id}`} className="text-[11px] font-medium leading-relaxed text-[#36584a] cursor-pointer select-none">

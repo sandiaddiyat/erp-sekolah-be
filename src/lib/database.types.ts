@@ -1520,6 +1520,7 @@ export interface Database {
           fee_category_id: string;
           amount: number;
           due_day: number | null;
+          due_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1533,6 +1534,7 @@ export interface Database {
           fee_category_id: string;
           amount: number;
           due_day?: number | null;
+          due_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1546,6 +1548,7 @@ export interface Database {
           fee_category_id?: string;
           amount?: number;
           due_day?: number | null;
+          due_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
