@@ -16,7 +16,7 @@ const optionalUuid = z
 export const saveFeeCategorySchema = z.object({
   id: optionalUuid,
   name: z.string().trim().min(3, "Nama kategori biaya minimal 3 karakter"),
-  billing_cycle: z.enum(["bulanan", "semester", "tahunan", "sekali", "ganjil", "genap"], "Pilih frekuensi tagih."),
+  billing_cycle: z.enum(["bulanan", "semester", "tahunan", "sekali"], "Pilih frekuensi tagih."),
   description: z.string().trim().optional().transform((v) => v || undefined),
 });
 

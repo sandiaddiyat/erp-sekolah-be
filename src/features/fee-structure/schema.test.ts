@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { saveFeeCategorySchema, saveFeeStructureSchema } from "./schema";
 
 describe("saveFeeCategorySchema", () => {
-  it.each(["ganjil", "genap"])("accepts %s billing cycle", (billing_cycle) => {
+  it.each(["bulanan", "semester", "tahunan", "sekali"])("accepts %s billing cycle", (billing_cycle) => {
     const result = saveFeeCategorySchema.safeParse({
       id: "",
       name: "SPP",
@@ -11,6 +11,17 @@ describe("saveFeeCategorySchema", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it.each(["ganjil", "genap"])("rejects %s billing cycle", (billing_cycle) => {
+    const result = saveFeeCategorySchema.safeParse({
+      id: "",
+      name: "SPP",
+      billing_cycle,
+      description: "",
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

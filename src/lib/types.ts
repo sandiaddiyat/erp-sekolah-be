@@ -479,7 +479,7 @@ export type FeeCategory = {
   id: string;
   school_id: string;
   name: string;
-  billing_cycle: "bulanan" | "semester" | "tahunan" | "sekali" | "ganjil" | "genap";
+  billing_cycle: "bulanan" | "semester" | "tahunan" | "sekali";
   description: string | null;
   created_at: string;
   updated_at: string;
