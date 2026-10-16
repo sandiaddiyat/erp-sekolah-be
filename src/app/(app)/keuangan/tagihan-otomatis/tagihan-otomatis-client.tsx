@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState, useActionState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState, useActionState } from "react";
 import { toast } from "sonner";
 import { PlusIcon, FileText, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ export function TagihanOtomatisClient({
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
+  const closeGenerateDialog = useCallback(() => setRunOpen(false), []);
   const [deleteState, deleteAction, isDeleting] = useActionState<FormState, FormData>(runDeleteInvoice, undefined);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
@@ -122,7 +123,7 @@ export function TagihanOtomatisClient({
         yearOptions={yearOptions}
         feeCategories={feeCategories}
         feeStructures={feeStructures}
-        onSaved={() => setRunOpen(false)}
+        onSaved={closeGenerateDialog}
       />
 
       {/* Billing Run Logs */}
@@ -228,6 +229,8 @@ export function TagihanOtomatisClient({
             <FinanceDataTable
               rows={invoices}
               rowKey={(invoice) => invoice.id}
+              initialSort={{ key: "due_date", direction: "asc" }}
+              secondarySort={{ key: "student", direction: "asc" }}
               search={query}
               onSearchChange={setQuery}
               showColumnToggle={false}
@@ -432,7 +435,9 @@ function GenerateInvoicesDialog({
                 setCustomDueDate("");
               }} required>
                 <SelectTrigger id="academic_year_id" className={FORM_INPUT_CLASS}>
-                  <SelectValue placeholder="Pilih tahun ajaran" />
+                  <SelectValue placeholder="Pilih tahun ajaran">
+                    {(value: string) => yearOptions.find((year) => year.id === value)?.name ?? "Pilih tahun ajaran"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {yearOptions.map((year) => <SelectItem key={year.id} value={year.id}>{year.name}</SelectItem>)}

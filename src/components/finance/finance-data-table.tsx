@@ -35,6 +35,8 @@ export function FinanceDataTable<T>({
   onSelectedKeysChange,
   showColumnToggle = true,
   toolbarClassName,
+  initialSort,
+  secondarySort,
 }: {
   rows: T[];
   columns: FinanceTableColumn<T>[];
@@ -50,10 +52,12 @@ export function FinanceDataTable<T>({
   onSelectedKeysChange?: (keys: Set<string>) => void;
   showColumnToggle?: boolean;
   toolbarClassName?: string;
+  initialSort?: { key: string; direction: "asc" | "desc" };
+  secondarySort?: { key: string; direction: "asc" | "desc" };
 }) {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(() => new Set(columns.map((column) => column.key)));
-  const [sortKey, setSortKey] = useState(columns[0]?.key ?? "");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState(initialSort?.key ?? columns[0]?.key ?? "");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(initialSort?.direction ?? "asc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -63,16 +67,22 @@ export function FinanceDataTable<T>({
     const filtered = needle
       ? rows.filter((row) => columns.some((column) => column.searchable && column.searchValue?.(row).toLocaleLowerCase("id").includes(needle)))
       : rows;
-    const column = columns.find((item) => item.key === sortKey);
-    if (!column?.sortValue) return filtered;
-    const direction = sortDirection === "asc" ? 1 : -1;
+    const compareValues = (left: T, right: T, key: string, direction: "asc" | "desc") => {
+      const column = columns.find((item) => item.key === key);
+      if (!column?.sortValue) return 0;
+      const leftValue = column.sortValue(left) ?? "";
+      const rightValue = column.sortValue(right) ?? "";
+      const multiplier = direction === "asc" ? 1 : -1;
+      if (typeof leftValue === "number" && typeof rightValue === "number") return (leftValue - rightValue) * multiplier;
+      return String(leftValue).localeCompare(String(rightValue), "id", { numeric: true, sensitivity: "base" }) * multiplier;
+    };
+
     return [...filtered].sort((left, right) => {
-      const leftValue = column.sortValue?.(left) ?? "";
-      const rightValue = column.sortValue?.(right) ?? "";
-      if (typeof leftValue === "number" && typeof rightValue === "number") return (leftValue - rightValue) * direction;
-      return String(leftValue).localeCompare(String(rightValue), "id", { numeric: true, sensitivity: "base" }) * direction;
+      const primaryResult = compareValues(left, right, sortKey, sortDirection);
+      if (primaryResult !== 0 || !secondarySort || secondarySort.key === sortKey) return primaryResult;
+      return compareValues(left, right, secondarySort.key, secondarySort.direction);
     });
-  }, [columns, rows, search, sortDirection, sortKey]);
+  }, [columns, rows, search, secondarySort, sortDirection, sortKey]);
 
   const visibleColumns = columns.filter((column) => visibleKeys.has(column.key));
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
