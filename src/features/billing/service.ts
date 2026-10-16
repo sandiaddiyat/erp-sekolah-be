@@ -5,288 +5,246 @@ import { errResult, okResult, type MutationResult } from "@/lib/result";
 import type { CurrentUser } from "@/lib/types";
 import type { GenerateInvoicesInput } from "./schema";
 
-/**
- * Service layer fitur tagihan otomatis: ATURAN MAINNYA SAJA.
- * Dependency (client Supabase) di-inject lewat parameter.
- */
 export type BillingMutationsDeps = {
   supabase: SupabaseClient<Database>;
 };
 
 const SCHOOL_ID = (user: CurrentUser) => user.profile.school_id;
 
-/**
- * Algoritma generate tagihan otomatis:
- * 1. Ambil semua siswa yang terdaftar di tahun ajaran yang dipilih.
- * 2. Untuk setiap siswa, ambil skema biaya yang berlaku (berdasarkan
- *    education_level, grade, dan major siswa — boleh null major).
- * 3. Hitung diskon per siswa (student_discounts yang statusnya "disetujui"
- *    dan masih berlaku).
- * 4. Buat invoice + invoice_details. Lewati siswa yang sudah punya invoice
- *    untuk periode yang sama (jika only_without_invoice = false, regenerate).
- * 5. Catat log billing_run_logs untuk idempotency.
- */
+export type AcademicMonth = {
+  year: number;
+  month: number;
+  monthLabel: string;
+};
+
+export type BillingPeriod = {
+  label: string;
+  dueDate: string;
+};
+
+const MONTH_NAMES = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+export function getAcademicMonths(startDateStr: string, endDateStr: string): AcademicMonth[] {
+  const start = new Date(`${startDateStr}T00:00:00`);
+  const end = new Date(`${endDateStr}T00:00:00`);
+  const months: AcademicMonth[] = [];
+  const current = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+
+  while (current <= last) {
+    const year = current.getFullYear();
+    const month = current.getMonth() + 1;
+    months.push({ year, month, monthLabel: `${MONTH_NAMES[month - 1]} ${year}` });
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  return months;
+}
+
+export function calculateDueDate(year: number, month: number, dueDay: number | null): string {
+  const day = Math.min(Math.max(dueDay ?? 10, 1), 28);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function buildBillingPeriods(
+  billingCycle: string,
+  academicYearName: string,
+  months: AcademicMonth[],
+  dueDay: number | null,
+  dueDate: string | null,
+  customDueDate: string | null,
+): BillingPeriod[] {
+  if (billingCycle === "bulanan") {
+    return months.map((month) => ({
+      label: month.monthLabel,
+      dueDate: customDueDate ?? calculateDueDate(month.year, month.month, dueDay),
+    }));
+  }
+
+  if (billingCycle === "ganjil" || billingCycle === "genap") {
+    const semester = billingCycle === "ganjil" ? "Ganjil" : "Genap";
+    const month = billingCycle === "ganjil" ? months[0] : months[6] ?? months[months.length - 1];
+    if (!month) return [];
+    return [{
+      label: `${semester} ${academicYearName}`,
+      dueDate: customDueDate ?? dueDate ?? calculateDueDate(month.year, month.month, dueDay),
+    }];
+  }
+
+  if (billingCycle === "semester") {
+    const month = months[0];
+    if (!month) return [];
+    return [{
+      label: `Ganjil ${academicYearName}`,
+      dueDate: customDueDate ?? dueDate ?? calculateDueDate(month.year, month.month, dueDay),
+    }];
+  }
+
+  const firstMonth = months[0];
+  if (!firstMonth) return [];
+  return [{
+    label: `${billingCycle === "tahunan" ? "Tahunan" : "Sekali"} ${academicYearName}`,
+    dueDate: customDueDate ?? dueDate ?? calculateDueDate(firstMonth.year, firstMonth.month, dueDay),
+  }];
+}
+
+type DiscountType = { calc_type: string };
+type StudentDiscount = { student_id: string; discount_type_id: string; value: number; start_date: string; end_date: string };
+
+type InvoiceDetailInput = Database["public"]["Tables"]["invoice_details"]["Insert"];
+
+type FeeStructure = Database["public"]["Tables"]["fee_structures"]["Row"];
+type FeeCategory = { id: string; name: string; billing_cycle: string };
+
 export async function generateInvoices(
   deps: BillingMutationsDeps,
   current: CurrentUser,
-  payload: GenerateInvoicesInput
+  payload: GenerateInvoicesInput,
 ): Promise<MutationResult> {
   const schoolId = SCHOOL_ID(current);
-  if (!schoolId) {
-    return errResult("Hanya admin sekolah yang dapat menjalankan job ini.");
-  }
+  if (!schoolId) return errResult("Hanya admin sekolah yang dapat menjalankan job ini.");
 
   const { supabase } = deps;
-  const { academic_year_id, period_label, due_date, only_without_invoice, fee_category_ids } = payload;
+  const { academic_year_id, mode, period_label, custom_due_date, only_without_invoice, fee_category_ids } = payload;
+  const { data: academicYear, error: yearError } = await supabase
+    .from("academic_years")
+    .select("id, name, start_date, end_date")
+    .eq("id", academic_year_id)
+    .eq("school_id", schoolId)
+    .single();
+  if (yearError || !academicYear) return errResult("Tahun ajaran tidak ditemukan.");
 
-  // 1. Idempotensi: cek apakah job untuk periode ini sudah pernah berjalan selesai
+  const months = getAcademicMonths(academicYear.start_date, academicYear.end_date);
+  if (months.length === 0) return errResult("Rentang tahun ajaran tidak valid.");
+
+  const runLabel = mode === "single_period" ? period_label?.trim() : `Tahun Ajaran ${academicYear.name}`;
+  if (mode === "single_period" && !runLabel) return errResult("Periode wajib diisi untuk mode satu periode.");
+
   const { data: existingRun } = await supabase
     .from("billing_run_logs")
     .select("id, status")
     .eq("school_id", schoolId)
     .eq("academic_year_id", academic_year_id)
-    .eq("period_label", period_label)
+    .eq("period_label", runLabel ?? "")
     .maybeSingle();
+  if (existingRun?.status === "berjalan") return errResult(`Pembuatan tagihan untuk "${runLabel}" sedang berjalan.`);
+  if (existingRun) await supabase.from("billing_run_logs").delete().eq("id", existingRun.id).eq("school_id", schoolId);
 
-  if (existingRun) {
-    if (existingRun.status === "berjalan") {
-      return errResult(
-        `Pembuatan tagihan untuk periode "${period_label}" sedang berjalan. Silakan tunggu hingga selesai.`
-      );
-    }
-    
-    // Jika statusnya 'gagal' atau 'selesai', kita hapus log lama agar bisa mulai ulang 
-    // atau generate kategori lain di periode yang sama
-    await supabase.from("billing_run_logs").delete().eq("id", existingRun.id);
-  }
-
-  // 2. Buat log run dengan status "berjalan"
   const { data: runLog, error: runLogError } = await supabase
     .from("billing_run_logs")
-    .insert({
-      school_id: schoolId,
-      academic_year_id,
-      period_label,
-      status: "berjalan",
-      total_invoices_generated: 0,
-    })
+    .insert({ school_id: schoolId, academic_year_id, period_label: runLabel ?? "", status: "berjalan", total_invoices_generated: 0 })
     .select("id")
     .single();
-
-  if (runLogError || !runLog) {
-    return errResult(serverError(runLogError, "Gagal memulai job billing. Periksa koneksi atau data referensi."));
-  }
+  if (runLogError || !runLog) return errResult(serverError(runLogError, "Gagal memulai job billing."));
 
   try {
-    // 3. Ambil semua enrollment aktif di tahun ajaran ini + siswa + kelas
     const { data: enrollments, error: enrollError } = await supabase
       .from("student_enrollments")
       .select("*, students:students!student_enrollments_student_tenant_fkey!inner(*), classes:classes!student_enrollments_class_tenant_fkey!inner(grade_id, major_id)")
       .eq("school_id", schoolId)
       .eq("academic_year_id", academic_year_id)
       .eq("status", "active");
+    if (enrollError) throw enrollError;
 
-    if (enrollError) {
-      throw enrollError;
-    }
-
-    // 4. Ambil semua fee_structures untuk tahun ajaran ini
     const { data: feeStructures, error: feeError } = await supabase
       .from("fee_structures")
       .select("*")
       .eq("school_id", schoolId)
-      .eq("academic_year_id", academic_year_id);
+      .eq("academic_year_id", academic_year_id)
+      .in("fee_category_id", fee_category_ids);
+    if (feeError) throw feeError;
 
-    if (feeError) {
-      throw feeError;
-    }
+    const { data: categories, error: categoryError } = await supabase
+      .from("fee_categories")
+      .select("id, name, billing_cycle")
+      .eq("school_id", schoolId)
+      .in("id", fee_category_ids);
+    if (categoryError) throw categoryError;
+    const categoryById = new Map((categories ?? []).map((category) => [category.id, category as FeeCategory]));
 
-    // 5. Ambil student_discounts yang disetujui
-    const { data: discounts, error: discError } = await supabase
+    const { data: discounts, error: discountError } = await supabase
       .from("student_discounts")
-      .select("*")
+      .select("student_id, discount_type_id, value, start_date, end_date")
       .eq("school_id", schoolId)
       .eq("status", "disetujui");
+    if (discountError) throw discountError;
 
-    if (discError) {
-      throw discError;
-    }
-
-    const discountByType: Record<string, typeof discounts[number][]> = {};
-    discounts?.forEach((d) => {
-      const key = d.discount_type_id;
-      if (!discountByType[key]) discountByType[key] = [];
-      discountByType[key].push(d);
-    });
+    const { data: discountTypes, error: discountTypeError } = await supabase
+      .from("discount_types")
+      .select("id, calc_type")
+      .eq("school_id", schoolId);
+    if (discountTypeError) throw discountTypeError;
+    const discountTypeById = new Map((discountTypes ?? []).map((type) => [type.id, type as DiscountType]));
 
     let generatedCount = 0;
-
     for (const enrollment of enrollments ?? []) {
       const student = enrollment.students;
       if (!student) continue;
-
-      // Cek apakah sudah punya invoice (untuk only_without_invoice)
-      if (only_without_invoice) {
-        const { data: existing } = await supabase
-          .from("invoices")
-          .select("id")
-          .eq("school_id", schoolId)
-          .eq("student_id", student.id)
-          .eq("academic_year_id", academic_year_id)
-          .eq("period_label", period_label)
-          .maybeSingle();
-        if (existing) continue;
-      }
-
-      // Dapatkan level_id dan grade_id dari enrollment
-      const gradeId = enrollment.classes?.grade_id;
-      const majorId = enrollment.classes?.major_id;
-
-      // Filter fee structures yang cocok: sama dengan grade_id, major_id nullable, dan termasuk di kategori yang dipilih
-      const matchedFees = (feeStructures ?? []).filter((fs) => {
-        if (!fee_category_ids.includes(fs.fee_category_id)) return false;
-        if (fs.grade_id !== gradeId) return false;
-        if (fs.major_id !== null && fs.major_id !== majorId) return false;
+      const matchedFees = (feeStructures ?? []).filter((fee) => {
+        if (fee.grade_id !== enrollment.classes?.grade_id) return false;
+        if (fee.major_id !== null && fee.major_id !== enrollment.classes?.major_id) return false;
         return true;
-      });
+      }) as FeeStructure[];
+      const grouped = new Map<string, { dueDate: string; fees: FeeStructure[] }>();
 
-      if (matchedFees.length === 0) continue;
-
-      // Hitung total + buat invoice_details
-      let totalAmount = 0;
-      const invoiceDetails: {
-        fee_structure_id: string;
-        description: string;
-        base_amount: number;
-        discount_amount: number;
-        final_amount: number;
-      }[] = [];
-
-      for (const fs of matchedFees) {
-        const baseAmount = Number(fs.amount);
-        let discountAmount = 0;
-
-        // Cari discount type untuk fee_structure (berdasarkan fee_category_id)
-        // Di sini kita mengasumsikan fee_category_id = discount_type_id jika matching
-        // Atau kita bisa cari student_discount berdasarkan student_id
-        const studentDiscounts = discounts?.filter((d) => d.student_id === student.id) ?? [];
-
-        for (const sd of studentDiscounts) {
-          if (sd.start_date <= due_date && sd.end_date >= due_date) {
-            // We need to fetch the discount type to know calc_type
-            // For now, apply percent discount to all fees
-            // This is a simplification — a more complex implementation would
-            // match discount types to fee categories
-          }
+      for (const fee of matchedFees) {
+        const category = categoryById.get(fee.fee_category_id);
+        if (!category) continue;
+        const periods = buildBillingPeriods(category.billing_cycle, academicYear.name, months, fee.due_day, fee.due_date, custom_due_date);
+        for (const period of mode === "single_period" ? periods.filter((item) => item.label === period_label?.trim() || item.label.includes(period_label?.trim() ?? "")) : periods) {
+          const existing = grouped.get(period.label) ?? { dueDate: period.dueDate, fees: [] };
+          existing.fees.push(fee);
+          if (custom_due_date) existing.dueDate = custom_due_date;
+          grouped.set(period.label, existing);
         }
-
-        // Apply all valid discounts
-        for (const sd of studentDiscounts) {
-          if (sd.start_date <= due_date && sd.end_date >= due_date) {
-            const { data: discType } = await supabase
-              .from("discount_types")
-              .select("calc_type")
-              .eq("id", sd.discount_type_id)
-              .single();
-
-            if (discType) {
-              if (discType.calc_type === "percent") {
-                discountAmount += baseAmount * (Number(sd.value) / 100);
-              } else {
-                discountAmount += Number(sd.value);
-              }
-            }
-          }
-        }
-
-        discountAmount = Math.min(discountAmount, baseAmount);
-        const finalAmount = baseAmount - discountAmount;
-        totalAmount += finalAmount;
-
-        // Fetch category name
-        const { data: cat } = await supabase
-          .from("fee_categories")
-          .select("name")
-          .eq("id", fs.fee_category_id)
-          .single();
-
-        invoiceDetails.push({
-          fee_structure_id: fs.id,
-          description: cat?.name ?? fs.fee_category_id,
-          base_amount: baseAmount,
-          discount_amount: discountAmount,
-          final_amount: finalAmount,
-        });
       }
 
-      // Get primary billing contact
       const familyId = student.family_id;
       let guardianId: string | null = null;
       if (familyId) {
-        const { data: guardian } = await supabase
-          .from("guardians")
-          .select("id")
-          .eq("family_id", familyId)
-          .eq("is_primary_billing_contact", true)
-          .maybeSingle();
+        const { data: guardian } = await supabase.from("guardians").select("id").eq("school_id", schoolId).eq("family_id", familyId).eq("is_primary_billing_contact", true).maybeSingle();
         guardianId = guardian?.id ?? null;
       }
 
-      // Insert invoice
-      const { data: invoice, error: invError } = await supabase
-        .from("invoices")
-        .insert({
-          school_id: schoolId,
-          student_id: student.id,
-          guardian_id: guardianId,
-          academic_year_id,
-          period_label,
-          issue_date: new Date().toISOString().slice(0, 10),
-          due_date,
-          total_amount: totalAmount,
-        })
-        .select("id")
-        .single();
+      for (const [period, group] of grouped) {
+        if (only_without_invoice) {
+          const { data: existing } = await supabase.from("invoices").select("id").eq("school_id", schoolId).eq("student_id", student.id).eq("academic_year_id", academic_year_id).eq("period_label", period).maybeSingle();
+          if (existing) continue;
+        }
 
-      if (invError || !invoice) {
-        throw invError ?? new Error("Failed to create invoice");
-      }
+        const detailInputs: InvoiceDetailInput[] = [];
+        let totalAmount = 0;
+        for (const fee of group.fees) {
+          const baseAmount = Number(fee.amount);
+          const studentDiscounts = ((discounts ?? []) as StudentDiscount[]).filter((discount) => discount.student_id === student.id && discount.start_date <= group.dueDate && discount.end_date >= group.dueDate);
+          let discountAmount = 0;
+          for (const discount of studentDiscounts) {
+            const type = discountTypeById.get(discount.discount_type_id);
+            if (type?.calc_type === "percent") discountAmount += baseAmount * (Number(discount.value) / 100);
+            if (type?.calc_type === "fixed") discountAmount += Number(discount.value);
+          }
+          discountAmount = Math.min(discountAmount, baseAmount);
+          const finalAmount = baseAmount - discountAmount;
+          totalAmount += finalAmount;
+          detailInputs.push({ school_id: schoolId, invoice_id: "", fee_structure_id: fee.id, description: categoryById.get(fee.fee_category_id)?.name ?? fee.fee_category_id, base_amount: baseAmount, discount_amount: discountAmount, final_amount: finalAmount });
+        }
 
-      // Insert invoice details
-      for (const detail of invoiceDetails) {
-        const { error: detailError } = await supabase
-          .from("invoice_details")
-          .insert({
-            school_id: schoolId,
-            invoice_id: invoice.id,
-            ...detail,
-          });
+        const { data: invoice, error: invoiceError } = await supabase.from("invoices").insert({ school_id: schoolId, student_id: student.id, guardian_id: guardianId, academic_year_id, period_label: period, issue_date: new Date().toISOString().slice(0, 10), due_date: group.dueDate, total_amount: totalAmount }).select("id").single();
+        if (invoiceError || !invoice) throw invoiceError ?? new Error("Gagal membuat tagihan.");
+        const details = detailInputs.map((detail) => ({ ...detail, invoice_id: invoice.id }));
+        const { error: detailError } = await supabase.from("invoice_details").insert(details);
         if (detailError) throw detailError;
+        generatedCount++;
       }
-
-      generatedCount++;
     }
 
-    // Update log
-    await supabase
-      .from("billing_run_logs")
-      .update({
-        status: "selesai",
-        total_invoices_generated: generatedCount,
-      })
-      .eq("id", runLog.id);
-
-    return okResult(`Berhasil generate ${generatedCount} tagihan untuk periode "${period_label}".`);
+    await supabase.from("billing_run_logs").update({ status: "selesai", total_invoices_generated: generatedCount }).eq("id", runLog.id).eq("school_id", schoolId);
+    return okResult(`Berhasil generate ${generatedCount} tagihan untuk ${runLabel}.`);
   } catch (error) {
-    // Update log to gagal
-    await supabase
-      .from("billing_run_logs")
-      .update({
-        status: "gagal",
-        error_message: error instanceof Error ? error.message : "Unknown error",
-      })
-      .eq("id", runLog.id);
-
+    await supabase.from("billing_run_logs").update({ status: "gagal", error_message: error instanceof Error ? error.message : "Unknown error" }).eq("id", runLog.id).eq("school_id", schoolId);
     return errResult(serverError(error, `Job generate tagihan gagal: ${error instanceof Error ? error.message : JSON.stringify(error)}`));
   }
 }
@@ -294,86 +252,28 @@ export async function generateInvoices(
 export async function deleteInvoice(
   deps: BillingMutationsDeps,
   current: CurrentUser,
-  payload: { id: string }
+  payload: { id: string },
 ): Promise<MutationResult> {
   const schoolId = SCHOOL_ID(current);
-  if (!schoolId) {
-    return errResult("Hanya admin sekolah yang dapat menjalankan aksi ini.");
-  }
-
-  const { supabase } = deps;
-  const { id } = payload;
-
-  const { data: invoice } = await supabase
-    .from("invoices")
-    .select("status")
-    .eq("id", id)
-    .eq("school_id", schoolId)
-    .single();
-
-  if (!invoice) {
-    return errResult("Tagihan tidak ditemukan.");
-  }
-
-  if (invoice.status !== "belum_bayar") {
-    return errResult("Tidak dapat menghapus tagihan yang sudah memiliki riwayat pembayaran.");
-  }
-
-  const { error } = await supabase
-    .from("invoices")
-    .delete()
-    .eq("id", id)
-    .eq("school_id", schoolId);
-
-  if (error) {
-    return errResult(serverError(error, "Gagal menghapus tagihan."));
-  }
-
-  return okResult("Tagihan berhasil dihapus.");
+  if (!schoolId) return errResult("Hanya admin sekolah yang dapat menjalankan aksi ini.");
+  const { data: invoice } = await deps.supabase.from("invoices").select("status").eq("id", payload.id).eq("school_id", schoolId).single();
+  if (!invoice) return errResult("Tagihan tidak ditemukan.");
+  if (invoice.status !== "belum_bayar") return errResult("Tidak dapat menghapus tagihan yang sudah memiliki riwayat pembayaran.");
+  const { error } = await deps.supabase.from("invoices").delete().eq("id", payload.id).eq("school_id", schoolId);
+  return error ? errResult(serverError(error, "Gagal menghapus tagihan.")) : okResult("Tagihan berhasil dihapus.");
 }
 
 export async function bulkDeleteInvoice(
   deps: BillingMutationsDeps,
   current: CurrentUser,
-  payload: { ids: string[] }
+  payload: { ids: string[] },
 ): Promise<MutationResult> {
   const schoolId = SCHOOL_ID(current);
-  if (!schoolId) {
-    return errResult("Hanya admin sekolah yang dapat menjalankan aksi ini.");
-  }
-
-  const { supabase } = deps;
-  const { ids } = payload;
-
-  if (!ids || ids.length === 0) {
-    return errResult("Tidak ada tagihan yang dipilih.");
-  }
-
-  // Cek apakah ada yang sudah dibayar
-  const { data: invoices } = await supabase
-    .from("invoices")
-    .select("status")
-    .in("id", ids)
-    .eq("school_id", schoolId);
-
-  if (!invoices || invoices.length === 0) {
-    return errResult("Tagihan tidak ditemukan.");
-  }
-
-  const hasPaid = invoices.some((inv) => inv.status !== "belum_bayar");
-  if (hasPaid) {
-    return errResult("Tidak dapat menghapus tagihan karena ada yang sudah memiliki riwayat pembayaran.");
-  }
-
-  const { error } = await supabase
-    .from("invoices")
-    .delete()
-    .in("id", ids)
-    .eq("school_id", schoolId);
-
-  if (error) {
-    return errResult(serverError(error, "Gagal menghapus tagihan dalam jumlah banyak."));
-  }
-
-  return okResult(`${ids.length} tagihan berhasil dihapus.`);
+  if (!schoolId) return errResult("Hanya admin sekolah yang dapat menjalankan aksi ini.");
+  if (!payload.ids.length) return errResult("Tidak ada tagihan yang dipilih.");
+  const { data: invoices } = await deps.supabase.from("invoices").select("status").in("id", payload.ids).eq("school_id", schoolId);
+  if (!invoices?.length) return errResult("Tagihan tidak ditemukan.");
+  if (invoices.some((invoice) => invoice.status !== "belum_bayar")) return errResult("Tidak dapat menghapus tagihan karena ada yang sudah memiliki riwayat pembayaran.");
+  const { error } = await deps.supabase.from("invoices").delete().in("id", payload.ids).eq("school_id", schoolId);
+  return error ? errResult(serverError(error, "Gagal menghapus tagihan dalam jumlah banyak.")) : okResult(`${payload.ids.length} tagihan berhasil dihapus.`);
 }

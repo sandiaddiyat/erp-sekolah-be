@@ -5,7 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import type { AcademicYear, Invoice, InvoiceDetail, BillingRunLog } from "@/lib/types";
 
 type FeeCategoryOption = { id: string; name: string; billing_cycle: string };
-type FeeStructureDueOption = { fee_category_id: string; due_day: number | null; due_date: string | null };
+type FeeStructureDueOption = {
+  id: string;
+  academic_year_id: string;
+  fee_category_id: string;
+  due_day: number | null;
+  due_date: string | null;
+};
 import { TagihanOtomatisClient } from "./tagihan-otomatis-client";
 
 export const metadata = { title: "Tagihan Otomatis" };
@@ -18,7 +24,7 @@ export default async function TagihanOtomatisPage() {
   const [yearsResult, invoicesResult, detailsResult, logsResult, categoriesResult, structuresResult] = await Promise.all([
     supabase
       .from("academic_years")
-      .select("id, name, status")
+      .select("id, name, status, start_date, end_date")
       .eq("school_id", schoolId)
       .order("start_date", { ascending: false }),
     supabase
@@ -42,7 +48,7 @@ export default async function TagihanOtomatisPage() {
       .order("name", { ascending: true }),
     supabase
       .from("fee_structures")
-      .select("fee_category_id, due_day, due_date")
+      .select("id, academic_year_id, fee_category_id, due_day, due_date")
       .eq("school_id", schoolId),
   ]);
 

@@ -4,32 +4,32 @@ import { z } from "zod";
  * Kontrak input untuk job generate tagihan otomatis dan rekonsiliasi.
  */
 
-const optionalDate = z
-  .string()
-  .trim()
-  .optional()
-  .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Format tanggal tidak valid.");
-
 export const generateInvoicesSchema = z.object({
   academic_year_id: z
     .string()
     .trim()
     .min(1, "Tahun ajaran wajib dipilih")
     .refine((v) => z.uuid().safeParse(v).success, "Tahun ajaran tidak valid."),
-  period_label: z.string().trim().min(1, "Periode wajib diisi"),
-  due_date: z
+  mode: z.enum(["full_year", "single_period"]).default("full_year"),
+  period_label: z.string().trim().optional(),
+  custom_due_date: z
     .string()
     .trim()
-    .min(1, "Tanggal jatuh tempo wajib diisi")
-    .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v), "Format tanggal tidak valid."),
+    .optional()
+    .transform((v) => v || null)
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Format tanggal tidak valid."),
   only_without_invoice: z
     .string()
     .trim()
     .optional()
     .transform((v) => v === "true" || v === "on" || v === "1"),
   fee_category_ids: z
-    .array(z.string())
+    .array(z.string().uuid("Komponen biaya tidak valid"))
     .min(1, "Pilih minimal satu komponen biaya"),
+}).superRefine((value, context) => {
+  if (value.mode === "single_period" && !value.period_label) {
+    context.addIssue({ code: "custom", path: ["period_label"], message: "Periode wajib diisi untuk mode satu periode." });
+  }
 });
 
 export type GenerateInvoicesInput = z.infer<typeof generateInvoicesSchema>;
@@ -45,10 +45,11 @@ export function readGenerateInvoicesInput(formData: FormData): GenerateInvoicesP
 
   const parsed = generateInvoicesSchema.safeParse({
     academic_year_id: getVal("academic_year_id"),
+    mode: getVal("mode") || "full_year",
     period_label: getVal("period_label"),
-    due_date: getVal("due_date"),
+    custom_due_date: getVal("custom_due_date") || getVal("due_date"),
     only_without_invoice: getVal("only_without_invoice"),
-    fee_category_ids: formData.getAll("fee_category_ids").length > 0 
+    fee_category_ids: formData.getAll("fee_category_ids").length > 0
       ? formData.getAll("fee_category_ids")
       : formData.getAll("_1_fee_category_ids"),
   });
