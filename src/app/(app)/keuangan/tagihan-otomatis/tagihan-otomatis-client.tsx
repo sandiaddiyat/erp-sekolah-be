@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState, useActionState } from "react";
+import { startTransition, useEffect, useMemo, useState, useActionState } from "react";
 import { toast } from "sonner";
 import { PlusIcon, FileText, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,19 +18,13 @@ import { FinanceDataTable } from "@/components/finance/finance-data-table";
 
 type FormState = { error?: string; success?: string } | undefined;
 type FeeCategoryOption = { id: string; name: string; billing_cycle: string };
-type FeeStructureDueOption = { fee_category_id: string; due_day: number | null; due_date: string | null };
-
-function suggestDueDate(categoryIds: string[], structures: FeeStructureDueOption[]): string {
-  const selectedStructures = structures.filter((structure) => categoryIds.includes(structure.fee_category_id));
-  const exactDate = selectedStructures.find((structure) => structure.due_date)?.due_date;
-  if (exactDate) return exactDate.slice(0, 10);
-
-  const monthlyStructure = selectedStructures.find((structure) => structure.due_day);
-  if (!monthlyStructure?.due_day) return "";
-
-  const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(monthlyStructure.due_day).padStart(2, "0")}`;
-}
+type FeeStructureDueOption = {
+  id: string;
+  academic_year_id: string;
+  fee_category_id: string;
+  due_day: number | null;
+  due_date: string | null;
+};
 
 const STATUS_VARIANT: Record<Invoice["status"], "default" | "secondary" | "destructive" | "outline"> = {
   belum_bayar: "default",
@@ -384,8 +378,24 @@ function GenerateInvoicesDialog({
   onSaved: () => void;
 }) {
   const [state, formAction, isSubmitting] = useActionState<FormState, FormData>(runGenerateInvoices, undefined);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(() => feeCategories.map((category) => category.id));
-  const [dueDate, setDueDate] = useState(() => suggestDueDate(feeCategories.map((category) => category.id), feeStructures));
+  const [selectedYearId, setSelectedYearId] = useState(() => yearOptions[0]?.id ?? "");
+  const initialCategories = feeCategories.filter((category) =>
+    feeStructures.some((structure) => structure.academic_year_id === (yearOptions[0]?.id ?? "") && structure.fee_category_id === category.id),
+  );
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(() => initialCategories.map((category) => category.id));
+  const [mode, setMode] = useState<"full_year" | "single_period">("full_year");
+  const [periodLabel, setPeriodLabel] = useState("");
+  const [customDueEnabled, setCustomDueEnabled] = useState(false);
+  const [customDueDate, setCustomDueDate] = useState("");
+
+  const availableCategories = useMemo(() => {
+    const validCategoryIds = new Set(
+      feeStructures
+        .filter((structure) => structure.academic_year_id === selectedYearId)
+        .map((structure) => structure.fee_category_id),
+    );
+    return feeCategories.filter((category) => validCategoryIds.has(category.id));
+  }, [feeCategories, feeStructures, selectedYearId]);
 
   useEffect(() => {
     if (state?.success) {
@@ -411,52 +421,66 @@ function GenerateInvoicesDialog({
           </DialogHeader>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-7 pt-[22px] pb-[25px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <input type="hidden" name="mode" value={mode} />
             <div className="space-y-2">
               <FieldLabel htmlFor="academic_year_id" required>Tahun Ajaran</FieldLabel>
-              <Select name="academic_year_id" required>
+              <Select name="academic_year_id" value={selectedYearId} onValueChange={(value) => {
+                const nextYearId = value ?? "";
+                setSelectedYearId(nextYearId);
+                const next = feeCategories.filter((category) => feeStructures.some((structure) => structure.academic_year_id === nextYearId && structure.fee_category_id === category.id));
+                setSelectedCategoryIds(next.map((category) => category.id));
+                setCustomDueDate("");
+              }} required>
                 <SelectTrigger id="academic_year_id" className={FORM_INPUT_CLASS}>
-                  <SelectValue placeholder="Pilih tahun ajaran">
-                    {(val: string) => {
-                      if (!val) return "Pilih tahun ajaran";
-                      const y = yearOptions.find((opt) => opt.id === val);
-                      return y ? y.name : val;
-                    }}
-                  </SelectValue>
+                  <SelectValue placeholder="Pilih tahun ajaran" />
                 </SelectTrigger>
                 <SelectContent>
-                  {yearOptions.map((y) => (
-                    <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
-                  ))}
+                  {yearOptions.map((year) => <SelectItem key={year.id} value={year.id}>{year.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <FieldLabel htmlFor="period_label" required>Periode Tagihan</FieldLabel>
-              <Input id="period_label" name="period_label" placeholder="Contoh: Sep 2025 / Bulanan" required className={FORM_INPUT_CLASS} />
+              <FieldLabel htmlFor="mode" required>Mode Generate</FieldLabel>
+              <select id="mode" value={mode} onChange={(event) => setMode(event.target.value as "full_year" | "single_period")} className={FORM_INPUT_CLASS}>
+                <option value="full_year">Satu tahun ajaran penuh</option>
+                <option value="single_period">Satu periode</option>
+              </select>
+            </div>
+
+            {mode === "single_period" ? (
+              <div className="space-y-2">
+                <FieldLabel htmlFor="period_label" required>Periode Tagihan</FieldLabel>
+                <Input id="period_label" name="period_label" value={periodLabel} onChange={(event) => setPeriodLabel(event.target.value)} placeholder="Contoh: Juli 2025" required className={FORM_INPUT_CLASS} />
+              </div>
+            ) : null}
+
+            <div className="rounded-[10px] border border-[#dbe8df] bg-[#f4faf6] p-3.5 text-[11px] text-[#2b7254]">
+              <p className="font-semibold">Informasi tanggal jatuh tempo</p>
+              <ul className="mt-1 list-disc pl-4 text-[10px] leading-relaxed text-[#517a66]">
+                <li>Biaya bulanan mengikuti hari tagih pada Skema Biaya setiap bulan.</li>
+                <li>Biaya non-bulanan mengikuti tanggal kalender pada Skema Biaya.</li>
+              </ul>
             </div>
 
             <div className="space-y-2">
-              <FieldLabel htmlFor="due_date" required>Tanggal Jatuh Tempo</FieldLabel>
-              <Input
-                id="due_date"
-                name="due_date"
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                required
-                className={FORM_INPUT_CLASS}
-              />
-              <p className="text-[10px] text-[#8b9f95]">Tanggal terisi otomatis dari skema biaya dan tetap dapat diubah.</p>
+              <div className="flex items-center gap-3">
+                <Checkbox id="custom_due_date_enabled" checked={customDueEnabled} onCheckedChange={(checked) => setCustomDueEnabled(checked === true)} className="rounded-[4px] border-[#c0cfc6] data-[state=checked]:bg-[#185743] data-[state=checked]:border-[#185743] text-white h-4 w-4" />
+                <label htmlFor="custom_due_date_enabled" className="text-[11px] font-medium text-[#36584a]">Gunakan tanggal jatuh tempo kustom</label>
+              </div>
+              {customDueEnabled ? <Input id="custom_due_date" name="custom_due_date" type="date" value={customDueDate} onChange={(event) => setCustomDueDate(event.target.value)} required className={FORM_INPUT_CLASS} /> : null}
             </div>
 
             <div className="space-y-2">
               <FieldLabel required>Pilih Kategori Biaya</FieldLabel>
               <div className="grid grid-cols-2 gap-3 mt-2 rounded-[10px] border border-[#e5eee8] bg-[#fcfdfc] p-4 shadow-sm">
-                {feeCategories.length === 0 ? (
-                  <p className="text-[11px] text-[#8b9f95] col-span-2">Tidak ada kategori biaya yang terdaftar.</p>
+                {availableCategories.length === 0 ? (
+                  <div className="col-span-2 rounded-[9px] border border-[#f0dedb] bg-[#fdf7f6] p-4 text-center">
+                    <p className="text-[11px] font-semibold text-[#a04b40]">Belum ada skema biaya untuk tahun ajaran ini.</p>
+                    <p className="mt-1 text-[10px] text-[#8b9f95]">Silakan atur tarif terlebih dahulu di menu <a href="/keuangan/skema-biaya" className="font-bold text-[#185743] underline">Skema Biaya</a>.</p>
+                  </div>
                 ) : (
-                  feeCategories.map((cat) => (
+                  availableCategories.map((cat) => (
                     <div key={cat.id} className="flex items-center gap-2">
                       <Checkbox 
                         id={`cat-${cat.id}`} 
@@ -468,7 +492,6 @@ function GenerateInvoicesDialog({
                             ? [...selectedCategoryIds, cat.id]
                             : selectedCategoryIds.filter((id) => id !== cat.id);
                           setSelectedCategoryIds(next);
-                          setDueDate(suggestDueDate(next, feeStructures));
                         }}
                         className="rounded-[4px] border-[#c0cfc6] data-[state=checked]:bg-[#185743] data-[state=checked]:border-[#185743] text-white h-4 w-4" 
                       />
