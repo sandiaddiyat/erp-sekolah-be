@@ -4,7 +4,7 @@ import { serverError } from "@/lib/errors";
 import { errResult, okResult, type MutationResult } from "@/lib/result";
 import type { CurrentUser, ReceiptTemplate } from "@/lib/types";
 import type { SaveReceiptTemplateInput } from "./schema";
-import { angkaTerbilang, renderReceiptTemplate, sanitizeReceiptCss, sanitizeReceiptHtml } from "./template";
+import { DEFAULT_RECEIPT_TEMPLATE, angkaTerbilang, renderReceiptTemplate, sanitizeReceiptCss, sanitizeReceiptHtml } from "./template";
 
 export type ReceiptTemplateDeps = { supabase: SupabaseClient<Database> };
 
@@ -29,6 +29,24 @@ function schoolIdOf(current: CurrentUser): string | null {
 
 function toTemplate(row: ReceiptTemplateRow): ReceiptTemplate {
   return row;
+}
+
+function toRenderableTemplate(row: ReceiptTemplateRow): ReceiptTemplate {
+  const requiredPlaceholders = [
+    "{{nama_siswa}}",
+    "{{tanggal_bayar}}",
+    "{{metode_pembayaran}}",
+    "{{nominal}}",
+    "{{rincian_biaya}}",
+    "{{nama_petugas}}",
+  ];
+  const hasDynamicValues = requiredPlaceholders.every((placeholder) => row.content_html.includes(placeholder));
+  if (hasDynamicValues) return toTemplate(row);
+  return {
+    ...row,
+    content_html: DEFAULT_RECEIPT_TEMPLATE.content_html,
+    content_css: DEFAULT_RECEIPT_TEMPLATE.content_css,
+  };
 }
 
 async function getStudentClassName(
@@ -165,10 +183,35 @@ export async function getReceiptRecord(
     payment: { amount: Number(payment.nominal), date: payment.diverifikasi_pada ?? payment.created_at, method: "", note: payment.catatan ?? "", officer: officer?.full_name ?? "Petugas Keuangan" },
     student: { name: "", number: "", className: "" },
     lines: [] as ReceiptLine[],
-    template: toTemplate(template),
+    template: toRenderableTemplate(template),
   };
 
-  if (payment.bill_id) {
+  const { data: paymentItems } = await supabase
+    .from("payment_invoices")
+    .select("invoice_id, amount, invoices!payment_invoices_invoice_tenant_fkey(student_id, period_label)")
+    .eq("payment_id", payment.id)
+    .eq("school_id", schoolId);
+
+  if (paymentItems && paymentItems.length > 0) {
+    const firstItem = paymentItems[0];
+    const firstInvoice = Array.isArray(firstItem.invoices) ? firstItem.invoices[0] : firstItem.invoices;
+    const studentId = firstInvoice?.student_id;
+    if (!studentId) return null;
+
+    const [{ data: student }, className, { data: method }] = await Promise.all([
+      supabase.from("students").select("nama_lengkap,nis,nisn").eq("id", studentId).eq("school_id", schoolId).maybeSingle(),
+      getStudentClassName(supabase, schoolId, studentId),
+      supabase.from("payment_methods").select("name").eq("id", payment.payment_method_id ?? "").eq("school_id", schoolId).maybeSingle(),
+    ]);
+
+    base.source = "invoice";
+    base.student = { name: student?.nama_lengkap ?? "", number: student?.nis ?? student?.nisn ?? "", className };
+    base.payment.method = method?.name ?? payment.metode ?? "Kas / Bank";
+    base.lines = paymentItems.map((item) => {
+      const invoice = Array.isArray(item.invoices) ? item.invoices[0] : item.invoices;
+      return { description: invoice?.period_label ?? "Tagihan", amount: Number(item.amount) };
+    });
+  } else if (payment.bill_id) {
     const { data: bill } = await supabase
       .from("bills")
       .select("student_id,deskripsi,nominal,diskon")
@@ -183,42 +226,65 @@ export async function getReceiptRecord(
     base.payment.method = payment.metode ?? "";
     base.lines = [{ description: bill.deskripsi, amount: Number(bill.nominal) - Number(bill.diskon ?? 0) }];
   } else {
-    const { data: method } = await supabase.from("payment_methods").select("name").eq("id", payment.payment_method_id ?? "").eq("school_id", schoolId).maybeSingle();
-    
-    const { data: paymentItems } = await supabase
-      .from("payment_invoices")
-      .select("invoice_id, amount, invoices(student_id, total_amount, period_label)")
-      .eq("payment_id", payment.id)
-      .eq("school_id", schoolId);
-
-    if (!paymentItems || paymentItems.length === 0) return null;
-
-    const firstItem = paymentItems[0];
-    // Supabase JS types for joined table can be an array or object depending on relationship (many-to-one is object)
-    const inv = Array.isArray(firstItem.invoices) ? firstItem.invoices[0] : firstItem.invoices;
-    const studentId = inv?.student_id;
-    if (!studentId) return null;
-
-    const [{ data: student }, className] = await Promise.all([
-      supabase.from("students").select("nama_lengkap,nis,nisn").eq("id", studentId).eq("school_id", schoolId).maybeSingle(),
-      getStudentClassName(supabase, schoolId, studentId),
-    ]);
-    
-    base.source = "invoice";
-    base.student = { name: student?.nama_lengkap ?? "", number: student?.nis ?? student?.nisn ?? "", className };
-    base.payment.method = method?.name ?? "";
-    
-    // Rincian pembayaran adalah tiap invoice yang dibayar di transaksi ini beserta nominal alokasinya.
-    base.lines = paymentItems.map((item) => {
-      const invoiceData = Array.isArray(item.invoices) ? item.invoices[0] : item.invoices;
-      return {
-        description: invoiceData?.period_label ?? "Tagihan",
-        amount: Number(item.amount),
-      };
-    });
+    return null;
   }
 
   return base;
+}
+
+export async function getCombinedInvoicesReceiptRecord(
+  deps: ReceiptTemplateDeps,
+  current: CurrentUser,
+  invoiceIds: string[]
+): Promise<ReceiptViewModel | null> {
+  const schoolId = schoolIdOf(current);
+  const uniqueInvoiceIds = [...new Set(invoiceIds.filter(Boolean))];
+  if (!schoolId || uniqueInvoiceIds.length === 0) return null;
+
+  const supabase = deps.supabase;
+  const { data: invoices, error: invoicesError } = await supabase
+    .from("invoices")
+    .select("id, student_id, period_label, total_amount, status")
+    .in("id", uniqueInvoiceIds)
+    .eq("school_id", schoolId);
+
+  if (invoicesError || !invoices || invoices.length !== uniqueInvoiceIds.length) return null;
+  const studentId = invoices[0].student_id;
+  if (invoices.some((invoice) => invoice.student_id !== studentId || invoice.status !== "lunas")) return null;
+
+  const [{ data: school }, { data: template }, { data: student }, className, { data: allocations }] = await Promise.all([
+    supabase.from("schools").select("name,address,phone,logo_url").eq("id", schoolId).maybeSingle(),
+    supabase.from("receipt_templates").select("*").eq("school_id", schoolId).eq("is_default", true).maybeSingle(),
+    supabase.from("students").select("nama_lengkap,nis,nisn").eq("id", studentId).eq("school_id", schoolId).maybeSingle(),
+    getStudentClassName(supabase, schoolId, studentId),
+    supabase.from("payment_invoices").select("invoice_id, payment_id, created_at, payments!payment_invoices_payment_tenant_fkey(status, diverifikasi_pada, created_at, payment_method_id, metode)").in("invoice_id", uniqueInvoiceIds).eq("school_id", schoolId).order("created_at", { ascending: false }),
+  ]);
+
+  if (!school || !template) return null;
+  const verifiedPayments = (allocations ?? []).filter((allocation) => {
+    const payment = Array.isArray(allocation.payments) ? allocation.payments[0] : allocation.payments;
+    return payment?.status === "terverifikasi";
+  });
+  const latest = verifiedPayments[0];
+  const latestPayment = latest ? (Array.isArray(latest.payments) ? latest.payments[0] : latest.payments) : null;
+  const totalAmount = invoices.reduce((sum, invoice) => sum + Number(invoice.total_amount), 0);
+  const receiptDate = latestPayment?.diverifikasi_pada ?? latestPayment?.created_at ?? new Date().toISOString();
+  const methodId = latestPayment?.payment_method_id;
+  const { data: method } = methodId
+    ? await supabase.from("payment_methods").select("name").eq("id", methodId).eq("school_id", schoolId).maybeSingle()
+    : { data: null };
+  const receiptCode = `KW-${new Date(receiptDate).getFullYear()}-${Date.now().toString().slice(-6)}`;
+
+  return {
+    paymentId: uniqueInvoiceIds.join(","),
+    source: "invoice",
+    receiptNumber: receiptCode,
+    school: { name: school.name, address: school.address ?? "", phone: school.phone ?? "", logoUrl: school.logo_url ?? "", city: "" },
+    payment: { amount: totalAmount, date: receiptDate, method: method?.name ?? latestPayment?.metode ?? "Kas / Bank", note: "Pembayaran Tagihan Gabungan", officer: current.profile.full_name || "Petugas Keuangan" },
+    student: { name: student?.nama_lengkap ?? "", number: student?.nis ?? student?.nisn ?? "", className },
+    lines: invoices.map((invoice) => ({ description: invoice.period_label || "Tagihan", amount: Number(invoice.total_amount) })),
+    template: toRenderableTemplate(template),
+  };
 }
 
 export function receiptTemplateValues(receipt: ReceiptViewModel): Record<string, string> {

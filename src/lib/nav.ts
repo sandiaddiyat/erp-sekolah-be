@@ -137,6 +137,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "keuangan",
   },
   {
+    title: "WhatsApp & Notifikasi",
+    href: "/keuangan/pengaturan-wa",
+    icon: "keuangan",
+    permission: PERMISSIONS.financeWhatsAppView,
+    group: "keuangan",
+  },
+  {
     title: "Akademik",
     href: "/akademik/tahun-ajaran",
     icon: "siswa",

@@ -368,6 +368,51 @@ export type Payment = {
   diverifikasi_pada: string | null;
 };
 
+export type WhatsAppProvider = "fonnte" | "wablas";
+
+export type WhatsAppSettings = {
+  id: string;
+  school_id: string;
+  provider: WhatsAppProvider;
+  api_token: string;
+  sender_number: string | null;
+  is_active: boolean;
+  auto_send_invoice: boolean;
+  auto_send_receipt: boolean;
+  template_invoice: string;
+  template_receipt: string;
+  webhook_secret: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WhatsAppLog = {
+  id: string;
+  school_id: string;
+  recipient_phone: string;
+  recipient_name: string | null;
+  message_type: "invoice" | "receipt" | "reminder" | "bot_inbound";
+  content: string;
+  status: "pending" | "sent" | "failed";
+  response_payload: Record<string, unknown> | null;
+  error_message: string | null;
+  invoice_id: string | null;
+  payment_id: string | null;
+  student_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReceiptAccessToken = {
+  id: string;
+  school_id: string;
+  payment_id: string;
+  token: string;
+  expires_at: string;
+  view_count: number;
+  created_at: string;
+};
+
 export type ReceiptTemplate = {
   id: string;
   school_id: string;

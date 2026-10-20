@@ -1,7 +1,7 @@
 import { ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-const BUTTON_CLASS = "h-8 rounded-[9px] border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]";
+const BUTTON_CLASS = "inline-flex h-8 items-center justify-center gap-1 rounded-[9px] border border-[#e1ebe4] bg-white px-2.5 text-[10px] font-bold text-[#537467] transition-colors hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254] disabled:pointer-events-none disabled:opacity-50";
 
 export function TablePaginationControls({
   page,
@@ -18,28 +18,24 @@ export function TablePaginationControls({
 
   return (
     <div className="flex items-center gap-1.5">
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="sm"
         aria-label="Halaman pertama"
         title="Halaman pertama"
         disabled={safePage <= 1}
         onClick={() => goToPage(1)}
-        className={BUTTON_CLASS}
+        className={cn(BUTTON_CLASS, "h-7 px-2.5")}
       >
         <ChevronsLeftIcon className="size-3.5" />
-      </Button>
-      <Button
+      </button>
+      <button
         type="button"
-        variant="outline"
-        size="sm"
         disabled={safePage <= 1}
         onClick={() => goToPage(safePage - 1)}
-        className={BUTTON_CLASS}
+        className={cn(BUTTON_CLASS, "h-7 px-2.5")}
       >
         Sebelumnya
-      </Button>
+      </button>
       <label className="flex items-center gap-1 text-[10px] font-bold text-[#6c8279]">
         <span className="sr-only">Nomor halaman</span>
         <input
@@ -56,28 +52,24 @@ export function TablePaginationControls({
         />
         <span>/ {safeTotalPages}</span>
       </label>
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="sm"
         disabled={safePage >= safeTotalPages}
         onClick={() => goToPage(safePage + 1)}
-        className={BUTTON_CLASS}
+        className={cn(BUTTON_CLASS, "h-7 px-2.5")}
       >
         Berikutnya
-      </Button>
-      <Button
+      </button>
+      <button
         type="button"
-        variant="outline"
-        size="sm"
         aria-label="Halaman terakhir"
         title="Halaman terakhir"
         disabled={safePage >= safeTotalPages}
         onClick={() => goToPage(safeTotalPages)}
-        className={BUTTON_CLASS}
+        className={cn(BUTTON_CLASS, "h-7 px-2.5")}
       >
         <ChevronsRightIcon className="size-3.5" />
-      </Button>
+      </button>
     </div>
   );
 }

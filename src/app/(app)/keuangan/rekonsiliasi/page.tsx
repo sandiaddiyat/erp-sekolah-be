@@ -28,13 +28,15 @@ export default async function RekonsiliasiPage() {
       .order("jatuh_tempo", { ascending: false }),
     supabase
       .from("payments")
-       .select("id, invoice_id, bill_id, nominal, status, created_at")
+      .select("id, invoice_id, bill_id, nominal, status, created_at")
       .eq("school_id", schoolId)
-      .eq("status", "terverifikasi"),
+      .eq("status", "terverifikasi")
+      .order("created_at", { ascending: false }),
     supabase
       .from("payment_invoices")
       .select("payment_id, invoice_id, amount, created_at")
-      .eq("school_id", schoolId),
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false }),
     supabase
       .from("payment_methods")
       .select("*")

@@ -141,7 +141,8 @@ export function VisualBuilderDialog({
     });
   };
 
-  const previewHtml = useMemo(() => generatePreviewHtml(config), [config]);
+  const templateHtml = useMemo(() => generatePreviewHtml(config), [config]);
+  const previewHtml = useMemo(() => renderPreviewHtml(templateHtml), [templateHtml]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,7 +151,7 @@ export function VisualBuilderDialog({
           {editing?.id && <input type="hidden" name="id" value={editing.id} />}
           <input type="hidden" name="name" value={templateName} />
           <input type="hidden" name="is_default" value={isDefault ? "on" : ""} />
-          <input type="hidden" name="content_html" value={previewHtml} />
+          <input type="hidden" name="content_html" value={templateHtml} />
           <input type="hidden" name="content_css" value="" />
 
           <DialogHeader className="shrink-0 border-b border-[#e5eee8] bg-white px-6 py-4 text-[#183d32]">
@@ -456,6 +457,20 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
   );
 }
 
+function renderPreviewHtml(templateHtml: string): string {
+  return templateHtml
+    .replaceAll("{{nomor_kuitansi}}", "KW-2025-XXXXXX")
+    .replaceAll("{{tanggal_bayar}}", "1 Oktober 2025")
+    .replaceAll("{{nama_siswa}}", "Ahmad Fauzi")
+    .replaceAll("{{nomor_induk}}", "12345 / 678901")
+    .replaceAll("{{kelas}}", "VII-A")
+    .replaceAll("{{metode_pembayaran}}", "Tunai")
+    .replaceAll("{{nama_petugas}}", "Bendahara TU")
+    .replaceAll("{{terbilang}}", "Lima Ratus Ribu Rupiah")
+    .replaceAll("{{nominal}}", "Rp 500.000")
+    .replaceAll("{{rincian_biaya}}", "<tr><td>1</td><td>SPP Bulan Oktober 2025</td><td class=\"text-right\">Rp 500.000</td></tr>");
+}
+
 function generatePreviewHtml(config: TemplateConfig): string {
   const borderClass = config.showDoubleBorder ? "border-t-4 border-b-4 border-forest" : "border-t-2 border-b-2 border-forest";
   const showNoKuitansi = config.activeTags.includes("no-kuitansi");
@@ -469,27 +484,23 @@ function generatePreviewHtml(config: TemplateConfig): string {
   const showWali = config.activeTags.includes("wali-phone") && config.showWaliPhone;
 
   const rows = [];
-  if (showNoKuitansi) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">No. Kuitansi</span><span class="font-mono text-slate-800">KW-2025-XXXXXX</span></div>`);
-  if (showTanggal) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Tanggal Bayar</span><span class="text-slate-800">1 Oktober 2025</span></div>`);
-  if (showNama) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Nama Siswa</span><span class="text-slate-800">Ahmad Fauzi</span></div>`);
-  if (showNis) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">NIS/NISN</span><span class="text-slate-800">12345 / 678901</span></div>`);
-  if (showKelas) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Kelas/Jurusan</span><span class="text-slate-800">VII-A</span></div>`);
-  if (showMetode) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Metode Pembayaran</span><span class="text-slate-800">Tunai</span></div>`);
-  if (showPetugas) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Petugas</span><span class="text-slate-800">Bendahara TU</span></div>`);
+  if (showNoKuitansi) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">No. Kuitansi</span><span class="font-mono text-slate-800">{{nomor_kuitansi}}</span></div>`);
+  if (showTanggal) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Tanggal Bayar</span><span class="text-slate-800">{{tanggal_bayar}}</span></div>`);
+  if (showNama) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Nama Siswa</span><span class="text-slate-800">{{nama_siswa}}</span></div>`);
+  if (showNis) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">NIS/NISN</span><span class="text-slate-800">{{nomor_induk}}</span></div>`);
+  if (showKelas) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Kelas/Jurusan</span><span class="text-slate-800">{{kelas}}</span></div>`);
+  if (showMetode) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Metode Pembayaran</span><span class="text-slate-800">{{metode_pembayaran}}</span></div>`);
+  if (showPetugas) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">Petugas</span><span class="text-slate-800">{{nama_petugas}}</span></div>`);
   if (showVa) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">VA Ref</span><span class="text-slate-800">1234567890</span></div>`);
   if (showWali) rows.push(`<div class="flex justify-between text-[11px]"><span class="font-semibold text-slate-600">No. Telp Wali</span><span class="text-slate-800">08123456789</span></div>`);
 
   const terbilangHtml = config.showTerbilang
-    ? `<div class="mt-3 border-t border-dashed border-slate-300 pt-2 text-[11px]"><span class="font-semibold text-slate-600">Terbilang:</span> <span class="italic text-slate-700">Lima Ratus Ribu Rupiah</span></div>`
+    ? `<div class="mt-3 border-t border-dashed border-slate-300 pt-2 text-[11px]"><span class="font-semibold text-slate-600">Terbilang:</span> <span class="italic text-slate-700">{{terbilang}}</span></div>`
     : "";
 
   const keteranganCol = config.showKeterangan
     ? `<th class="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-600">Keterangan</th>`
     : "";
-  const keteranganRow = config.showKeterangan
-    ? `<td class="px-3 py-2 text-[11px] text-slate-700">Lunas</td>`
-    : "";
-
   const signatureCols = config.signatureModel === "1-col" ? 1 : config.signatureModel === "2-col" ? 2 : 3;
   const signatureWidth = signatureCols === 1 ? "w-1/3" : signatureCols === 2 ? "w-1/2" : "w-1/3";
   let signatures = "";
@@ -546,18 +557,13 @@ function generatePreviewHtml(config: TemplateConfig): string {
           ${keteranganCol}
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td class="border-b border-slate-200 px-3 py-2 text-[11px] text-slate-700">1</td>
-          <td class="border-b border-slate-200 px-3 py-2 text-[11px] text-slate-700">SPP Bulan Oktober 2025</td>
-          <td class="border-b border-slate-200 px-3 py-2 text-right text-[11px] text-slate-700">Rp 500.000</td>
-          ${keteranganRow}
-        </tr>
+      <tbody>{{rincian_biaya}}</tbody>
+      <tfoot>
         <tr class="bg-slate-50">
-          <td class="px-3 py-2 text-right text-[11px] font-semibold text-slate-700" colspan="${config.showKeterangan ? 3 : 2}">Total Dibayar</td>
-          <td class="px-3 py-2 text-right text-[11px] font-bold text-slate-800" colspan="1">Rp 500.000</td>
+          <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-700" colspan="${config.showKeterangan ? 3 : 2}">Total Dibayar</th>
+          <th class="px-3 py-2 text-right text-[11px] font-bold text-slate-800" colspan="1">{{nominal}}</th>
         </tr>
-      </tbody>
+      </tfoot>
     </table>
   </div>
 
