@@ -119,12 +119,15 @@ export async function triggerReceiptNotification(deps: WhatsAppDeps, paymentId: 
       .eq("id", invoice.student_id)
       .eq("school_id", schoolId)
       .maybeSingle();
-    student = result.data as StudentRow | null;
+    const resolvedStudent = result.data as StudentRow | null;
+    if (!resolvedStudent) return errResult("Siswa pada pembayaran tidak ditemukan.");
+    student = resolvedStudent;
     name = paymentItems.map((item) => { const value = Array.isArray(item.invoices) ? item.invoices[0] : item.invoices; return value?.period_label; }).filter(Boolean).join(", ") || name;
   } else if (payment.payment_method_id) {
     return errResult("Relasi tagihan pada pembayaran tidak ditemukan.");
   }
-  const parentPhone = student?.no_telp_wali || student?.telepon_wali;
+  if (!student) return errResult("Siswa pada pembayaran tidak ditemukan.");
+  const parentPhone = student.no_telp_wali || student.telepon_wali;
   if (!parentPhone) return okResult("Nomor WhatsApp wali belum terdaftar.");
   const receiptUrl = await createReceiptAccessToken(deps, paymentId, schoolId);
   if (!receiptUrl) return errResult("Gagal membuat tautan kuitansi.");

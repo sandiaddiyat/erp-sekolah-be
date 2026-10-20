@@ -15,8 +15,6 @@ import {
   readBulkDeleteInvoiceInput
 } from "@/features/billing/schema";
 import type { FormState } from "@/lib/types";
-export { sendBulkInvoiceWAAction } from "../pengaturan-wa/actions";
-
 export type { FormState };
 
 export async function runGenerateInvoices(_prevState: FormState, formData: FormData): Promise<FormState> {

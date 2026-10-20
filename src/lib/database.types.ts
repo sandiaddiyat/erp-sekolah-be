@@ -796,6 +796,9 @@ export interface Database {
           nama_wali: string | null;
           pekerjaan_wali: string | null;
           no_telp_wali: string | null;
+          telepon_wali: string | null;
+          telegram_chat_id: string | null;
+          telegram_username: string | null;
           alamat_wali_dusun: string | null;
           alamat_wali_rt: string | null;
           alamat_wali_rw: string | null;
@@ -841,6 +844,9 @@ export interface Database {
           nama_wali?: string | null;
           pekerjaan_wali?: string | null;
           no_telp_wali?: string | null;
+          telepon_wali?: string | null;
+          telegram_chat_id?: string | null;
+          telegram_username?: string | null;
           alamat_wali_dusun?: string | null;
           alamat_wali_rt?: string | null;
           alamat_wali_rw?: string | null;
@@ -886,6 +892,9 @@ export interface Database {
           nama_wali?: string | null;
           pekerjaan_wali?: string | null;
           no_telp_wali?: string | null;
+          telepon_wali?: string | null;
+          telegram_chat_id?: string | null;
+          telegram_username?: string | null;
           alamat_wali_dusun?: string | null;
           alamat_wali_rt?: string | null;
           alamat_wali_rw?: string | null;
@@ -2103,6 +2112,110 @@ export interface Database {
             referencedColumns: ["id", "school_id"];
           },
         ];
+      };
+      telegram_settings: {
+        Row: {
+          id: string;
+          school_id: string;
+          bot_token: string;
+          bot_username: string | null;
+          is_active: boolean;
+          auto_send_invoice: boolean;
+          auto_send_receipt: boolean;
+          template_invoice: string;
+          template_receipt: string;
+          webhook_secret: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          bot_token?: string;
+          bot_username?: string | null;
+          is_active?: boolean;
+          auto_send_invoice?: boolean;
+          auto_send_receipt?: boolean;
+          template_invoice?: string;
+          template_receipt?: string;
+          webhook_secret?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          bot_token?: string;
+          bot_username?: string | null;
+          is_active?: boolean;
+          auto_send_invoice?: boolean;
+          auto_send_receipt?: boolean;
+          template_invoice?: string;
+          template_receipt?: string;
+          webhook_secret?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_settings_school_id_key";
+            columns: ["school_id"];
+            isOneToOne: true;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_logs: {
+        Row: {
+          id: string;
+          school_id: string;
+          chat_id: string;
+          recipient_name: string | null;
+          message_type: string;
+          content: string;
+          status: string;
+          response_payload: Json | null;
+          error_message: string | null;
+          invoice_id: string | null;
+          payment_id: string | null;
+          student_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          chat_id: string;
+          recipient_name?: string | null;
+          message_type: string;
+          content: string;
+          status?: string;
+          response_payload?: Json | null;
+          error_message?: string | null;
+          invoice_id?: string | null;
+          payment_id?: string | null;
+          student_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          chat_id?: string;
+          recipient_name?: string | null;
+          message_type?: string;
+          content?: string;
+          status?: string;
+          response_payload?: Json | null;
+          error_message?: string | null;
+          invoice_id?: string | null;
+          payment_id?: string | null;
+          student_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       whatsapp_settings: {
         Row: {

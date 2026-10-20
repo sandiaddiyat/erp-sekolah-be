@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendViaWhatsAppGateway } from "@/features/whatsapp/gateway-client";
+import type { WhatsAppProvider } from "@/lib/types";
 import { formatTemplate } from "@/features/whatsapp/service";
 
 export const runtime = "nodejs";
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     const rekening = (banks ?? []).map((bank) => `- ${bank.bank_name}: ${bank.account_number} an. ${bank.account_holder}`).join("\n");
     reply = `Rincian Tagihan an. ${student.nama_lengkap}:\n${lines || "Tidak ada tunggakan."}\n\nTotal Belum Dibayar: ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(total)}\n\nPembayaran dapat ditransfer ke:\n${rekening || "Silakan hubungi sekolah untuk rekening pembayaran."}`;
   }
-  const response = await sendViaWhatsAppGateway(setting.provider, setting.api_token, sender, reply);
+  const response = await sendViaWhatsAppGateway(setting.provider as WhatsAppProvider, setting.api_token, sender, reply);
   await supabase.from("whatsapp_logs").insert({ school_id: setting.school_id, recipient_phone: sender, message_type: "bot_inbound", content: reply, status: response.ok ? "sent" : "failed", response_payload: response.payload as never, error_message: response.ok ? null : `Provider HTTP ${response.status}`, student_id: student?.id ?? null });
   return NextResponse.json({ ok: response.ok }, { status: response.ok ? 200 : 502 });
 }

@@ -290,6 +290,8 @@ export type Siswa = {
   nama_wali: string | null;
   pekerjaan_wali: string | null;
   no_telp_wali: string | null;
+  telegram_chat_id: string | null;
+  telegram_username: string | null;
   alamat_wali_dusun: string | null;
   alamat_wali_rt: string | null;
   alamat_wali_rw: string | null;
@@ -411,6 +413,41 @@ export type ReceiptAccessToken = {
   expires_at: string;
   view_count: number;
   created_at: string;
+};
+
+export type TelegramLogMessageType = "invoice" | "receipt" | "reminder" | "bot_inbound";
+export type TelegramLogStatus = "pending" | "sent" | "failed";
+
+export type TelegramSettings = {
+  id: string;
+  school_id: string;
+  bot_token: string;
+  bot_username: string | null;
+  is_active: boolean;
+  auto_send_invoice: boolean;
+  auto_send_receipt: boolean;
+  template_invoice: string;
+  template_receipt: string;
+  webhook_secret: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TelegramLog = {
+  id: string;
+  school_id: string;
+  chat_id: string;
+  recipient_name: string | null;
+  message_type: TelegramLogMessageType;
+  content: string;
+  status: TelegramLogStatus;
+  response_payload: Record<string, unknown> | null;
+  error_message: string | null;
+  invoice_id: string | null;
+  payment_id: string | null;
+  student_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ReceiptTemplate = {
