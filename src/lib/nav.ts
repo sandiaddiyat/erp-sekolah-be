@@ -144,6 +144,13 @@ export const MAIN_NAV: NavItem[] = [
     group: "keuangan",
   },
   {
+    title: "Telegram Bot",
+    href: "/keuangan/pengaturan-telegram",
+    icon: "keuangan",
+    permission: PERMISSIONS.financeTelegramView,
+    group: "keuangan",
+  },
+  {
     title: "Akademik",
     href: "/akademik/tahun-ajaran",
     icon: "siswa",

@@ -41,6 +41,7 @@ export default async function SiswaPage() {
         delete: can(current.permissions, PERMISSIONS.studentsDelete, current.isSuperAdmin),
         export: can(current.permissions, PERMISSIONS.studentsExport, current.isSuperAdmin),
         import: can(current.permissions, PERMISSIONS.studentsImport, current.isSuperAdmin),
+        telegramLink: can(current.permissions, PERMISSIONS.studentsUpdate, current.isSuperAdmin) && can(current.permissions, PERMISSIONS.financeTelegramView, current.isSuperAdmin),
       }}
     />
   );

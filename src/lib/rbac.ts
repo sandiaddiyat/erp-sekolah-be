@@ -70,6 +70,8 @@ export const PERMISSIONS = {
   financeReceiptTemplateManage: "finance.receipt_template.manage",
   financeWhatsAppView: "finance.whatsapp_view",
   financeWhatsAppManage: "finance.whatsapp_manage",
+  financeTelegramView: "finance.telegram_view",
+  financeTelegramManage: "finance.telegram_manage",
 
   academicsAttendanceManage: "academics.attendance_manage",
   academicsGradeManage: "academics.grade_manage",

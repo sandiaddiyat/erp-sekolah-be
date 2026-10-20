@@ -134,6 +134,12 @@ describe("updateSession", () => {
     }
   });
 
+  it("membiarkan webhook Telegram tanpa autentikasi aplikasi", async () => {
+    setAuthResult(null);
+    const response = await updateSession(new NextRequest("https://app.test/api/webhooks/telegram/inbound"));
+    expect(getRedirectUrl(response)).toBeNull();
+  });
+
   it("menjaga callback auth tetap public untuk user yang valid", async () => {
     setAuthResult({ id: "user-1" });
     const request = new NextRequest("https://app.test/auth/callback");

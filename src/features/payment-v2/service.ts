@@ -9,6 +9,7 @@ import type {
   RecordPaymentInput,
 } from "./schema";
 import { triggerReceiptNotification } from "@/features/whatsapp/service";
+import { triggerTelegramReceiptNotification } from "@/features/telegram/service";
 
 export type PaymentV2MutationsDeps = { supabase: SupabaseClient<Database> };
 
@@ -245,8 +246,13 @@ export async function recordInvoicePayment(
     await supabase.from("invoices").update({ status: invUpdate.status }).eq("id", invUpdate.id).eq("school_id", schoolId);
   }
 
-  void triggerReceiptNotification({ supabase }, insertedPayment.id, schoolId).catch((error) => {
-    console.error("[whatsapp-receipt] Gagal mengirim notifikasi kuitansi:", error);
+  void Promise.allSettled([
+    triggerReceiptNotification({ supabase }, insertedPayment.id, schoolId),
+    triggerTelegramReceiptNotification({ supabase }, insertedPayment.id, schoolId),
+  ]).then((results) => {
+    for (const result of results) {
+      if (result.status === "rejected") console.error("[receipt-notification] Gagal mengirim notifikasi kuitansi:", result.reason);
+    }
   });
 
   return okResult("Pembayaran berhasil dicatat.");

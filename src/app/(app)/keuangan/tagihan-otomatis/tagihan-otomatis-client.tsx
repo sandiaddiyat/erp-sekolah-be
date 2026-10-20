@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useState, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, FileText, MessageCircleIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, FileText, MessageCircleIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/lib/utils";
 import type { AcademicYear, Invoice, BillingRunLog } from "@/lib/types";
-import { runGenerateInvoices, runDeleteInvoice, runBulkDeleteInvoice, sendBulkInvoiceWAAction } from "./actions";
+import { runGenerateInvoices, runDeleteInvoice, runBulkDeleteInvoice } from "./actions";
+import { sendBulkInvoiceWAAction } from "../pengaturan-wa/actions";
+import { sendBulkInvoiceTelegramAction } from "../pengaturan-telegram/actions";
 import { FinanceDataTable } from "@/components/finance/finance-data-table";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -68,16 +70,18 @@ export function TagihanOtomatisClient({
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [bulkWAState, bulkWAAction, isBulkWASending] = useActionState<FormState, FormData>(sendBulkInvoiceWAAction, undefined);
   const [bulkWAConfirm, setBulkWAConfirm] = useState(false);
+  const [bulkTelegramState, bulkTelegramAction, isBulkTelegramSending] = useActionState<FormState, FormData>(sendBulkInvoiceTelegramAction, undefined);
+  const [bulkTelegramConfirm, setBulkTelegramConfirm] = useState(false);
 
   useEffect(() => {
-    if (bulkWAState?.success) {
-      toast.success(bulkWAState.success);
-      setBulkWAConfirm(false);
-      setSelectedKeys(new Set());
-    } else if (bulkWAState?.error) {
-      toast.error(bulkWAState.error);
-    }
+    if (bulkWAState?.success) toast.success(bulkWAState.success);
+    else if (bulkWAState?.error) toast.error(bulkWAState.error);
   }, [bulkWAState]);
+
+  useEffect(() => {
+    if (bulkTelegramState?.success) toast.success(bulkTelegramState.success);
+    else if (bulkTelegramState?.error) toast.error(bulkTelegramState.error);
+  }, [bulkTelegramState]);
 
   useEffect(() => {
     if (bulkDeleteState?.success) {
@@ -191,6 +195,10 @@ export function TagihanOtomatisClient({
               <form action={bulkWAAction} className="flex items-center gap-2">
                 {Array.from(selectedKeys).map((id) => <input key={id} type="hidden" name="invoice_ids" value={id} />)}
                 {bulkWAConfirm ? <><Button type="button" variant="outline" onClick={() => setBulkWAConfirm(false)} disabled={isBulkWASending} className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold">Batal</Button><Button type="submit" disabled={isBulkWASending} className="h-8 rounded-[9px] bg-[#185743] px-2.5 text-[10px] font-bold text-white hover:bg-[#124936]">{isBulkWASending ? "Mengirim..." : "Ya, kirim WA"}</Button></> : <Button type="button" variant="outline" onClick={() => setBulkWAConfirm(true)} className="h-8 rounded-[9px] border-[#d7e6dc] bg-white px-2.5 text-[10px] font-bold text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5]"><MessageCircleIcon className="mr-1.5 size-3" />Kirim WA</Button>}
+              </form>
+              <form action={bulkTelegramAction} className="flex items-center gap-2">
+                {Array.from(selectedKeys).map((id) => <input key={id} type="hidden" name="invoice_ids" value={id} />)}
+                {bulkTelegramConfirm ? <><Button type="button" variant="outline" onClick={() => setBulkTelegramConfirm(false)} disabled={isBulkTelegramSending} className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold">Batal</Button><Button type="submit" disabled={isBulkTelegramSending} className="h-8 rounded-[9px] bg-[#185743] px-2.5 text-[10px] font-bold text-white hover:bg-[#124936]">{isBulkTelegramSending ? "Mengirim..." : "Ya, kirim Telegram"}</Button></> : <Button type="button" variant="outline" onClick={() => setBulkTelegramConfirm(true)} className="h-8 rounded-[9px] border-[#d7e6dc] bg-white px-2.5 text-[10px] font-bold text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5]"><SendIcon className="mr-1.5 size-3" />Kirim Telegram</Button>}
               </form>
               <form action={bulkDeleteAction} className="flex items-center gap-2">
                 {Array.from(selectedKeys).map((id) => <input key={id} type="hidden" name="ids" value={id} />)}

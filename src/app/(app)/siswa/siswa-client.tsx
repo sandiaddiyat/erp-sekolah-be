@@ -18,6 +18,7 @@ import {
   DownloadIcon,
   FilterIcon,
   ImagePlusIcon,
+  LinkIcon,
   PencilIcon,
   SearchIcon,
   Trash2Icon,
@@ -77,11 +78,12 @@ import {
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
 import type { FormState, Siswa } from "@/lib/types";
 import { deleteSiswa, saveSiswa, updateSiswaStatus } from "./actions";
+import { generateStudentTelegramLinkAction } from "../keuangan/pengaturan-telegram/actions";
 import { exportSiswa } from "./export-action";
 import { importSiswa, type ImportSiswaResult } from "./import-action";
 import type { SiswaOptionLists } from "./page";
 
-type Permissions = { create: boolean; update: boolean; delete: boolean; export: boolean; import: boolean };
+type Permissions = { create: boolean; update: boolean; delete: boolean; export: boolean; import: boolean; telegramLink: boolean };
 
 type ColumnKey =
   | "nis"
@@ -176,6 +178,7 @@ export function SiswaClient({
     NonNullable<ImportSiswaResult["result"]> | null
   >(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [telegramLinkLoading, setTelegramLinkLoading] = useState<string | null>(null);
 
   const agamaName = useMemo(
     () => new Map(options.agama.map((item) => [item.id, item.nama_agama])),
@@ -397,6 +400,23 @@ export function SiswaClient({
       toast.success("Data siswa berhasil diunduh.");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleTelegramLink = async (item: Siswa) => {
+    setTelegramLinkLoading(item.id);
+    try {
+      const result = await generateStudentTelegramLinkAction(item.id);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      if (result.url) {
+        await navigator.clipboard.writeText(result.url);
+        toast.success("Tautan Telegram berhasil disalin.");
+      }
+    } finally {
+      setTelegramLinkLoading(null);
     }
   };
 
@@ -910,8 +930,24 @@ export function SiswaClient({
                       }
                     })}
                     <TableCell className="sticky right-0 z-10 px-3 pr-6 py-3 align-middle bg-white group-hover:bg-[#f6fbf7] shadow-[-8px_0_8px_-8px_#1c44331a]">
-                      {permissions.update || permissions.delete ? (
+                      {permissions.update || permissions.delete || permissions.telegramLink ? (
                         <div className="flex items-center justify-end gap-1">
+                          {permissions.telegramLink ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Salin tautan Telegram"
+                              title={item.telegram_chat_id ? `Terhubung${item.telegram_username ? ` @${item.telegram_username}` : ""}` : "Salin tautan penghubung Telegram"}
+                              disabled={telegramLinkLoading === item.id}
+                              className="border border-[#e1ebe4] bg-[#fff] text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleTelegramLink(item);
+                              }}
+                            >
+                              <LinkIcon className="size-4" />
+                            </Button>
+                          ) : null}
                           {permissions.update ? (
                             <>
                               <Button

@@ -154,6 +154,10 @@ async function runSqlFile(relative, label) {
   try {
     await client.query("begin");
     await client.query(sqlFile(relative));
+    await client.query(
+      "insert into public._erp_migrations (name) values ($1) on conflict (name) do nothing",
+      [label]
+    );
     await client.query("commit");
     console.log("selesai");
   } catch (error) {
@@ -251,12 +255,54 @@ try {
   await client.connect();
   console.log("terhubung\n");
 
+  await client.query(`
+    create table if not exists public._erp_migrations (
+      name text primary key,
+      applied_at timestamptz not null default now()
+    )
+  `);
+  await client.query("revoke all on public._erp_migrations from anon, authenticated");
+
   const migrationsDir = path.join(projectRoot, "supabase", "migrations");
   const migrations = readdirSync(migrationsDir)
     .filter((file) => file.endsWith(".sql"))
     .sort();
+  const { rows: migrationState } = await client.query(
+    "select count(*)::int as total from public._erp_migrations"
+  );
+
+  if (migrationState[0].total === 0) {
+    const { rows: existingTelegram } = await client.query(
+      "select to_regclass('public.telegram_settings') is not null as exists"
+    );
+    const { rows: existingWhatsApp } = await client.query(
+      "select to_regclass('public.whatsapp_settings') is not null as exists"
+    );
+    const baseline = existingTelegram[0].exists
+      ? "0056_telegram_gateway.sql"
+      : existingWhatsApp[0].exists
+        ? "0055_whatsapp_gateway.sql"
+        : null;
+
+    if (baseline) {
+      const applied = migrations.filter((file) => file <= baseline);
+      await client.query(
+        "insert into public._erp_migrations (name) select unnest($1::text[]) on conflict (name) do nothing",
+        [applied]
+      );
+      console.log(`→ Skema lama terdeteksi; ${applied.length} migration sampai ${baseline} ditandai sudah diterapkan.\n`);
+    }
+  }
 
   for (const file of migrations) {
+    const { rows: alreadyApplied } = await client.query(
+      "select 1 from public._erp_migrations where name = $1",
+      [file]
+    );
+    if (alreadyApplied.length > 0) {
+      console.log(`→ ${file}... dilewati (sudah diterapkan)`);
+      continue;
+    }
     await runSqlFile(`supabase/migrations/${file}`, file);
   }
 
