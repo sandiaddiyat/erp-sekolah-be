@@ -12,7 +12,7 @@ import {
   withSessionCookieLimit,
 } from "@/lib/supabase/session-timeout";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/kuitansi", "/api/webhooks/whatsapp"];
 
 type AuthCookie = {
   name: string;

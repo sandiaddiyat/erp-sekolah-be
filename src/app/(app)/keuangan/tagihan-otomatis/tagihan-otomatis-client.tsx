@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useState, useActionState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, FileText, Trash2Icon } from "lucide-react";
+import { PlusIcon, FileText, MessageCircleIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/lib/utils";
 import type { AcademicYear, Invoice, BillingRunLog } from "@/lib/types";
-import { runGenerateInvoices, runDeleteInvoice, runBulkDeleteInvoice } from "./actions";
+import { runGenerateInvoices, runDeleteInvoice, runBulkDeleteInvoice, sendBulkInvoiceWAAction } from "./actions";
 import { FinanceDataTable } from "@/components/finance/finance-data-table";
 
 type FormState = { error?: string; success?: string } | undefined;
@@ -66,6 +66,18 @@ export function TagihanOtomatisClient({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [bulkDeleteState, bulkDeleteAction, isBulkDeleting] = useActionState<FormState, FormData>(runBulkDeleteInvoice, undefined);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkWAState, bulkWAAction, isBulkWASending] = useActionState<FormState, FormData>(sendBulkInvoiceWAAction, undefined);
+  const [bulkWAConfirm, setBulkWAConfirm] = useState(false);
+
+  useEffect(() => {
+    if (bulkWAState?.success) {
+      toast.success(bulkWAState.success);
+      setBulkWAConfirm(false);
+      setSelectedKeys(new Set());
+    } else if (bulkWAState?.error) {
+      toast.error(bulkWAState.error);
+    }
+  }, [bulkWAState]);
 
   useEffect(() => {
     if (bulkDeleteState?.success) {
@@ -174,46 +186,17 @@ export function TagihanOtomatisClient({
             <CardDescription className="text-[11px] text-[#8b9f95]">{invoices.length} tagihan tersedia</CardDescription>
           </div>
           {selectedKeys.size > 0 && canManage && (
-            <form action={bulkDeleteAction}>
-              {Array.from(selectedKeys).map((id) => (
-                <input key={id} type="hidden" name="ids" value={id} />
-              ))}
-              {bulkDeleteConfirm ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground mr-2">{selectedKeys.size} tagihan dipilih</span>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setBulkDeleteConfirm(false)}
-                    disabled={isBulkDeleting}
-                    className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold"
-                  >
-                    Batal
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    variant="destructive" 
-                    disabled={isBulkDeleting}
-                    className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold"
-                  >
-                    {isBulkDeleting ? "Menghapus..." : "Ya, Hapus Terpilih"}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-[#537467] font-medium">{selectedKeys.size} tagihan dipilih</span>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setBulkDeleteConfirm(true)}
-                    className="h-8 rounded-[9px] border-[#ffd5d5] bg-[#fff5f5] px-2.5 text-[10px] font-bold text-[#c23a3a] shadow-none hover:border-[#ffbaba] hover:bg-[#ffebeb]"
-                  >
-                    <Trash2Icon className="mr-1.5 size-3" />
-                    Hapus Terpilih
-                  </Button>
-                </div>
-              )}
-            </form>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="mr-1 text-xs font-medium text-[#537467]">{selectedKeys.size} tagihan dipilih</span>
+              <form action={bulkWAAction} className="flex items-center gap-2">
+                {Array.from(selectedKeys).map((id) => <input key={id} type="hidden" name="invoice_ids" value={id} />)}
+                {bulkWAConfirm ? <><Button type="button" variant="outline" onClick={() => setBulkWAConfirm(false)} disabled={isBulkWASending} className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold">Batal</Button><Button type="submit" disabled={isBulkWASending} className="h-8 rounded-[9px] bg-[#185743] px-2.5 text-[10px] font-bold text-white hover:bg-[#124936]">{isBulkWASending ? "Mengirim..." : "Ya, kirim WA"}</Button></> : <Button type="button" variant="outline" onClick={() => setBulkWAConfirm(true)} className="h-8 rounded-[9px] border-[#d7e6dc] bg-white px-2.5 text-[10px] font-bold text-[#4b8669] hover:border-[#9bc5a8] hover:bg-[#f4faf5]"><MessageCircleIcon className="mr-1.5 size-3" />Kirim WA</Button>}
+              </form>
+              <form action={bulkDeleteAction} className="flex items-center gap-2">
+                {Array.from(selectedKeys).map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
+                {bulkDeleteConfirm ? <><Button type="button" variant="outline" onClick={() => setBulkDeleteConfirm(false)} disabled={isBulkDeleting} className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold">Batal</Button><Button type="submit" variant="destructive" disabled={isBulkDeleting} className="h-8 rounded-[9px] px-2.5 text-[10px] font-bold">{isBulkDeleting ? "Menghapus..." : "Ya, hapus"}</Button></> : <Button type="button" variant="outline" onClick={() => setBulkDeleteConfirm(true)} className="h-8 rounded-[9px] border-[#ffd5d5] bg-[#fff5f5] px-2.5 text-[10px] font-bold text-[#c23a3a] shadow-none hover:border-[#ffbaba] hover:bg-[#ffebeb]"><Trash2Icon className="mr-1.5 size-3" />Hapus</Button>}
+              </form>
+            </div>
           )}
         </CardHeader>
         <CardContent className="px-0 pt-6">

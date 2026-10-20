@@ -11,11 +11,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { FieldLabel } from "@/features/pegawai/FieldLabel";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatRupiah } from "@/lib/utils";
+import { cn, formatRupiah } from "@/lib/utils";
 import type { Invoice, PaymentMethod, BankAccount, Siswa, InvoiceStatus } from "@/lib/types";
 import { savePaymentMethod, deletePaymentMethod, saveBankAccount, deleteBankAccount, recordPaymentV2 } from "./actions";
 
@@ -56,6 +54,7 @@ export function RekonsiliasiClient({
   summary: Record<InvoiceStatus, { count: number; total: number }>;
   canManage: boolean;
 }) {
+  const [activeTab, setActiveTab] = useState<"invoices" | "methods" | "banks">("invoices");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
   const [viewingInvoice, setViewingInvoice] = useState<InvoiceRow | null>(null);
@@ -82,6 +81,22 @@ export function RekonsiliasiClient({
   );
 
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
+
+  const selectedInvoices = useMemo(
+    () => invoices.filter((invoice) => selectedInvoiceIds.has(invoice.id)),
+    [invoices, selectedInvoiceIds]
+  );
+  const canPrintSelected = useMemo(() => {
+    if (selectedInvoices.length === 0 || selectedInvoices.some((invoice) => invoice.is_legacy_bill || invoice.status !== "lunas")) return false;
+    const studentId = selectedInvoices[0].student_id;
+    return selectedInvoices.every((invoice) => invoice.student_id === studentId);
+  }, [selectedInvoices]);
+
+  const handlePrintSelected = () => {
+    if (!canPrintSelected) return;
+    const invoiceIds = selectedInvoices.map((invoice) => invoice.id).join(",");
+    window.open(`/keuangan/kuitansi/print?invoices=${encodeURIComponent(invoiceIds)}`, "_blank", "noopener,noreferrer");
+  };
 
   const handleDeleteMethod = (target: PaymentMethod) => {
     if (!canManage) return;
@@ -177,39 +192,78 @@ export function RekonsiliasiClient({
         </Card>
       </div>
 
-      <Tabs defaultValue="invoices" className="w-full">
-        <TabsList variant="line" className="w-full border-b border-[#e5eee8]">
-          <TabsTrigger value="invoices" className="gap-2 text-[12px] font-semibold tracking-[0] text-[#537467] data-[active]:border-b-2 data-[active]:border-[#185743] data-[active]:bg-transparent data-[active]:text-[#185743] data-[active]:shadow-none">Daftar Tagihan</TabsTrigger>
-          <TabsTrigger value="methods" className="gap-2 text-[12px] font-semibold tracking-[0] text-[#537467] data-[active]:border-b-2 data-[active]:border-[#185743] data-[active]:bg-transparent data-[active]:text-[#185743] data-[active]:shadow-none">Metode Pembayaran</TabsTrigger>
-          <TabsTrigger value="banks" className="gap-2 text-[12px] font-semibold tracking-[0] text-[#537467] data-[active]:border-b-2 data-[active]:border-[#185743] data-[active]:bg-transparent data-[active]:text-[#185743] data-[active]:shadow-none">Rekening Sekolah</TabsTrigger>
-        </TabsList>
+      <div className="flex w-full border-b border-[#e5eee8]">
+        <button
+          type="button"
+          onClick={() => setActiveTab("invoices")}
+          className={cn(
+            "relative pb-3 pt-1 px-4 text-[12px] font-semibold transition-colors outline-none",
+            activeTab === "invoices"
+              ? "text-[#185743] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#185743]"
+              : "text-[#537467] hover:text-[#2b7254]"
+          )}
+        >
+          Daftar Tagihan
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("methods")}
+          className={cn(
+            "relative pb-3 pt-1 px-4 text-[12px] font-semibold transition-colors outline-none",
+            activeTab === "methods"
+              ? "text-[#185743] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#185743]"
+              : "text-[#537467] hover:text-[#2b7254]"
+          )}
+        >
+          Metode Pembayaran
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("banks")}
+          className={cn(
+            "relative pb-3 pt-1 px-4 text-[12px] font-semibold transition-colors outline-none",
+            activeTab === "banks"
+              ? "text-[#185743] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#185743]"
+              : "text-[#537467] hover:text-[#2b7254]"
+          )}
+        >
+          Rekening Sekolah
+        </button>
+      </div>
 
-        <TabsContent value="invoices" className="space-y-4">
+      {activeTab === "invoices" && (
+        <div className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
               {selectedInvoiceIds.size > 0 && canManage && (
-                <Button size="sm" onClick={() => {
-                  const selectedInvoices = invoices.filter((invoice) =>
-                    selectedInvoiceIds.has(invoice.id) && !invoice.is_legacy_bill
-                  );
-                  openPaymentDialog(selectedInvoices);
-                }} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
+                <Button size="sm" onClick={() => openPaymentDialog(selectedInvoices.filter((invoice) => !invoice.is_legacy_bill))} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
                   <Banknote className="size-4" />
                   Bayar {selectedInvoiceIds.size} Terpilih
                 </Button>
               )}
+              {canPrintSelected && (
+                <Button size="sm" variant="outline" onClick={handlePrintSelected} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-white px-4 text-[11px] font-bold text-[#185743] shadow-sm hover:bg-[#f4faf5]">
+                  <PrinterIcon className="size-4" />
+                  Cetak {selectedInvoices.length} Kuitansi Terpilih
+                </Button>
+              )}
             </div>
             <div className="flex justify-end">
-              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as InvoiceStatus | "all"); setQuery(""); }}>
-                <SelectTrigger className="w-48 border-[#e2ece5] text-xs"><SelectValue placeholder="Filter status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="belum_bayar">Belum Bayar</SelectItem>
-                  <SelectItem value="sebagian">Sebagian</SelectItem>
-                  <SelectItem value="lunas">Lunas</SelectItem>
-                  <SelectItem value="batal">Batal</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                suppressHydrationWarning
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value as InvoiceStatus | "all");
+                  setQuery("");
+                }}
+                className="h-9 w-48 rounded-[9px] border border-[#e2ece5] bg-white px-3 text-xs text-[#284a3d] outline-none transition-colors focus:border-[#78ad8a] focus:ring-3 focus:ring-[#4f9970]/10"
+              >
+                <option value="all">Semua Status</option>
+                <option value="belum_bayar">Belum Bayar</option>
+                <option value="sebagian">Sebagian</option>
+                <option value="lunas">Lunas</option>
+                <option value="batal">Batal</option>
+              </select>
             </div>
           </div>
 
@@ -242,6 +296,11 @@ export function RekonsiliasiClient({
                 actions={(invoice) => {
                   const remaining = Math.max(0, Number(invoice.total_amount) - (paidByInvoice[invoice.id] ?? 0));
                   const paymentId = latestPaymentByInvoice[invoice.id];
+                  const printUrl = canPrintSelected && selectedInvoiceIds.has(invoice.id)
+                    ? `/keuangan/kuitansi/print?invoices=${encodeURIComponent(selectedInvoices.map((selected) => selected.id).join(","))}`
+                    : paymentId
+                      ? `/keuangan/kuitansi/${paymentId}/print`
+                      : null;
                   return (
                     <div className="flex items-center justify-end gap-1">
                       {canManage && remaining > 0 && !invoice.is_legacy_bill && (
@@ -252,8 +311,8 @@ export function RekonsiliasiClient({
                       {invoice.is_legacy_bill && (
                         <span className="text-[9px] text-[#8b9f95] mr-2">Via SPP & Keuangan</span>
                       )}
-                      {paymentId && (
-                        <Button variant="ghost" size="icon-sm" aria-label="Cetak kuitansi" className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); window.open(`/keuangan/kuitansi/${paymentId}/print`, "_blank", "noopener,noreferrer"); }}>
+                      {printUrl && (
+                        <Button variant="ghost" size="icon-sm" aria-label={canPrintSelected && selectedInvoiceIds.has(invoice.id) ? "Cetak kuitansi terpilih" : "Cetak kuitansi"} className="border border-[#e1ebe4] bg-white text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5] hover:text-[#2b7254]" onClick={(event) => { event.stopPropagation(); window.open(printUrl, "_blank", "noopener,noreferrer"); }}>
                           <PrinterIcon className="size-4" />
                         </Button>
                       )}
@@ -263,9 +322,11 @@ export function RekonsiliasiClient({
               />
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="methods" className="space-y-4">
+      {activeTab === "methods" && (
+        <div className="space-y-4">
           {canManage && (
             <Button size="sm" onClick={openMethodForm} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
               <PlusIcon className="size-4" />
@@ -300,9 +361,11 @@ export function RekonsiliasiClient({
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="banks" className="space-y-4">
+      {activeTab === "banks" && (
+        <div className="space-y-4">
           {canManage && (
             <Button size="sm" onClick={openBankForm} className="h-9 gap-2 rounded-[9px] border border-[#185743] bg-[#185743] px-4 text-[11px] font-bold text-white shadow-[0_5px_12px_rgb(24_87_67/15%)] hover:bg-[#124936]">
               <PlusIcon className="size-4" />
@@ -337,8 +400,8 @@ export function RekonsiliasiClient({
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       <Dialog open={Boolean(viewingInvoice)} onOpenChange={(open) => !open && setViewingInvoice(null)}>
         <DialogContent className="flex max-h-[min(92vh,900px)] flex-col gap-0 overflow-hidden border-0 ring-1 ring-[#dbe8df] sm:max-w-[560px] rounded-[17px] bg-[#fbfdfb] shadow-[0_24px_70px_rgb(13_50_35/22%)] p-0">

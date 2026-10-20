@@ -2104,6 +2104,158 @@ export interface Database {
           },
         ];
       };
+      whatsapp_settings: {
+        Row: {
+          id: string;
+          school_id: string;
+          provider: string;
+          api_token: string;
+          sender_number: string | null;
+          is_active: boolean;
+          auto_send_invoice: boolean;
+          auto_send_receipt: boolean;
+          template_invoice: string;
+          template_receipt: string;
+          webhook_secret: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          provider?: string;
+          api_token?: string;
+          sender_number?: string | null;
+          is_active?: boolean;
+          auto_send_invoice?: boolean;
+          auto_send_receipt?: boolean;
+          template_invoice?: string;
+          template_receipt?: string;
+          webhook_secret?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          provider?: string;
+          api_token?: string;
+          sender_number?: string | null;
+          is_active?: boolean;
+          auto_send_invoice?: boolean;
+          auto_send_receipt?: boolean;
+          template_invoice?: string;
+          template_receipt?: string;
+          webhook_secret?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_settings_school_id_key";
+            columns: ["school_id"];
+            isOneToOne: true;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      whatsapp_logs: {
+        Row: {
+          id: string;
+          school_id: string;
+          recipient_phone: string;
+          recipient_name: string | null;
+          message_type: string;
+          content: string;
+          status: string;
+          response_payload: Json | null;
+          error_message: string | null;
+          invoice_id: string | null;
+          payment_id: string | null;
+          student_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          recipient_phone: string;
+          recipient_name?: string | null;
+          message_type: string;
+          content: string;
+          status?: string;
+          response_payload?: Json | null;
+          error_message?: string | null;
+          invoice_id?: string | null;
+          payment_id?: string | null;
+          student_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          recipient_phone?: string;
+          recipient_name?: string | null;
+          message_type?: string;
+          content?: string;
+          status?: string;
+          response_payload?: Json | null;
+          error_message?: string | null;
+          invoice_id?: string | null;
+          payment_id?: string | null;
+          student_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      receipt_access_tokens: {
+        Row: {
+          id: string;
+          school_id: string;
+          payment_id: string;
+          token: string;
+          expires_at: string;
+          view_count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_id: string;
+          payment_id: string;
+          token?: string;
+          expires_at?: string;
+          view_count?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          school_id?: string;
+          payment_id?: string;
+          token?: string;
+          expires_at?: string;
+          view_count?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "receipt_access_tokens_school_id_fkey";
+            columns: ["school_id"];
+            isOneToOne: false;
+            referencedRelation: "schools";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "receipt_access_tokens_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       receipt_templates: {
         Row: {
           id: string;

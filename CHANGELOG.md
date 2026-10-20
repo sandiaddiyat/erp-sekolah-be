@@ -38,7 +38,15 @@ Format penulisan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.
   - **Mode Semi-otomatis**: `generateDraftPlacement` membagikan siswa yang belum ditempatkan ke kelas secara round-robin dan melewati kelas yang penuh, menghasilkan baris berstatus `draft`.
   - **Finalisasi Draft**: `finalizePlacementRecord` mengubah seluruh draft pada tahun ajaran terpilih menjadi `final`.
   - Migration `0043_placement.sql` menambahkan kolom `student_enrollments.placement_status` (`draft`/`final`, default `final`) beserta check constraint dan index.
-  - Validasi dan service baru di `src/features/akademik/` (`savePlacementSchema`, `generateDraftPlacementSchema`, `savePlacementRecord`, `fetchUnplacedStudents`, `generateDraftPlacement`, `finalizePlacementRecord`) dengan Server Actions dilindungi `guardAction()`.
+- **WhatsApp Gateway & Otomasi Kuitansi (Issue WhatsApp Gateway)**: Otomasi pengiriman tagihan, kuitansi digital, dan bot cek tagihan via WhatsApp:
+  - Migrasi database `0055_whatsapp_gateway.sql`: tabel `whatsapp_settings`, `whatsapp_logs`, `receipt_access_tokens`, trigger `set_updated_at`, RLS policies, dan grant ke role `admin_sekolah` serta `bendahara`.
+  - Permission baru: `finance.whatsapp_view` dan `finance.whatsapp_manage` di `src/lib/rbac.ts`.
+  - Menu baru "WhatsApp & Notifikasi" di sidebar keuangan (`src/lib/nav.ts`).
+  - Feature module `src/features/whatsapp/`: integrasi API Fonnte & Wablas, normalisasi nomor HP Indonesia, substitusi variabel template, serta fallback base URL dan dual phone column (`no_telp_wali` / `telepon_wali`).
+  - Halaman kuitansi publik bertoken aman di `/kuitansi/v/[token]` yang dapat dibuka dan dicetak oleh wali murid tanpa perlu autentikasi.
+  - Route handler webhook `/api/webhooks/whatsapp/inbound` untuk membalas otomatis perintah `#CEKTAGIHAN` atau `#TAGIHAN` dengan rincian tunggakan dan rekening tujuan.
+  - Halaman UI di `/keuangan/pengaturan-wa` untuk konfigurasi token, template pesan, tes kirim WhatsApp, dan pemantauan riwayat log pengiriman.
+  - Tombol "Kirim WA" pada pilihan masal invoice di `/keuangan/tagihan-otomatis`.
 
 ### Changed (Diubah)
 - **Unifikasi Skema Biaya (Issue #127)**: Form pembuatan tagihan manual di `/keuangan` kini merujuk langsung ke Skema Biaya (`fee_structures`) melalui kolom `fee_structure_id` pada tabel `bills` (migrasi `0048_unify_fee_structures.sql`). Dropdown "Jenis Tagihan" pada dialog tagihan manual diganti dengan "Skema Biaya" yang auto-fill nominal dan deskripsi. Kolom `bill_item_id` pada `bills` tetap ada (nullable) untuk backward compatibility data historis.

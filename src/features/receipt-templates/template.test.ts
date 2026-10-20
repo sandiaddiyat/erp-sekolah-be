@@ -11,12 +11,13 @@ describe("receipt template utilities", () => {
     expect(result.html).toContain("Rp10.000");
   });
 
-  it("mempertahankan baris tabel rincian yang dibuat server", () => {
+  it("mempertahankan seluruh baris tabel kuitansi multi-tagihan", () => {
     const result = renderReceiptTemplate(
       { content_html: "<table><tbody>{{rincian_biaya}}</tbody></table>", content_css: "" },
-      { rincian_biaya: "<tr><td>SPP</td></tr>" }
+      { rincian_biaya: "<tr><td>1</td><td>SPP Januari</td></tr><tr><td>2</td><td>SPP Februari</td></tr>" }
     );
-    expect(result.html).toContain("<tr><td>SPP</td></tr>");
+    expect(result.html).toContain("SPP Januari");
+    expect(result.html).toContain("SPP Februari");
     expect(result.html).not.toContain("&lt;tr&gt;");
   });
 

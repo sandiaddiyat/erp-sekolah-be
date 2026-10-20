@@ -139,7 +139,10 @@ export function FinanceDataTable<T>({
         ) : null}
         {showColumnToggle ? (
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[#e2ece5] bg-white px-2.5 text-xs font-medium text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5]">
+            <DropdownMenuTrigger
+              suppressHydrationWarning
+              className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[#e2ece5] bg-white px-2.5 text-xs font-medium text-[#537467] hover:border-[#b8d6c0] hover:bg-[#f4faf5]"
+            >
               <Columns3Icon className="size-4 text-[#4d8669]" /> Kolom
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 border-[#e2ece5] bg-white">
